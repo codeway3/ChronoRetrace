@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pandas
+requests
+tushare
+yfinance
+akshare
+python-dotenv
+psycopg2-binary
+pydantic-settings
+fastapi-cache2[redis]
+redis
