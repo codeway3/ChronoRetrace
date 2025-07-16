@@ -1,0 +1,22 @@
+from pydantic import BaseModel
+from datetime import date
+from typing import List
+
+class CorporateActionBase(BaseModel):
+    symbol: str
+    action_type: str
+    ex_date: date
+    value: float
+
+class CorporateActionCreate(CorporateActionBase):
+    pass
+
+class CorporateActionInDB(CorporateActionBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+class CorporateActionResponse(BaseModel):
+    symbol: str
+    actions: List[CorporateActionInDB]

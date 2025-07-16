@@ -16,19 +16,19 @@ const MainLayout = ({ children }) => {
         </div>
         <Menu theme="dark" mode="inline" defaultSelectedKeys={['1']}>
           <Menu.Item key="1" icon={<LineChartOutlined />}>
-            A-Share Market
+            A股市场
           </Menu.Item>
           <Menu.Item key="2" icon={<DollarOutlined />} disabled>
-            US Market (Soon)
+            美股市场 (即将推出)
           </Menu.Item>
           <Menu.Item key="3" icon={<GlobalOutlined />} disabled>
-            Crypto (Soon)
+            加密货币 (即将推出)
           </Menu.Item>
         </Menu>
       </Sider>
       <Layout>
         <Header style={{ background: '#fff', padding: '0 16px' }}>
-            <h2 style={{margin: 0}}>Financial Regression Testing Tool</h2>
+            <h2 style={{margin: 0}}>金融回归测试工具</h2>
         </Header>
         <Content style={{ margin: '24px 16px 0' }}>
           <div style={{ padding: 24, background: '#fff', minHeight: 360 }}>

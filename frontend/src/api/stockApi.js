@@ -18,3 +18,15 @@ export const getAllStocks = () => {
 export const getStockData = (tsCode, interval = 'daily') => {
   return apiClient.get(`/stocks/${tsCode}?interval=${interval}`);
 };
+
+export const getFundamentalData = (symbol) => {
+  return apiClient.get(`/stocks/${symbol}/fundamentals`);
+};
+
+export const getCorporateActions = (symbol) => {
+  return apiClient.get(`/stocks/${symbol}/corporate-actions`);
+};
+
+export const getAnnualEarnings = (symbol) => {
+  return apiClient.get(`/stocks/${symbol}/annual-earnings`);
+};

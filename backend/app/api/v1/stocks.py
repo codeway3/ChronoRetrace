@@ -1,13 +1,22 @@
 import akshare as ak
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta, date
+import asyncio
+
+from starlette.concurrency import run_in_threadpool
 
 from app.db.session import get_db
 from app.schemas.stock import StockInfo
+from app.schemas.fundamental import FundamentalDataInDB
+from app.schemas.corporate_action import CorporateActionResponse
+from app.schemas.annual_earnings import AnnualEarningsInDB
 from app.services import data_fetcher
+from app.db import models
+
 
 router = APIRouter()
 
@@ -30,7 +39,6 @@ def get_all_stock_list(db: Session = Depends(get_db)):
     Get all A-share stocks from the local database cache.
     """
     try:
-        # This part can remain as it is, since it's about the stock list, not historical data.
         stocks = data_fetcher.get_all_stocks_list(db)
         if not stocks:
             raise HTTPException(status_code=503, detail="Stock list is empty.")
@@ -44,89 +52,117 @@ def get_trade_date(offset: int = 0) -> str:
     return (datetime.now() - timedelta(days=offset)).strftime("%Y%m%d")
 
 @router.get("/{stock_code}")
-def get_stock_data(
+async def get_stock_data(
     stock_code: str,
     interval: str = Query("daily", enum=["minute", "5day", "daily", "weekly", "monthly"]),
     trade_date: Optional[date] = Query(None, description="Date for 'minute' or '5day' interval, format YYYY-MM-DD")
 ):
     """
     Get historical or intraday data for a specific stock using AKShare.
-    - **minute**: Intraday minute-level data for a specific `trade_date`.
-    - **5day**: Intraday minute-level data for the last 5 trading days up to `trade_date`.
-    - **daily, weekly, monthly**: Historical K-line data with moving averages.
+    This endpoint is asynchronous and uses a thread pool for blocking I/O.
     """
-    # Convert stock_code from "600519.SH" to "sh600519" or "sz000001" for AKShare
-    code_parts = stock_code.split('.')
-    if len(code_parts) != 2:
+    if '.' not in stock_code:
         raise HTTPException(status_code=400, detail="Invalid stock_code format. Expected format: '<code>.<market>' (e.g., '600519.SH')")
-    
-    ak_code = f"{code_parts[1].lower()}{code_parts[0]}"
 
     try:
-        if interval == "minute":
-            if not trade_date:
-                trade_date = date.today()
-            
-            date_str = trade_date.strftime("%Y%m%d")
-            df = ak.stock_zh_a_hist_min_em(symbol=code_parts[0], start_date=date_str, end_date=date_str, period='1', adjust='')
-            if df.empty:
-                return []
-            
-            df.rename(columns={"时间": "trade_date", "开盘": "open", "收盘": "close", "最高": "high", "最低": "low", "成交量": "vol", "成交额": "amount", "均价": "avg_price"}, inplace=True)
-            return df.to_dict('records')
+        # Run the synchronous, blocking function in a thread pool
+        df = await run_in_threadpool(
+            data_fetcher.fetch_stock_data_from_akshare,
+            stock_code=stock_code,
+            interval=interval,
+            trade_date=trade_date
+        )
 
-        elif interval == "5day":
-            if not trade_date:
-                trade_date = date.today()
-
-            # Get the last 5 trading days
-            trade_cal = ak.tool_trade_date_hist_sina()
-            trade_cal['trade_date'] = pd.to_datetime(trade_cal['trade_date']).dt.date
-            
-            # Filter for dates up to the selected trade_date
-            recent_dates = trade_cal[trade_cal['trade_date'] <= trade_date].tail(5)
-            
-            all_dfs = []
-            for dt in recent_dates['trade_date']:
-                date_str = dt.strftime("%Y%m%d")
-                try:
-                    df_day = ak.stock_zh_a_hist_min_em(symbol=code_parts[0], start_date=date_str, end_date=date_str, period='1', adjust='')
-                    if not df_day.empty:
-                        all_dfs.append(df_day)
-                except Exception:
-                    continue # Ignore days with no data (e.g., holidays)
-            
-            if not all_dfs:
-                return []
-                
-            df = pd.concat(all_dfs)
-            df.rename(columns={"时间": "trade_date", "开盘": "open", "收盘": "close", "最高": "high", "最低": "low", "成交量": "vol", "成交额": "amount", "均价": "avg_price"}, inplace=True)
-            return df.to_dict('records')
-
-        else: # daily, weekly, monthly
-            period_map = {"daily": "daily", "weekly": "weekly", "monthly": "monthly"}
-            adjust_map = "qfq" # 前复权
-
-            # Fetch a long range of data to calculate MAs properly
-            start_date = (datetime.now() - timedelta(days=15 * 365)).strftime("%Y%m%d")
-            end_date = datetime.now().strftime("%Y%m%d")
-
-            df = ak.stock_zh_a_hist(symbol=code_parts[0], period=period_map[interval], start_date=start_date, end_date=end_date, adjust=adjust_map)
-            if df.empty:
-                return []
-
-            # Calculate Moving Averages
-            for ma in [5, 10, 20, 60]:
-                df[f'ma{ma}'] = df['收盘'].rolling(window=ma).mean()
-
-            df.rename(columns={"日期": "trade_date", "开盘": "open", "收盘": "close", "最高": "high", "最低": "low", "成交量": "vol", "成交额": "amount"}, inplace=True)
-            
-            # Convert date format and drop rows with NaN MAs
-            df['trade_date'] = pd.to_datetime(df['trade_date']).dt.strftime('%Y-%m-%d')
-            df.dropna(inplace=True)
-
-            return df.to_dict('records')
+        if df.empty:
+            return []
+        
+        return df.to_dict('records')
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch data from AKShare: {str(e)}")
+        # The service function re-raises exceptions, so we can catch them here
+        raise HTTPException(status_code=500, detail=f"Failed to fetch data: {str(e)}")
 
+
+@router.post("/{symbol}/sync", status_code=202)
+async def sync_data_for_symbol(symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """
+    Trigger a background task to fetch and store fundamental and corporate action data
+    for a given stock symbol.
+    """
+    resolved_symbol = data_fetcher.resolve_symbol(db, symbol)
+    if not resolved_symbol:
+        raise HTTPException(status_code=404, detail=f"Symbol '{symbol}' not found.")
+
+    background_tasks.add_task(data_fetcher.sync_financial_data, resolved_symbol)
+    return {"message": f"Data synchronization for {resolved_symbol} has been started in the background."}
+
+
+@router.get("/{symbol}/fundamentals", response_model=FundamentalDataInDB)
+async def get_fundamental_data(symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """
+    Get fundamental data for a given stock symbol.
+    Triggers a background sync if data is missing or stale (older than 24 hours).
+    """
+    resolved_symbol = data_fetcher.resolve_symbol(db, symbol)
+    if not resolved_symbol:
+        raise HTTPException(status_code=404, detail=f"Symbol '{symbol}' not found.")
+
+    # --- Temporary change for debugging: Always trigger a sync ---
+    background_tasks.add_task(data_fetcher.sync_financial_data, resolved_symbol)
+    
+    db_data = data_fetcher.get_fundamental_data_from_db(db, resolved_symbol)
+
+    if not db_data:
+        # If data is not available even after triggering sync, ask user to wait
+        return JSONResponse(
+            status_code=status.HTTP_202_ACCEPTED,
+            content={"message": f"Fundamental data for {resolved_symbol} is being synced. Please try again in a moment."}
+        )
+    
+    return db_data
+
+
+@router.get("/{symbol}/corporate-actions", response_model=CorporateActionResponse)
+def get_corporate_actions(symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """
+    Get all corporate actions for a given stock symbol.
+    Triggers a background sync if data is missing.
+    """
+    resolved_symbol = data_fetcher.resolve_symbol(db, symbol)
+    if not resolved_symbol:
+        raise HTTPException(status_code=404, detail=f"Symbol '{symbol}' not found.")
+
+    actions = data_fetcher.get_corporate_actions_from_db(db, resolved_symbol)
+
+    if not actions:
+        background_tasks.add_task(data_fetcher.sync_financial_data, resolved_symbol)
+        return JSONResponse(
+            status_code=status.HTTP_202_ACCEPTED,
+            content={"message": f"Corporate actions for {resolved_symbol} not found. A background sync has been started. Please try again in a moment."}
+        )
+    
+    # Return data that matches the CorporateActionResponse schema
+    return {"symbol": resolved_symbol, "actions": actions}
+
+@router.get("/{symbol}/annual-earnings", response_model=List[AnnualEarningsInDB])
+async def get_annual_earnings(symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """
+    Get annual net profit data for a given stock symbol.
+    Triggers a background sync if data is missing or stale (older than 24 hours).
+    """
+    resolved_symbol = data_fetcher.resolve_symbol(db, symbol)
+    if not resolved_symbol:
+        raise HTTPException(status_code=404, detail=f"Symbol '{symbol}' not found.")
+
+    db_data = data_fetcher.get_annual_earnings_from_db(db, resolved_symbol)
+
+    # Check if data is stale or missing
+    if not db_data or (db_data and (datetime.utcnow() - db_data[0].last_updated) > timedelta(hours=24)):
+        background_tasks.add_task(data_fetcher.sync_financial_data, resolved_symbol)
+        if not db_data: # If no data at all, inform user it's being synced
+            return JSONResponse(
+                status_code=status.HTTP_202_ACCEPTED,
+                content={"message": f"Annual earnings data for {resolved_symbol} is being synced. Please try again in a moment."}
+            )
+    
+    return db_data

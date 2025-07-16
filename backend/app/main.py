@@ -5,6 +5,11 @@ from fastapi_cache import FastAPICache # New import
 from fastapi_cache.backends.redis import RedisBackend # New import
 from redis import asyncio as aioredis # New import
 
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 from app.api.v1 import stocks as stocks_v1
 from app.db.session import engine, SessionLocal
 from app.db import models
