@@ -38,6 +38,11 @@ const AnnualEarningsChart = ({ data, loading, error }) => {
     columnStyle: {
       radius: [20, 20, 0, 0],
     },
+    meta: {
+      net_profit: {
+        formatter: (v) => v ?? 0,
+      },
+    },
     label: {
       position: 'top',
       style: {
@@ -97,7 +102,10 @@ const AnnualEarningsChart = ({ data, loading, error }) => {
           value={yearRange}
           onChange={setYearRange}
           marks={years.reduce((acc, year) => ({ ...acc, [year]: year }), {})}
-          tooltip={{ formatter: (value) => value }}
+          tooltip={{ 
+            formatter: (value) => value ?? 0,
+            open: true 
+          }}
         />
       </div>
       <Column {...config} />
