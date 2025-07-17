@@ -57,7 +57,7 @@ def get_trade_date(offset: int = 0) -> str:
     """Helper to get a valid trade date string."""
     return (datetime.now() - timedelta(days=offset)).strftime("%Y%m%d")
 
-@router.get("/{stock_code}", response_model=List[StockDataInDB])
+@router.get("/{stock_code}", response_model=List[StockDataBase])
 async def get_stock_data(
     stock_code: str,
     interval: str = Query("daily", enum=["minute", "5day", "daily", "weekly", "monthly"]),
@@ -87,20 +87,32 @@ async def get_stock_data(
         
         # Convert DataFrame to list of dicts and ensure all required fields are present
         records = df.to_dict('records')
-        return [StockDataInDB(
-            ts_code=stock_code,
-            trade_date=record.get('trade_date'),
-            open=record.get('open'),
-            high=record.get('high'),
-            low=record.get('low'),
-            close=record.get('close'),
-            pre_close=record.get('pre_close'),
-            change=record.get('change'),
-            pct_chg=record.get('pct_chg'),
-            vol=record.get('vol'),
-            amount=record.get('amount'),
-            interval=interval
-        ) for record in records]
+        valid_records = []
+        for record in records:
+            try:
+                # Skip records with missing trade_date
+                if not record.get('trade_date'):
+                    continue
+                    
+                valid_records.append(StockDataBase(
+                    ts_code=stock_code,
+                    trade_date=record['trade_date'],
+                    open=record.get('open'),
+                    high=record.get('high'),
+                    low=record.get('low'),
+                    close=record.get('close'),
+                    pre_close=record.get('pre_close'),
+                    change=record.get('change'),
+                    pct_chg=record.get('pct_chg'),
+                    vol=record.get('vol'),
+                    amount=record.get('amount'),
+                    interval=interval
+                ))
+            except Exception as e:
+                logger.warning(f"Skipping invalid record: {record}, error: {str(e)}")
+                continue
+                
+        return valid_records
 
     except Exception as e:
         logger.error(f"Failed to fetch stock data: {str(e)}", exc_info=True)
