@@ -20,6 +20,10 @@ from app.db import models
 
 router = APIRouter()
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 DEFAULT_STOCKS = [
     {"ts_code": "000001.SZ", "name": "平安银行"},
     {"ts_code": "600519.SH", "name": "贵州茅台"},
@@ -34,17 +38,19 @@ def get_default_stock_list():
     return DEFAULT_STOCKS
 
 @router.get("/list/all", response_model=List[StockInfo])
-def get_all_stock_list(db: Session = Depends(get_db)):
+def get_all_stock_list(market_type: str = Query("A_share", enum=["A_share", "US_stock"]), db: Session = Depends(get_db)):
     """
-    Get all A-share stocks from the local database cache.
+    Get all stocks for a given market type from the local database cache.
     """
     try:
-        stocks = data_fetcher.get_all_stocks_list(db)
+        stocks = data_fetcher.get_all_stocks_list(db, market_type=market_type)
         if not stocks:
-            raise HTTPException(status_code=503, detail="Stock list is empty.")
+            # It's better to return an empty list than an error if the list is just empty
+            return []
         return stocks
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"An error occurred: {e}")
+        logger.error(f"An error occurred while fetching the stock list for {market_type}: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail=f"An error occurred while fetching the stock list.")
 
 
 def get_trade_date(offset: int = 0) -> str:
@@ -55,21 +61,24 @@ def get_trade_date(offset: int = 0) -> str:
 async def get_stock_data(
     stock_code: str,
     interval: str = Query("daily", enum=["minute", "5day", "daily", "weekly", "monthly"]),
+    market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
     trade_date: Optional[date] = Query(None, description="Date for 'minute' or '5day' interval, format YYYY-MM-DD")
 ):
     """
-    Get historical or intraday data for a specific stock using AKShare.
+    Get historical or intraday data for a specific stock using AKShare or yfinance.
     This endpoint is asynchronous and uses a thread pool for blocking I/O.
     """
-    if '.' not in stock_code:
-        raise HTTPException(status_code=400, detail="Invalid stock_code format. Expected format: '<code>.<market>' (e.g., '600519.SH')")
+    # Validation: A-share codes must have a market suffix.
+    if market_type == "A_share" and '.' not in stock_code:
+        raise HTTPException(status_code=400, detail="Invalid A-share stock_code format. Expected format: '<code>.<market>' (e.g., '600519.SH')")
 
     try:
         # Run the synchronous, blocking function in a thread pool
         df = await run_in_threadpool(
-            data_fetcher.fetch_stock_data_from_akshare,
+            data_fetcher.fetch_stock_data,
             stock_code=stock_code,
             interval=interval,
+            market_type=market_type,
             trade_date=trade_date
         )
 
