@@ -97,15 +97,15 @@ async def get_stock_data(
                 valid_records.append(StockDataBase(
                     ts_code=stock_code,
                     trade_date=record['trade_date'],
-                    open=record.get('open'),
-                    high=record.get('high'),
-                    low=record.get('low'),
-                    close=record.get('close'),
-                    pre_close=record.get('pre_close'),
-                    change=record.get('change'),
-                    pct_chg=record.get('pct_chg'),
-                    vol=record.get('vol'),
-                    amount=record.get('amount'),
+                    open=record.get('open', 0.0) or 0.0,
+                    high=record.get('high', 0.0) or 0.0,
+                    low=record.get('low', 0.0) or 0.0,
+                    close=record.get('close', 0.0) or 0.0,
+                    pre_close=record.get('pre_close', 0.0) or 0.0,
+                    change=record.get('change', 0.0) or 0.0,
+                    pct_chg=record.get('pct_chg', 0.0) or 0.0,
+                    vol=record.get('vol', 0.0) or 0.0,
+                    amount=record.get('amount', 0.0) or 0.0,
                     interval=interval
                 ))
             except Exception as e:
