@@ -10,7 +10,7 @@ import asyncio
 from starlette.concurrency import run_in_threadpool
 
 from app.db.session import get_db
-from app.schemas.stock import StockInfo, StockDataInDB
+from app.schemas.stock import StockInfo, StockDataInDB, StockDataBase
 from app.schemas.fundamental import FundamentalDataInDB
 from app.schemas.corporate_action import CorporateActionResponse
 from app.schemas.annual_earnings import AnnualEarningsInDB
