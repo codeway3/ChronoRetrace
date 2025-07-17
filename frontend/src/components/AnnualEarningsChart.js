@@ -47,7 +47,8 @@ const AnnualEarningsChart = ({ data, loading, error }) => {
     },
     tooltip: {
       formatter: (datum) => {
-        return { name: '净利润', value: `${(datum.net_profit / 100000000).toFixed(2)} 亿元` };
+        const value = datum.net_profit ?? 0;
+        return { name: '净利润', value: `${(value / 100000000).toFixed(2)} 亿元` };
       },
     },
     xAxis: {

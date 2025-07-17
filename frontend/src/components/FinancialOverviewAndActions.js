@@ -99,9 +99,11 @@ const FinancialOverviewAndActions = ({
           let result = `${params[0].name}年<br/>`;
           params.forEach((item) => {
             if (item.seriesName === '净利润') {
-              result += `${item.marker}${item.seriesName}: ${item.value !== null ? `${item.value.toFixed(2)}亿${currencyName}` : 'N/A'}<br/>`;
+              const value = item.value ?? 0;
+              result += `${item.marker}${item.seriesName}: ${value !== null ? `${value.toFixed(2)}亿${currencyName}` : 'N/A'}<br/>`;
             } else if (item.seriesName === '年度分红') {
-              result += `${item.marker}${item.seriesName}: ${item.value !== null ? `${currencySymbol}${item.value.toFixed(4)}` : 'N/A'}<br/>`;
+              const value = item.value ?? 0;
+              result += `${item.marker}${item.seriesName}: ${value !== null ? `${currencySymbol}${value.toFixed(4)}` : 'N/A'}<br/>`;
             }
           });
           return result;

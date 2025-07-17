@@ -67,8 +67,8 @@ const createKlineOption = (data, stockCode, stockName, interval, corporateAction
       type: 'bar', 
       xAxisIndex: 1, 
       yAxisIndex: 1, 
-      data: volumes.map(item => item[1]), 
-      itemStyle: { color: ({ dataIndex }) => volumes[dataIndex][2] === 1 ? '#ef232a' : '#14b143' } 
+      data: volumes.map(item => item[1] ?? 0), 
+      itemStyle: { color: ({ dataIndex }) => volumes[dataIndex]?.[2] === 1 ? '#ef232a' : '#14b143' } 
     },
   ];
 
