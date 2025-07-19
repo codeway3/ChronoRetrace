@@ -1,37 +1,118 @@
-import React from 'react';
-import { Layout, Menu } from 'antd';
-import { LineChartOutlined, DollarOutlined, GlobalOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Layout, Menu, Button, message, Tooltip, Divider } from 'antd';
+import {
+  LineChartOutlined,
+  DollarOutlined,
+  GlobalOutlined,
+  DeleteOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+} from '@ant-design/icons';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { clearCache } from '../api/stockApi';
+import './MainLayout.css'; // 引入 CSS 文件
 
 const { Header, Content, Sider } = Layout;
 
 const MainLayout = ({ children }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [selectedKeys, setSelectedKeys] = useState(['1']);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.startsWith('/a-share')) {
+      setSelectedKeys(['1']);
+    } else if (path.startsWith('/us-stock')) {
+      setSelectedKeys(['2']);
+    } else {
+      setSelectedKeys(['1']);
+    }
+  }, [location.pathname]);
+
+  const handleClearCache = async () => {
+    try {
+      const response = await clearCache();
+      message.success(response.data.message || 'Cache cleared successfully!');
+    } catch (error) {
+      message.error('Failed to clear cache.');
+      console.error('Failed to clear cache:', error);
+    }
+  };
+
+  const siderWidth = collapsed ? 80 : 200;
+
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="main-layout">
       <Sider
+        className="sidebar"
+        collapsible
+        collapsed={collapsed}
+        trigger={null}
         breakpoint="lg"
-        collapsedWidth="0"
+        onBreakpoint={setCollapsed}
+        collapsedWidth="80"
+        width={200}
       >
-        <div style={{ height: '32px', margin: '16px', background: 'rgba(255, 255, 255, 0.2)', color: 'white', textAlign: 'center', lineHeight: '32px', borderRadius: '6px' }}>
-            ChronoRetrace
+        <div className="sidebar-container">
+          <div className="sidebar-body">
+            <div className={`logo ${collapsed ? 'collapsed' : ''}`}>
+              {collapsed ? 'CR' : 'ChronoRetrace'}
+            </div>
+            <Menu
+              theme="dark"
+              mode="inline"
+              selectedKeys={selectedKeys}
+              onSelect={({ key }) => {
+                setSelectedKeys([key]);
+                if (key === '1') navigate('/a-share');
+                else if (key === '2') navigate('/us-stock');
+              }}
+            >
+              <Menu.Item key="1" icon={<LineChartOutlined />}>
+                A股市场
+              </Menu.Item>
+              <Menu.Item key="2" icon={<DollarOutlined />}>
+                美股市场
+              </Menu.Item>
+              <Menu.Item key="3" icon={<GlobalOutlined />} disabled>
+                加密货币 (即将推出)
+              </Menu.Item>
+            </Menu>
+          </div>
+          <div className="sidebar-footer">
+            <div className={`clear-cache-wrapper ${collapsed ? 'collapsed' : ''}`}>
+              <Tooltip title={collapsed ? "清除缓存" : ""} placement="right">
+                <Button
+                  type="primary"
+                  danger
+                  block
+                  icon={<DeleteOutlined />}
+                  onClick={handleClearCache}
+                >
+                  {!collapsed && "清除缓存"}
+                </Button>
+              </Tooltip>
+            </div>
+            <Divider className="sidebar-divider" />
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              className={`collapse-button ${collapsed ? 'collapsed' : ''}`}
+            >
+              {!collapsed && "收起侧栏"}
+            </Button>
+          </div>
         </div>
-        <Menu theme="dark" mode="inline" defaultSelectedKeys={['1']}>
-          <Menu.Item key="1" icon={<LineChartOutlined />}>
-            A股市场
-          </Menu.Item>
-          <Menu.Item key="2" icon={<DollarOutlined />} disabled>
-            美股市场 (即将推出)
-          </Menu.Item>
-          <Menu.Item key="3" icon={<GlobalOutlined />} disabled>
-            加密货币 (即将推出)
-          </Menu.Item>
-        </Menu>
       </Sider>
-      <Layout>
-        <Header style={{ background: '#fff', padding: '0 16px' }}>
-            <h2 style={{margin: 0}}>金融回归测试工具</h2>
+      <Layout className="content-layout" style={{ marginLeft: siderWidth }}>
+        <Header className="main-header">
+          <h2 style={{ margin: 0 }}>金融回归测试工具</h2>
         </Header>
-        <Content style={{ margin: '24px 16px 0' }}>
-          <div style={{ padding: 24, background: '#fff', minHeight: 360 }}>
+        <Content className="main-content">
+          <div className="main-content-inner">
             {children}
           </div>
         </Content>
@@ -41,3 +122,4 @@ const MainLayout = ({ children }) => {
 };
 
 export default MainLayout;
+

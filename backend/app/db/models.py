@@ -19,7 +19,7 @@ class StockData(Base):
     pct_chg = Column(Float)
     vol = Column(Float)
     amount = Column(Float)
-    interval = Column(String, nullable=False, default='daily') # Add interval column
+    interval = Column(String, index=True, nullable=False, default='daily')
 
     __table_args__ = (UniqueConstraint('ts_code', 'trade_date', 'interval', name='_ts_code_trade_date_interval_uc'),)
 
@@ -28,9 +28,10 @@ class StockInfo(Base):
 
     ts_code = Column(String, primary_key=True, index=True, nullable=False)
     name = Column(String, nullable=False)
+    market_type = Column(String, nullable=False, default='A_share') # New column
     last_updated = Column(DateTime, default=datetime.utcnow)
 
-    __table_args__ = (UniqueConstraint('ts_code', name='_ts_code_uc'),)
+    __table_args__ = (UniqueConstraint('ts_code', 'market_type', name='_ts_code_market_type_uc'),)
 
 class FundamentalData(Base):
     __tablename__ = "fundamental_data"

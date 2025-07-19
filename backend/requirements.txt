@@ -6,3 +6,8 @@ alembic
 python-dotenv
 httpx
 baostock
+pandas==1.5.3
+yfinance
+akshare
+yahoo_fin
+requests_html

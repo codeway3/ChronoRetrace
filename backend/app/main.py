@@ -1,16 +1,27 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from fastapi_cache import FastAPICache # New import
-from fastapi_cache.backends.redis import RedisBackend # New import
-from redis import asyncio as aioredis # New import
-
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+from redis import asyncio as aioredis
 import logging
+import warnings
+
+# Suppress the specific FutureWarning from baostock
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    message="The frame.append method is deprecated and will be removed from pandas in a future version. Use pandas.concat instead.",
+    module="baostock.data.resultset"
+)
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.getLogger("yfinance").setLevel(logging.WARNING) # Quieten yfinance's debug messages
+logging.getLogger("urllib3").setLevel(logging.INFO) # Quieten urllib3's debug messages
 
 from app.api.v1 import stocks as stocks_v1
+from app.api.v1 import admin as admin_v1
 from app.db.session import engine, SessionLocal
 from app.db import models
 
@@ -25,11 +36,14 @@ def create_db_and_tables():
         # Check if the table is empty before seeding
         if db.query(models.StockInfo).count() == 0:
             print("Stock info table is empty. Seeding with default stocks...")
-            for stock in stocks_v1.DEFAULT_STOCKS:
-                db_stock = models.StockInfo(ts_code=stock["ts_code"], name=stock["name"])
-                db.add(db_stock)
-            db.commit()
-            print(f"{len(stocks_v1.DEFAULT_STOCKS)} default stocks seeded.")
+            # The DEFAULT_STOCKS list was removed from stocks.py, so this part is commented out.
+            # If seeding is needed, it should be handled by a dedicated script or logic.
+            # for stock in stocks_v1.DEFAULT_STOCKS:
+            #     db_stock = models.StockInfo(ts_code=stock["ts_code"], name=stock["name"])
+            #     db.add(db_stock)
+            # db.commit()
+            # print(f"{len(stocks_v1.DEFAULT_STOCKS)} default stocks seeded.")
+            print("Default stock seeding is currently disabled.")
         else:
             print("Stock info table already contains data. Skipping seeding.")
     finally:
@@ -71,6 +85,7 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(stocks_v1.router, prefix="/api/v1/stocks", tags=["stocks"])
+app.include_router(admin_v1.router, prefix="/api/v1/admin", tags=["admin"])
 
 @app.get("/")
 def read_root():

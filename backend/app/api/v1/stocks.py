@@ -15,6 +15,7 @@ from app.schemas.fundamental import FundamentalDataInDB
 from app.schemas.corporate_action import CorporateActionResponse
 from app.schemas.annual_earnings import AnnualEarningsInDB
 from app.services import data_fetcher
+from fastapi_cache.decorator import cache
 from app.db import models
 
 
@@ -24,23 +25,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_STOCKS = [
-    {"ts_code": "000001.SZ", "name": "平安银行"},
-    {"ts_code": "600519.SH", "name": "贵州茅台"},
-    {"ts_code": "000300.SH", "name": "沪深300"},
-]
 
-@router.get("/list/default", response_model=List[StockInfo])
-def get_default_stock_list():
-    """
-    Get a default list of stocks for the main dashboard.
-    """
-    return DEFAULT_STOCKS
 
 @router.get("/list/all", response_model=List[StockInfo])
+@cache(expire=86400)  # Cache for 24 hours
 def get_all_stock_list(market_type: str = Query("A_share", enum=["A_share", "US_stock"]), db: Session = Depends(get_db)):
     """
     Get all stocks for a given market type from the local database cache.
+    This endpoint is cached for 24 hours.
     """
     try:
         stocks = data_fetcher.get_all_stocks_list(db, market_type=market_type)
@@ -58,6 +50,7 @@ def get_trade_date(offset: int = 0) -> str:
     return (datetime.now() - timedelta(days=offset)).strftime("%Y%m%d")
 
 @router.get("/{stock_code}", response_model=List[StockDataBase])
+@cache(expire=900)  # Cache for 15 minutes
 async def get_stock_data(
     stock_code: str,
     interval: str = Query("daily", enum=["minute", "5day", "daily", "weekly", "monthly"]),
@@ -85,34 +78,15 @@ async def get_stock_data(
         if df.empty:
             return []
         
-        # Convert DataFrame to list of dicts and ensure all required fields are present
+        # Convert DataFrame to list of dicts
         records = df.to_dict('records')
-        valid_records = []
+        
+        # Add ts_code and interval to each record for frontend consistency
         for record in records:
-            try:
-                # Skip records with missing trade_date
-                if not record.get('trade_date'):
-                    continue
-                    
-                valid_records.append(StockDataBase(
-                    ts_code=stock_code,
-                    trade_date=record['trade_date'],
-                    open=record.get('open', 0.0) or 0.0,
-                    high=record.get('high', 0.0) or 0.0,
-                    low=record.get('low', 0.0) or 0.0,
-                    close=record.get('close', 0.0) or 0.0,
-                    pre_close=record.get('pre_close', 0.0) or 0.0,
-                    change=record.get('change', 0.0) or 0.0,
-                    pct_chg=record.get('pct_chg', 0.0) or 0.0,
-                    vol=record.get('vol', 0.0) or 0.0,
-                    amount=record.get('amount', 0.0) or 0.0,
-                    interval=interval
-                ))
-            except Exception as e:
-                logger.warning(f"Skipping invalid record: {record}, error: {str(e)}")
-                continue
-                
-        return valid_records
+            record['ts_code'] = stock_code
+            record['interval'] = interval
+            
+        return records
 
     except Exception as e:
         logger.error(f"Failed to fetch stock data: {str(e)}", exc_info=True)
@@ -143,17 +117,16 @@ async def get_fundamental_data(symbol: str, background_tasks: BackgroundTasks, d
     if not resolved_symbol:
         raise HTTPException(status_code=404, detail=f"Symbol '{symbol}' not found.")
 
-    # --- Temporary change for debugging: Always trigger a sync ---
-    background_tasks.add_task(data_fetcher.sync_financial_data, resolved_symbol)
-    
     db_data = data_fetcher.get_fundamental_data_from_db(db, resolved_symbol)
 
-    if not db_data:
-        # If data is not available even after triggering sync, ask user to wait
-        return JSONResponse(
-            status_code=status.HTTP_202_ACCEPTED,
-            content={"message": f"Fundamental data for {resolved_symbol} is being synced. Please try again in a moment."}
-        )
+    # Check if data is stale or missing
+    if not db_data or (db_data and (datetime.utcnow() - db_data.last_updated) > timedelta(hours=24)):
+        background_tasks.add_task(data_fetcher.sync_financial_data, resolved_symbol)
+        if not db_data: # If no data at all, inform user it's being synced
+            return JSONResponse(
+                status_code=status.HTTP_202_ACCEPTED,
+                content={"message": f"Fundamental data for {resolved_symbol} is being synced. Please try again in a moment."}
+            )
     
     return db_data
 

@@ -1,0 +1,115 @@
+/* frontend/src/layouts/MainLayout.css */
+
+.main-layout {
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 10;
+  transition: width 0.2s;
+}
+
+/* This is the new main container for the sidebar's content */
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* This part contains the logo and menu, and will grow */
+.sidebar-body {
+  flex-grow: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.logo {
+  flex-shrink: 0; /* Prevent logo from shrinking */
+  height: 32px;
+  margin: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  text-align: center;
+  line-height: 32px;
+  border-radius: 6px;
+  font-size: 16px;
+  transition: font-size 0.2s, width 0.2s;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.logo.collapsed {
+  font-size: 12px;
+}
+
+/* This container is for the bottom controls */
+.sidebar-footer {
+  flex-shrink: 0; /* Prevent footer from shrinking */
+  padding-bottom: 8px;
+}
+
+.clear-cache-wrapper {
+  padding: 8px 16px;
+}
+
+.clear-cache-wrapper.collapsed {
+  padding: 8px;
+}
+
+.sidebar-divider {
+  margin: 8px 0;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* --- Collapse Button Styles --- */
+.collapse-button.ant-btn-text {
+  color: rgba(255, 255, 255, 0.65);
+  width: 100%;
+  text-align: left;
+  padding: 0 24px;
+  transition: color 0.3s; /* Only transition color */
+  background-color: transparent !important; /* Ensure no background color is applied */
+}
+
+/* On hover, only make the text/icon brighter, mimicking the menu item hover */
+.collapse-button.ant-btn-text:hover,
+.collapse-button.ant-btn-text:focus {
+  color: #ffffff !important; /* Force color to white on hover/focus */
+  background-color: transparent !important; /* Ensure no background on hover either */
+}
+
+/* Force center alignment for the icon when collapsed */
+.collapse-button.collapsed.ant-btn-text {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.content-layout {
+  transition: margin-left 0.2s;
+}
+
+.main-header {
+  padding: 0 24px;
+  background: #fff;
+}
+
+.main-header h2 {
+  margin: 0;
+}
+
+.main-content {
+  margin: 24px 16px 0;
+  overflow: initial;
+}
+
+.main-content-inner {
+  padding: 24px;
+  background: #fff;
+  min-height: calc(100vh - 112px);
+}

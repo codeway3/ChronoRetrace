@@ -7,16 +7,14 @@ const apiClient = axios.create({
   },
 });
 
-export const getDefaultStocks = () => {
-  return apiClient.get('/stocks/list/default');
+
+
+export const getAllStocks = (marketType = 'A_share') => {
+    return apiClient.get(`/stocks/list/all?market_type=${marketType}`);
 };
 
-export const getAllStocks = () => {
-    return apiClient.get('/stocks/list/all');
-};
-
-export const getStockData = (tsCode, interval = 'daily') => {
-  return apiClient.get(`/stocks/${tsCode}?interval=${interval}`);
+export const getStockData = (tsCode, interval = 'daily', dateStr = null, marketType = 'A_share') => {
+  return apiClient.get(`/stocks/${tsCode}?interval=${interval}${dateStr ? `&trade_date=${dateStr}` : ''}&market_type=${marketType}`);
 };
 
 export const getFundamentalData = (symbol) => {
@@ -29,4 +27,8 @@ export const getCorporateActions = (symbol) => {
 
 export const getAnnualEarnings = (symbol) => {
   return apiClient.get(`/stocks/${symbol}/annual-earnings`);
+};
+
+export const clearCache = () => {
+  return apiClient.post('/admin/clear-cache');
 };

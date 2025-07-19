@@ -117,7 +117,7 @@ const FinancialOverviewAndActions = ({
       ],
       series: [
         { name: '净利润', type: 'bar', tooltip: { valueFormatter: (value) => `${value} 亿${currencyName}` }, data: earningsData },
-        { name: '年度分红', type: 'line', yAxisIndex: 1, tooltip: { valueFormatter: (value) => `${currencySymbol}${value.toFixed(4)}` }, data: dividendsData }
+        { name: '年度分红', type: 'line', yAxisIndex: 1, tooltip: { valueFormatter: (value) => value !== null && value !== undefined ? `${currencySymbol}${value.toFixed(4)}` : 'N/A' }, data: dividendsData }
       ]
     };
 
@@ -174,7 +174,7 @@ const FinancialOverviewAndActions = ({
         />
       </div>
       <div ref={chartRef} style={{ width: '100%', height: '400px' }}></div>
-      <h3 className="timeline-title" style={{marginTop: '20px'}}>分红与拆股历史</h3>
+      <h3 className="timeline-title" style={{marginTop: '20px'}}>分红历史</h3>
       <div className="timeline-scrollable-content">
         <div className="timeline">
           {sortedYearsForTimeline.map(year => (
@@ -185,9 +185,7 @@ const FinancialOverviewAndActions = ({
                   <div className="timeline-content">
                     <span className="action-date">{action.ex_date}</span>
                     <p className="action-description">
-                      {action.action_type === 'dividend'
-                        ? `分红: ${currencySymbol}${action.value.toFixed(4)} 每股`
-                        : `拆股: ${action.value.toFixed(2)} 股拆 1`}
+                      {`分红: ${currencySymbol}${action.value !== null && action.value !== undefined ? action.value.toFixed(4) : 'N/A'} 每股`}
                     </p>
                   </div>
                 </div>

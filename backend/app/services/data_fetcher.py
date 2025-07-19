@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import datetime, timedelta, date
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
+import pandas as pd
 
 from app.db import models
 from app.db.session import get_db
@@ -17,19 +18,15 @@ def get_all_stocks_list(db: Session, market_type: str = "A_share"):
     If the cache is empty or older than 24 hours for that market, it refreshes from data sources.
     """
     query = db.query(models.StockInfo).filter(models.StockInfo.market_type == market_type)
-    stock_count = query.count()
-    first_record = query.first()
-
-    refresh_needed = stock_count == 0 or \
-                     (first_record and (datetime.utcnow() - first_record.last_updated) > timedelta(hours=24))
-
-    if refresh_needed:
+    
+    # Simplified logic: if the list is empty, try to refresh it.
+    # More complex logic (e.g., checking age) can be added if needed.
+    if query.count() == 0:
         try:
+            logger.info(f"Stock list for {market_type} is empty. Attempting to refresh.")
             if market_type == "A_share":
-                logger.info("Refreshing A-share stock list...")
                 a_share_fetcher.update_stock_list_from_akshare(db)
             elif market_type == "US_stock":
-                logger.info("Refreshing US stock list...")
                 us_stock_fetcher.update_us_stock_list(db)
         except Exception as e:
             logger.error(f"Failed to update stock list for {market_type}: {e}")
@@ -37,23 +34,95 @@ def get_all_stocks_list(db: Session, market_type: str = "A_share"):
     return query.all()
 
 
+class StockDataFetcher:
+    def __init__(self, db: Session, stock_code: str, interval: str, market_type: str, trade_date: Optional[date] = None):
+        self.db = db
+        self.stock_code = stock_code
+        self.interval = interval
+        self.market_type = market_type
+        self.trade_date = trade_date
+        self.start_date = (datetime.now() - timedelta(days=15 * 365)).date()
+        self.end_date = datetime.now().date()
+
+    def fetch_stock_data(self):
+        """
+        Main method to fetch stock data, implementing the cache-aside pattern.
+        1. Try to fetch from the database.
+        2. If not found or incomplete, fetch from the external API.
+        3. Store the new data back into the database.
+        """
+        # For minute/5day intervals, we currently bypass the DB cache and go straight to the source.
+        # This logic can be refined to support DB caching for intraday data if needed.
+        if self.interval in ["minute", "5day"]:
+            return self._fetch_from_api()
+
+        db_data_df = self._fetch_from_db()
+
+        # If we have some data from the DB, check if it's recent enough.
+        if not db_data_df.empty:
+            last_db_date = pd.to_datetime(db_data_df['trade_date']).max().date()
+            # If the last date in DB is yesterday or today, consider it fresh.
+            if last_db_date >= (datetime.now() - timedelta(days=1)).date():
+                logger.info(f"DB data for {self.stock_code} is up-to-date. Returning from DB.")
+                return db_data_df
+
+        logger.info(f"DB data for {self.stock_code} is missing or stale. Fetching from API.")
+        api_data_df = self._fetch_from_api()
+
+        if not api_data_df.empty:
+            self._store_in_db(api_data_df)
+        
+        return api_data_df
+
+    def _fetch_from_db(self):
+        """Fetches stock K-line data from the local SQLite database."""
+        logger.info(f"Querying DB for {self.stock_code} from {self.start_date} to {self.end_date}")
+        
+        query = self.db.query(models.StockData).filter(
+            models.StockData.ts_code == self.stock_code,
+            models.StockData.interval == self.interval,
+            models.StockData.trade_date >= self.start_date,
+            models.StockData.trade_date <= self.end_date
+        ).order_by(models.StockData.trade_date)
+        
+        df = pd.read_sql(query.statement, self.db.connection())
+        if not df.empty:
+            logger.info(f"Found {len(df)} records in DB for {self.stock_code}.")
+            # Drop the 'id' column as it's not needed for the frontend.
+            df = df.drop(columns=['id'])
+        return df
+
+    def _fetch_from_api(self):
+        """Fetches stock data from the appropriate external API based on market type."""
+        if self.market_type == "A_share":
+            return a_share_fetcher.fetch_a_share_data_from_akshare(self.stock_code, self.interval, self.trade_date)
+        elif self.market_type == "US_stock":
+            return us_stock_fetcher.fetch_from_yfinance(self.stock_code, self.start_date.strftime('%Y-%m-%d'), self.end_date.strftime('%Y-%m-%d'), self.interval)
+        else:
+            raise ValueError(f"Unsupported market type: {self.market_type}")
+
+    def _store_in_db(self, df: pd.DataFrame):
+        """Stores the fetched DataFrame into the stock_data table."""
+        logger.info(f"Storing {len(df)} records for {self.stock_code} into the database.")
+        try:
+            db_writer.store_stock_data(self.db, self.stock_code, self.interval, df)
+            logger.info("Successfully stored data in DB.")
+        except Exception as e:
+            logger.error(f"Failed to store stock data for {self.stock_code} in DB: {e}", exc_info=True)
+
+
 def fetch_stock_data(stock_code: str, interval: str, market_type: str, trade_date: Optional[date] = None):
     """
-    Fetches historical or intraday data for a specific stock.
+    Main entry point for fetching stock data.
+    Instantiates a fetcher and retrieves the data.
     """
-    if market_type == "A_share":
-        return a_share_fetcher.fetch_a_share_data_from_akshare(stock_code, interval, trade_date)
-    elif market_type == "US_stock":
-        yf_interval_map = {
-            "minute": "1d", "5day": "1d", "daily": "1d",
-            "weekly": "1wk", "monthly": "1mo",
-        }
-        yf_interval = yf_interval_map.get(interval, "1d")
-        start_date = (datetime.now() - timedelta(days=15 * 365)).strftime("%Y-%m-%d")
-        end_date = datetime.now().strftime("%Y-%m-%d")
-        return us_stock_fetcher.fetch_from_yfinance(stock_code, start_date, end_date, yf_interval)
-    else:
-        raise ValueError(f"Unsupported market type: {market_type}")
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        fetcher = StockDataFetcher(db, stock_code, interval, market_type, trade_date)
+        return fetcher.fetch_stock_data()
+    finally:
+        next(db_gen, None)
 
 
 async def sync_financial_data(symbol: str):
@@ -86,20 +155,26 @@ async def _sync_a_share_data(db: Session, symbol: str):
     """Syncs all financial data for an A-share stock."""
     logger.info(f"BACKGROUND_TASK: Starting data sync for A-share: {symbol}")
     
-    fund_data = await run_in_threadpool(a_share_fetcher.fetch_fundamental_data_from_baostock, symbol)
-    if fund_data:
-        await run_in_threadpool(db_writer.store_fundamental_data, db, symbol, fund_data)
-        logger.info(f"Successfully synced fundamental data for {symbol}.")
+    try:
+        with a_share_fetcher.baostock_session():
+            fund_data = await run_in_threadpool(a_share_fetcher.fetch_fundamental_data_from_baostock, symbol)
+            if fund_data:
+                await run_in_threadpool(db_writer.store_fundamental_data, db, symbol, fund_data)
+                logger.info(f"Successfully synced fundamental data for {symbol}.")
 
-    actions_data = await run_in_threadpool(a_share_fetcher.fetch_corporate_actions_from_baostock, symbol)
-    if actions_data:
-        count = await run_in_threadpool(db_writer.store_corporate_actions, db, symbol, actions_data)
-        logger.info(f"Successfully synced {count} corporate actions for {symbol}.")
+            actions_data = await run_in_threadpool(a_share_fetcher.fetch_corporate_actions_from_baostock, symbol)
+            if actions_data:
+                count = await run_in_threadpool(db_writer.store_corporate_actions, db, symbol, actions_data)
+                logger.info(f"Successfully synced {count} corporate actions for {symbol}.")
 
-    earnings_data = await run_in_threadpool(a_share_fetcher.fetch_annual_net_profit_from_baostock, symbol)
-    if earnings_data:
-        count = await run_in_threadpool(db_writer.store_annual_earnings, db, symbol, earnings_data)
-        logger.info(f"Successfully synced {count} annual earnings records for {symbol}.")
+            earnings_data = await run_in_threadpool(a_share_fetcher.fetch_annual_net_profit_from_baostock, symbol)
+            if earnings_data:
+                count = await run_in_threadpool(db_writer.store_annual_earnings, db, symbol, earnings_data)
+                logger.info(f"Successfully synced {count} annual earnings records for {symbol}.")
+    except RuntimeError as e:
+        logger.error(f"Baostock session error for {symbol}: {e}")
+    except Exception as e:
+        logger.error(f"Error during A-share data sync for {symbol}: {e}", exc_info=True)
 
 
 async def _sync_us_stock_data(db: Session, symbol: str):

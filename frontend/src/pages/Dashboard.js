@@ -4,12 +4,12 @@ import dayjs from 'dayjs';
 import StockChart from '../components/StockChart';
 
 import FinancialOverviewAndActions from '../components/FinancialOverviewAndActions';
-import { getStockData, getDefaultStocks, getAllStocks, getCorporateActions, getAnnualEarnings } from '../api/stockApi';
+import { getStockData, getAllStocks, getCorporateActions, getAnnualEarnings } from '../api/stockApi';
 
 const { Option } = Select;
 const { Title, Text } = Typography;
 
-const Dashboard = () => {
+const Dashboard = ({ marketType }) => {
   const [allStocks, setAllStocks] = useState([]);
   const [selectedStock, setSelectedStock] = useState(null);
   const [chartData, setChartData] = useState([]);
@@ -31,6 +31,9 @@ const Dashboard = () => {
   const [loadingAnnualEarnings, setLoadingAnnualEarnings] = useState(false);
   const [annualEarningsError, setAnnualEarningsError] = useState(null);
 
+  const title = marketType === 'A_share' ? 'A股市场分析' : '美股市场分析';
+  const placeholder = marketType === 'A_share' ? '搜索股票 (例如：600519.SH)' : '搜索或输入代码 (例如: AAPL)';
+
 
   const fetchData = useCallback((stockCode, interval, date) => {
     if (!stockCode) return;
@@ -39,7 +42,7 @@ const Dashboard = () => {
     setChartData([]);
     debounceTimeout.current = setTimeout(() => {
       const dateStr = date ? date.format('YYYY-MM-DD') : null;
-      getStockData(stockCode, interval, dateStr)
+      getStockData(stockCode, interval, dateStr, marketType)
         .then(response => setChartData(response.data))
         .catch(error => {
           const errorMsg = error.response?.data?.detail || `加载 ${stockCode} 数据失败。`;
@@ -48,84 +51,122 @@ const Dashboard = () => {
         })
         .finally(() => setLoading(false));
     }, 500);
-  }, []);
+  }, [marketType]);
 
-  // Effect for fetching fundamental and corporate action data
-  useEffect(() => {
-    if (!selectedStock) return;
+  const fetchSecondaryData = useCallback((symbol) => {
+    if (!symbol) return;
 
-    // Extract the base symbol (e.g., "000001") from the full ts_code ("000001.SZ")
-    const baseSymbol = selectedStock.split('.')[0];
+    const baseSymbol = marketType === 'A_share' ? symbol.split('.')[0] : symbol;
 
-    setCorporateActions(null);
-    setActionsError(null);
-
+    // Fetch Corporate Actions
     setLoadingActions(true);
     getCorporateActions(baseSymbol)
-      .then(response => setCorporateActions(response.data))
-      .catch(error => setActionsError(error.response?.data?.detail || 'Failed to load actions.'))
+      .then(response => {
+        if (response.status === 202) {
+          setActionsError("分红数据正在同步中，请稍后刷新页面获取。");
+        } else {
+          setCorporateActions(response.data);
+          setActionsError(null);
+        }
+      })
+      .catch(error => {
+        setActionsError(error.response?.data?.detail || 'Failed to load actions.');
+      })
       .finally(() => setLoadingActions(false));
 
-  }, [selectedStock]);
-
-  // Effect for fetching annual earnings data
-  useEffect(() => {
-    if (!selectedStock) return;
-
-    const baseSymbol = selectedStock.split('.')[0];
-
-    setAnnualEarningsData([]);
-    setAnnualEarningsError(null);
+    // Fetch Annual Earnings
     setLoadingAnnualEarnings(true);
-
     getAnnualEarnings(baseSymbol)
       .then(response => {
-        // Sort data by year in ascending order for chart display
-        const sortedData = response.data.sort((a, b) => a.year - b.year);
-        setAnnualEarningsData(sortedData);
+        if (response.status === 202) {
+          setAnnualEarningsError("年报数据正在同步中，请稍后刷新页面获取。");
+        } else {
+          const sortedData = response.data.sort((a, b) => a.year - b.year);
+          setAnnualEarningsData(sortedData);
+          setAnnualEarningsError(null);
+        }
       })
-      .catch(error => setAnnualEarningsError(error.response?.data?.detail || 'Failed to load annual earnings.'))
-      .finally(() => setLoadingAnnualEarnings(false));
+      .catch(error => {
+        setAnnualEarningsError(error.response?.data?.detail || 'Failed to load annual earnings.');
+      })
+      .finally(() => {
+        setLoadingAnnualEarnings(false);
+      });
+  }, [marketType]);
+
+  // Effect to fetch all data when stock changes
+  useEffect(() => {
+    if (selectedStock) {
+      // Fetch main chart data
+      fetchData(selectedStock, selectedInterval, selectedDate);
+      
+      // Clear previous secondary data and errors
+      setCorporateActions(null);
+      setAnnualEarningsData([]);
+      setActionsError(null);
+      setAnnualEarningsError(null);
+      
+      // Fetch new secondary data
+      fetchSecondaryData(selectedStock);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStock]);
 
 
-  // Initial data load effect
+  // Initial data load effect when marketType changes
   useEffect(() => {
-    getAllStocks()
-      .then(response => setAllStocks(response.data))
-      .catch(error => message.error('加载股票列表失败。'));
+    setLoading(true);
+    setAllStocks([]);
+    setSelectedStock(null);
+    setChartData([]);
+    setDisplayedStockCode(null);
+    setDisplayedStockName(null);
 
-    getDefaultStocks()
+    getAllStocks(marketType)
       .then(response => {
-        if (response.data.length > 0) {
-          const initialStock = response.data[0];
+        const stocks = response.data;
+        setAllStocks(stocks);
+        const initialStock = stocks[0];
+        if (initialStock) {
           setSelectedStock(initialStock.ts_code);
           setDisplayedStockCode(initialStock.ts_code);
           setDisplayedStockName(initialStock.name);
-          fetchData(initialStock.ts_code, 'daily', null);
         }
       })
-      .catch(error => message.error('加载默认股票失败。'));
-  }, [fetchData]);
+      .catch(error => message.error(`加载${marketType === 'A_share' ? 'A股' : '美股'}列表失败。`))
+      .finally(() => setLoading(false));
+  }, [marketType]);
 
   const handleStockChange = (stockCode) => {
-    const stock = allStocks.find(s => s.ts_code === stockCode);
-    setSelectedStock(stockCode);
-    setDisplayedStockCode(stockCode);
-    if (stock) setDisplayedStockName(stock.name);
-    fetchData(stockCode, selectedInterval, selectedDate);
+    // This function now only receives the stock code (value)
+    let stock = allStocks.find(s => s.ts_code === stockCode);
+    
+    if (!stock && marketType === 'US_stock') {
+      const newStock = { ts_code: stockCode, name: stockCode };
+      setAllStocks(prev => [newStock, ...prev.filter(s => s.ts_code !== stockCode)]);
+      stock = newStock;
+    }
+
+    if (stock) {
+      // Setting selectedStock will trigger the useEffect to fetch all data
+      setSelectedStock(stock.ts_code);
+      setDisplayedStockCode(stock.ts_code);
+      setDisplayedStockName(stock.name);
+    }
   };
 
   const handleIntervalChange = (e) => {
     const newInterval = e.target.value;
     setSelectedInterval(newInterval);
-    fetchData(selectedStock, newInterval, selectedDate);
+    if (selectedStock) {
+      fetchData(selectedStock, newInterval, selectedDate);
+    }
   };
 
   const handleDateChange = (date) => {
     if (!date) return;
     setSelectedDate(date);
-    if (['minute', '5day'].includes(selectedInterval)) {
+    if (['minute', '5day'].includes(selectedInterval) && selectedStock) {
       fetchData(selectedStock, selectedInterval, date);
     }
   };
@@ -135,7 +176,7 @@ const Dashboard = () => {
 
   return (
     <div>
-      <Title level={4}>A股市场分析</Title>
+      <Title level={4}>{title}</Title>
       <Text type="secondary">选择一只股票和时间间隔以查看其图表。</Text>
       
       <Card style={{ margin: '20px 0' }}>
@@ -144,12 +185,14 @@ const Dashboard = () => {
             <Select
               showSearch
               value={selectedStock}
-              placeholder="搜索股票 (例如：600519.SH)"
+              placeholder={placeholder}
               style={{ width: 300 }}
               onChange={handleStockChange}
-              filterOption={(input, option) =>
-                option.children.toLowerCase().includes(input.toLowerCase()) ||
-                option.value.toLowerCase().includes(input.toLowerCase())
+              filterOption={marketType === 'A_share' 
+                ? (input, option) =>
+                    (option.children.toLowerCase().includes(input.toLowerCase()) ||
+                    option.value.toLowerCase().includes(input.toLowerCase()))
+                : false
               }
             >
               {allStocks.map(stock => (
@@ -202,6 +245,7 @@ const Dashboard = () => {
       {/* Render Financial Overview and Actions */}
       <div className="deep-dive-container" style={{marginTop: '20px'}}>
           <FinancialOverviewAndActions 
+            marketType={marketType}
             annualEarningsData={annualEarningsData}
             loadingAnnualEarnings={loadingAnnualEarnings}
             annualEarningsError={annualEarningsError}
