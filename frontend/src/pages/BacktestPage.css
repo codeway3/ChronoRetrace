@@ -1,0 +1,43 @@
+.backtest-page-container {
+    padding: 24px;
+    background-color: transparent; /* Inherit from main layout */
+}
+
+.form-container {
+    background-color: #25252e; /* Match sidebar color for consistency */
+    padding: 24px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+}
+
+.results-container {
+    margin-top: 24px;
+}
+
+.kpi-grid {
+    margin-bottom: 24px;
+}
+
+.chart-container {
+    background-color: #25252e;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+}
+
+.spinner-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 50px;
+}
+
+/* Ant Design Overrides */
+.backtest-page-container .ant-form-item-label > label {
+    color: #a9a9b3;
+}
+
+.backtest-page-container .ant-form-item-label > label .ant-form-item-tooltip {
+    color: #a9a9b3;
+    margin-left: 4px;
+}

@@ -1,0 +1,47 @@
+.kpi-card {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+}
+
+.kpi-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.kpi-title {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.kpi-value {
+    font-size: clamp(1.4rem, 4vw, 1.8rem); /* Slightly increased base size */
+    font-weight: 700;
+    color: #343a40; /* Neutral/default color */
+    line-height: 1.2;
+    /* Removed word-wrap and overflow-wrap to prevent breaking numbers */
+}
+
+/* A-Share Colors (Red for Up, Green for Down) */
+.kpi-value.positive-a {
+    color: #ff4d4f;
+}
+.kpi-value.negative-a {
+    color: #52c41a;
+}
+
+/* US Stock Colors (Green for Up, Red for Down) */
+.kpi-value.positive-us {
+    color: #28a745;
+}
+.kpi-value.negative-us {
+    color: #dc3545;
+}
