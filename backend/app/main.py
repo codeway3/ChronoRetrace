@@ -22,6 +22,7 @@ logging.getLogger("urllib3").setLevel(logging.INFO) # Quieten urllib3's debug me
 
 from app.api.v1 import stocks as stocks_v1
 from app.api.v1 import admin as admin_v1
+from app.api.v1 import backtest as backtest_v1 # Import the new backtest router
 from app.db.session import engine, SessionLocal
 from app.db import models
 
@@ -86,6 +87,7 @@ app.add_middleware(
 # Include API routers
 app.include_router(stocks_v1.router, prefix="/api/v1/stocks", tags=["stocks"])
 app.include_router(admin_v1.router, prefix="/api/v1/admin", tags=["admin"])
+app.include_router(backtest_v1.router, prefix="/api/v1/backtest", tags=["backtest"]) # Register the new backtest router
 
 @app.get("/")
 def read_root():

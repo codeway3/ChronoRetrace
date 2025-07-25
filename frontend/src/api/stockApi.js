@@ -32,3 +32,7 @@ export const getAnnualEarnings = (symbol) => {
 export const clearCache = () => {
   return apiClient.post('/admin/clear-cache');
 };
+
+export const runBacktest = (config) => {
+  return apiClient.post('/backtest/grid', config);
+};

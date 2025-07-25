@@ -7,6 +7,7 @@ import {
   DeleteOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  ExperimentOutlined, // Import backtest icon
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { clearCache } from '../api/stockApi';
@@ -26,6 +27,8 @@ const MainLayout = ({ children }) => {
       setSelectedKeys(['1']);
     } else if (path.startsWith('/us-stock')) {
       setSelectedKeys(['2']);
+    } else if (path.startsWith('/backtest')) {
+      setSelectedKeys(['3']);
     } else {
       setSelectedKeys(['1']);
     }
@@ -68,6 +71,7 @@ const MainLayout = ({ children }) => {
                 setSelectedKeys([key]);
                 if (key === '1') navigate('/a-share');
                 else if (key === '2') navigate('/us-stock');
+                else if (key === '3') navigate('/backtest');
               }}
             >
               <Menu.Item key="1" icon={<LineChartOutlined />}>
@@ -76,7 +80,10 @@ const MainLayout = ({ children }) => {
               <Menu.Item key="2" icon={<DollarOutlined />}>
                 美股市场
               </Menu.Item>
-              <Menu.Item key="3" icon={<GlobalOutlined />} disabled>
+              <Menu.Item key="3" icon={<ExperimentOutlined />}>
+                回测
+              </Menu.Item>
+              <Menu.Item key="4" icon={<GlobalOutlined />} disabled>
                 加密货币 (即将推出)
               </Menu.Item>
             </Menu>
