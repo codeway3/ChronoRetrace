@@ -1,6 +1,15 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import date
+from enum import Enum
+
+class UpperBoundStrategy(str, Enum):
+    HOLD = "hold"
+    SELL_ALL = "sell_all"
+
+class LowerBoundStrategy(str, Enum):
+    HOLD = "hold"
+    SELL_ALL = "sell_all"
 
 class GridStrategyConfig(BaseModel):
     """
@@ -16,6 +25,8 @@ class GridStrategyConfig(BaseModel):
     total_investment: float
     initial_quantity: Optional[int] = Field(0, description="Optional: Number of shares held at the start of the backtest.")
     initial_per_share_cost: Optional[float] = Field(0.0, description="Optional: Per-share cost of the initial holdings.")
+    on_exceed_upper: Optional[UpperBoundStrategy] = Field(UpperBoundStrategy.HOLD, description="Strategy when price exceeds upper bound.")
+    on_fall_below_lower: Optional[LowerBoundStrategy] = Field(LowerBoundStrategy.HOLD, description="Strategy when price falls below lower bound.")
 
 class Transaction(BaseModel):
     """

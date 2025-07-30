@@ -9,6 +9,7 @@ import BacktestChart from '../components/BacktestChart';
 import './BacktestPage.css';
 
 const { RangePicker } = DatePicker;
+const { Option } = Select;
 
 const BacktestPage = () => {
     const [form] = Form.useForm();
@@ -80,6 +81,8 @@ const BacktestPage = () => {
         total_investment: 100000,
         initial_quantity: 0,
         initial_per_share_cost: 0,
+        on_exceed_upper: 'hold',
+        on_fall_below_lower: 'hold',
     };
 
     return (
@@ -88,6 +91,7 @@ const BacktestPage = () => {
             <div className="form-container">
                 <Form form={form} layout="vertical" onFinish={onFinish} initialValues={initialValues}>
                     <Row gutter={24}>
+                        {/* Core Params */}
                         <Col xs={24} sm={12} md={8}>
                             <Form.Item name="stock_code" label="股票代码" rules={[{ required: true, message: '请输入或选择股票代码' }]}>
                                 <Select showSearch placeholder="选择A股或输入美股代码" optionFilterProp="label" onChange={handleStockChange} options={aShareList} />
@@ -103,6 +107,8 @@ const BacktestPage = () => {
                                 <InputNumber style={{ width: '100%' }} min={1} formatter={value => `${currencySymbol} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={value => value.replace(new RegExp(`\\${currencySymbol}\\s?|(,*)/g`), '')} />
                             </Form.Item>
                         </Col>
+                        
+                        {/* Grid Params */}
                         <Col xs={24} sm={12} md={8}>
                             <Form.Item name="lower_price" label={<span>价格下限 <Tooltip title="网格的最低价格"><QuestionCircleOutlined /></Tooltip></span>} rules={[{ required: true, message: '请输入价格下限' }]}>
                                 <InputNumber style={{ width: '100%' }} min={0} />
@@ -118,6 +124,8 @@ const BacktestPage = () => {
                                 <InputNumber style={{ width: '100%' }} min={1} max={100} />
                             </Form.Item>
                         </Col>
+
+                        {/* Initial Position Params */}
                         <Col xs={24} sm={12} md={8}>
                             <Form.Item name="initial_quantity" label={<span>初始持股 (选填) <Tooltip title="回测开始时已持有的股票数量。默认为0。"><QuestionCircleOutlined /></Tooltip></span>}>
                                 <InputNumber style={{ width: '100%' }} min={0} />
@@ -128,6 +136,25 @@ const BacktestPage = () => {
                                 <InputNumber style={{ width: '100%' }} min={0} formatter={value => `${currencySymbol} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={value => value.replace(new RegExp(`\\${currencySymbol}\\s?|(,*)/g`), '')} />
                             </Form.Item>
                         </Col>
+                        <Col span={8} />
+
+                        {/* Out-of-Bounds Strategy Params */}
+                        <Col xs={24} sm={12} md={8}>
+                            <Form.Item name="on_exceed_upper" label={<span>突破上限时 <Tooltip title="当股价超过网格上限时的操作策略"><QuestionCircleOutlined /></Tooltip></span>}>
+                                <Select>
+                                    <Option value="hold">持有不动</Option>
+                                    <Option value="sell_all">清仓止盈</Option>
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={12} md={8}>
+                            <Form.Item name="on_fall_below_lower" label={<span>跌破下限时 <Tooltip title="当股价跌破网格下限时的操作策略"><QuestionCircleOutlined /></Tooltip></span>}>
+                                <Select>
+                                    <Option value="hold">持有不动</Option>
+                                    <Option value="sell_all">清仓止损</Option>
+                                </Select>
+                            </Form.Item>
+                        </Col>
                     </Row>
                     <Form.Item>
                         <Button type="primary" htmlType="submit" loading={isLoading}>开始回测</Button>
@@ -136,7 +163,7 @@ const BacktestPage = () => {
             </div>
 
             {isLoading && <div className="spinner-container"><Spin size="large" /></div>}
-            {error && <Alert message="回测出错" description={error} type="error" showIcon closable onClose={() => setError(null)} />}
+            {error && <Alert message="回测出错" description={error} type="error" showIcon closable onClose={() => setError(null)} />} 
 
             {results && (
                 <div className="results-container">

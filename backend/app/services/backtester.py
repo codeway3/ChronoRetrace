@@ -167,8 +167,57 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
             benchmark_value=benchmark_value
         ))
 
+        # --- Handle Out-of-Bounds Scenarios ---
+        close_price = row['close']
+        # Exceeds Upper Bound
+        if config.on_exceed_upper == 'sell_all' and close_price > config.upper_price:
+            if position_quantity > 0:
+                logger.info(f"Price {close_price} exceeded upper bound {config.upper_price}. Selling all {position_quantity} shares.")
+                revenue = position_quantity * close_price
+                cash_balance += revenue
+                # Note: PnL for this bulk sale isn't calculated per-grid, it's a strategy-level event.
+                # The final PnL calculation will correctly reflect this.
+                transaction_log.append(Transaction(
+                    trade_date=current_date, trade_type="sell", price=close_price,
+                    quantity=position_quantity, pnl=None # PnL is complex here, handled by total value change
+                ))
+                position_quantity = 0
+                # Break the simulation for this stock as the strategy has concluded.
+                break 
+        
+        # Falls Below Lower Bound
+        if config.on_fall_below_lower == 'sell_all' and close_price < config.lower_price:
+            if position_quantity > 0:
+                logger.info(f"Price {close_price} fell below lower bound {config.lower_price}. Selling all {position_quantity} shares (Stop-Loss).")
+                revenue = position_quantity * close_price
+                cash_balance += revenue
+                transaction_log.append(Transaction(
+                    trade_date=current_date, trade_type="sell", price=close_price,
+                    quantity=position_quantity, pnl=None
+                ))
+                position_quantity = 0
+                # Break the simulation
+                break
+
     # --- 4. Final Metrics Calculation ---
-    final_portfolio_value = chart_data[-1].portfolio_value if chart_data else initial_portfolio_value
+    # If the loop broke, the last chart data point might not be the final day's close.
+    # We need to ensure the final value is correctly calculated.
+    final_close_price = backtest_df.iloc[-1]['close']
+    final_position_value = position_quantity * final_close_price
+    final_portfolio_value = cash_balance + final_position_value
+    
+    # If the simulation ran till the end, the last chart point is accurate.
+    if not chart_data or chart_data[-1].date != config.end_date:
+         # If the loop broke early, we might need to add a final data point for clarity
+         if not chart_data or chart_data[-1].portfolio_value != final_portfolio_value:
+            chart_data.append(ChartDataPoint(
+                date=backtest_df.iloc[-1]['trade_date'],
+                portfolio_value=final_portfolio_value,
+                benchmark_value=benchmark_shares * final_close_price
+            ))
+    else:
+        final_portfolio_value = chart_data[-1].portfolio_value
+
     total_pnl = final_portfolio_value - initial_portfolio_value
     
     total_return_rate = total_pnl / initial_portfolio_value if initial_portfolio_value > 0 else 0.0
