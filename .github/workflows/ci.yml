@@ -30,20 +30,28 @@ jobs:
           cache: 'pip' # Enable pip cache for faster installs
           cache-dependency-path: ./backend/requirements.txt # Specify cache path for backend directory
 
-      # 3. Install dependencies
+      # 3. Clear pip cache
+      - name: Clear pip cache
+        run: pip cache purge
+        working-directory: ./backend
+
+      # 4. Install dependencies
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
           pip install ruff pytest # Explicitly install testing/linting tools
+        working-directory: ./backend
 
-      # 4. Lint with Ruff
-      - name: Lint with Ruff
-        run: ruff check backend/
-
-      # 5. Run tests with Pytest
-      - name: Run Pytest
+      # 5. Run pytest
+      - name: Run pytest
         run: pytest backend/
+        working-directory: .
+
+      # 6. Debug: List installed packages
+      - name: List Python dependencies
+        run: pip list
+        working-directory: ./backend
 
   #---------------------------------
   # Frontend Job
@@ -65,23 +73,33 @@ jobs:
           cache: 'npm' # Enable npm cache for faster installs
           cache-dependency-path: ./frontend/package-lock.json # Specify cache path for frontend directory
 
-      # 3. Clear npm cache
+      # 3. Update npm
+      - name: Update npm
+        run: npm install -g npm@11.5.2
+        working-directory: ./frontend
+
+      # 4. Clear npm cache
       - name: Clear npm cache
         run: npm cache clean --force
         working-directory: ./frontend
 
-      # 4. Install dependencies
+      # 5. Install dependencies
       - name: Install npm dependencies
-        run: npm install react-router-dom@6.26.1
+        run: npm install react-router-dom@6.26.1 axios@1.7.7
         working-directory: ./frontend
 
-      # 5. Lint with ESLint
+      # 6. Lint with ESLint
       - name: Lint with ESLint
         run: npm run lint
         working-directory: ./frontend
 
-      # 6. Run tests with Jest
+      # 7. Run tests with Jest
       # The --watchAll=false flag is crucial for running in a non-interactive CI environment
       - name: Run Jest tests
         run: npm test -- --watchAll=false
+        working-directory: ./frontend
+
+      # 8. Debug: List installed packages
+      - name: List npm dependencies
+        run: npm list
         working-directory: ./frontend

@@ -1,5 +1,5 @@
 fastapi
-fastapi_cache
+fastapi-cache==0.2.1
 uvicorn
 sqlalchemy
 psycopg2-binary
