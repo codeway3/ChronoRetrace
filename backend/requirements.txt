@@ -1,4 +1,5 @@
 fastapi
+fastapi_cache
 uvicorn
 sqlalchemy
 psycopg2-binary
@@ -11,3 +12,4 @@ yfinance
 akshare
 yahoo_fin
 requests_html
+pydantic_settings
