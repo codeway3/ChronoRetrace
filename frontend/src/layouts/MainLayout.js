@@ -7,11 +7,11 @@ import {
   DeleteOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  ExperimentOutlined, // Import backtest icon
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { clearCache } from '../api/stockApi';
-import './MainLayout.css'; // 引入 CSS 文件
+import './MainLayout.css';
 
 const { Header, Content, Sider } = Layout;
 
@@ -44,6 +44,33 @@ const MainLayout = ({ children }) => {
     }
   };
 
+  const menuItems = [
+    {
+      key: '1',
+      icon: <LineChartOutlined />,
+      label: 'A股市场',
+      onClick: () => navigate('/a-share'),
+    },
+    {
+      key: '2',
+      icon: <DollarOutlined />,
+      label: '美股市场',
+      onClick: () => navigate('/us-stock'),
+    },
+    {
+      key: '3',
+      icon: <ExperimentOutlined />,
+      label: '回测',
+      onClick: () => navigate('/backtest'),
+    },
+    {
+      key: '4',
+      icon: <GlobalOutlined />,
+      label: '加密货币 (即将推出)',
+      disabled: true,
+    },
+  ];
+
   const siderWidth = collapsed ? 80 : 200;
 
   return (
@@ -67,30 +94,12 @@ const MainLayout = ({ children }) => {
               theme="dark"
               mode="inline"
               selectedKeys={selectedKeys}
-              onSelect={({ key }) => {
-                setSelectedKeys([key]);
-                if (key === '1') navigate('/a-share');
-                else if (key === '2') navigate('/us-stock');
-                else if (key === '3') navigate('/backtest');
-              }}
-            >
-              <Menu.Item key="1" icon={<LineChartOutlined />}>
-                A股市场
-              </Menu.Item>
-              <Menu.Item key="2" icon={<DollarOutlined />}>
-                美股市场
-              </Menu.Item>
-              <Menu.Item key="3" icon={<ExperimentOutlined />}>
-                回测
-              </Menu.Item>
-              <Menu.Item key="4" icon={<GlobalOutlined />} disabled>
-                加密货币 (即将推出)
-              </Menu.Item>
-            </Menu>
+              items={menuItems}
+            />
           </div>
           <div className="sidebar-footer">
             <div className={`clear-cache-wrapper ${collapsed ? 'collapsed' : ''}`}>
-              <Tooltip title={collapsed ? "清除缓存" : ""} placement="right">
+              <Tooltip title={collapsed ? '清除缓存' : ''} placement="right">
                 <Button
                   type="primary"
                   danger
@@ -98,7 +107,7 @@ const MainLayout = ({ children }) => {
                   icon={<DeleteOutlined />}
                   onClick={handleClearCache}
                 >
-                  {!collapsed && "清除缓存"}
+                  {!collapsed && '清除缓存'}
                 </Button>
               </Tooltip>
             </div>
@@ -109,7 +118,7 @@ const MainLayout = ({ children }) => {
               onClick={() => setCollapsed(!collapsed)}
               className={`collapse-button ${collapsed ? 'collapsed' : ''}`}
             >
-              {!collapsed && "收起侧栏"}
+              {!collapsed && '收起侧栏'}
             </Button>
           </div>
         </div>
@@ -119,9 +128,7 @@ const MainLayout = ({ children }) => {
           <h2 style={{ margin: 0 }}>金融回归测试工具</h2>
         </Header>
         <Content className="main-content">
-          <div className="main-content-inner">
-            {children}
-          </div>
+          <div className="main-content-inner">{children}</div>
         </Content>
       </Layout>
     </Layout>
@@ -129,4 +136,3 @@ const MainLayout = ({ children }) => {
 };
 
 export default MainLayout;
-

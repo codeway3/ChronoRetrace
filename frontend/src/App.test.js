@@ -1,32 +1,65 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from './App';
+import { getAllStocks, getStockData, getCorporateActions, getAnnualEarnings } from './api/stockApi';
 
-test('renders main layout and navigates to A-share dashboard by default', () => {
+// 模拟组件
+jest.mock('./components/StockChart', () => () => <div data-testid="stock-chart">Mocked StockChart</div>);
+jest.mock('./components/FinancialOverviewAndActions', () => () => <div data-testid="financial-overview">Mocked FinancialOverviewAndActions</div>);
+
+// 模拟所有可能触发 message 的 API
+jest.mock('./api/stockApi', () => ({
+  getAllStocks: jest.fn().mockResolvedValue({
+    data: [
+      { ts_code: '600519.SH', name: '贵州茅台' },
+      { ts_code: 'AAPL', name: 'Apple Inc.' },
+    ],
+  }),
+  getStockData: jest.fn().mockResolvedValue({
+    data: [],
+  }),
+  getCorporateActions: jest.fn().mockResolvedValue({
+    data: [],
+    status: 200,
+  }),
+  getAnnualEarnings: jest.fn().mockResolvedValue({
+    data: [],
+    status: 200,
+  }),
+}));
+
+test('renders main layout and navigates to A-share dashboard by default', async () => {
   render(
-    <MemoryRouter initialEntries={['/']}>
+    <MemoryRouter initialEntries={['/']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <App />
     </MemoryRouter>
   );
 
-  // Check if the main layout's header is present
-  const headerElement = screen.getByText(/ChronoRetrace/i);
-  expect(headerElement).toBeInTheDocument();
+  await waitFor(
+    () => {
+      const headerElement = screen.getByText(/ChronoRetrace/i);
+      expect(headerElement).toBeInTheDocument();
 
-  // Check if the A-Share Dashboard title is rendered as it's the default route
-  const dashboardTitle = screen.getByText(/A股总览/i);
-  expect(dashboardTitle).toBeInTheDocument();
+      const dashboardTitle = screen.getByText(/A股市场分析/i);
+      expect(dashboardTitle).toBeInTheDocument();
+    },
+    { timeout: 2000 }
+  );
 });
 
-test('renders US Stock Dashboard on navigation', () => {
+test('renders US Stock Dashboard on navigation', async () => {
   render(
-    <MemoryRouter initialEntries={['/us-stock']}>
+    <MemoryRouter initialEntries={['/us-stock']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <App />
     </MemoryRouter>
   );
 
-  // Check if the US Stock Dashboard title is rendered
-  const dashboardTitle = screen.getByText(/美股总览/i);
-  expect(dashboardTitle).toBeInTheDocument();
+  await waitFor(
+    () => {
+      const dashboardTitle = screen.getByText(/美股市场分析/i);
+      expect(dashboardTitle).toBeInTheDocument();
+    },
+    { timeout: 2000 }
+  );
 });

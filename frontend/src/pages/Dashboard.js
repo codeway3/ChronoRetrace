@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Select, message, Spin, Row, Col, Card, Typography, Radio, DatePicker, Switch } from 'antd';
 import dayjs from 'dayjs';
 import StockChart from '../components/StockChart';
-
 import FinancialOverviewAndActions from '../components/FinancialOverviewAndActions';
 import { getStockData, getAllStocks, getCorporateActions, getAnnualEarnings } from '../api/stockApi';
 
@@ -18,6 +17,7 @@ const Dashboard = ({ marketType }) => {
   const [displayedStockName, setDisplayedStockName] = useState(null);
   const [selectedInterval, setSelectedInterval] = useState('daily');
   const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [error, setError] = useState(null); // 新增错误状态
   const debounceTimeout = useRef(null);
 
   // New states for corporate actions
@@ -34,7 +34,6 @@ const Dashboard = ({ marketType }) => {
   const title = marketType === 'A_share' ? 'A股市场分析' : '美股市场分析';
   const placeholder = marketType === 'A_share' ? '搜索股票 (例如：600519.SH)' : '搜索或输入代码 (例如: AAPL)';
 
-
   const fetchData = useCallback((stockCode, interval, date) => {
     if (!stockCode) return;
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
@@ -46,6 +45,7 @@ const Dashboard = ({ marketType }) => {
         .then(response => setChartData(response.data))
         .catch(error => {
           const errorMsg = error.response?.data?.detail || `加载 ${stockCode} 数据失败。`;
+          setError(errorMsg); // 使用状态记录错误
           message.error(errorMsg);
           setChartData([]);
         })
@@ -63,7 +63,7 @@ const Dashboard = ({ marketType }) => {
     getCorporateActions(baseSymbol)
       .then(response => {
         if (response.status === 202) {
-          setActionsError("分红数据正在同步中，请稍后刷新页面获取。");
+          setActionsError('分红数据正在同步中，请稍后刷新页面获取。');
         } else {
           setCorporateActions(response.data);
           setActionsError(null);
@@ -79,7 +79,7 @@ const Dashboard = ({ marketType }) => {
     getAnnualEarnings(baseSymbol)
       .then(response => {
         if (response.status === 202) {
-          setAnnualEarningsError("年报数据正在同步中，请稍后刷新页面获取。");
+          setAnnualEarningsError('年报数据正在同步中，请稍后刷新页面获取。');
         } else {
           const sortedData = response.data.sort((a, b) => a.year - b.year);
           setAnnualEarningsData(sortedData);
@@ -99,19 +99,18 @@ const Dashboard = ({ marketType }) => {
     if (selectedStock) {
       // Fetch main chart data
       fetchData(selectedStock, selectedInterval, selectedDate);
-      
+
       // Clear previous secondary data and errors
       setCorporateActions(null);
       setAnnualEarningsData([]);
       setActionsError(null);
       setAnnualEarningsError(null);
-      
+
       // Fetch new secondary data
       fetchSecondaryData(selectedStock);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStock]);
-
 
   // Initial data load effect when marketType changes
   useEffect(() => {
@@ -121,6 +120,7 @@ const Dashboard = ({ marketType }) => {
     setChartData([]);
     setDisplayedStockCode(null);
     setDisplayedStockName(null);
+    setError(null); // 重置错误状态
 
     getAllStocks(marketType)
       .then(response => {
@@ -133,14 +133,17 @@ const Dashboard = ({ marketType }) => {
           setDisplayedStockName(initialStock.name);
         }
       })
-      .catch(error => message.error(`加载${marketType === 'A_share' ? 'A股' : '美股'}列表失败。`))
+      .catch(error => {
+        const errorMsg = `加载${marketType === 'A_share' ? 'A股' : '美股'}列表失败。`;
+        setError(errorMsg); // 使用状态记录错误
+        console.error(errorMsg, error); // 记录日志代替 message.error
+      })
       .finally(() => setLoading(false));
   }, [marketType]);
 
   const handleStockChange = (stockCode) => {
-    // This function now only receives the stock code (value)
     let stock = allStocks.find(s => s.ts_code === stockCode);
-    
+
     if (!stock && marketType === 'US_stock') {
       const newStock = { ts_code: stockCode, name: stockCode };
       setAllStocks(prev => [newStock, ...prev.filter(s => s.ts_code !== stockCode)]);
@@ -148,7 +151,6 @@ const Dashboard = ({ marketType }) => {
     }
 
     if (stock) {
-      // Setting selectedStock will trigger the useEffect to fetch all data
       setSelectedStock(stock.ts_code);
       setDisplayedStockCode(stock.ts_code);
       setDisplayedStockName(stock.name);
@@ -178,7 +180,7 @@ const Dashboard = ({ marketType }) => {
     <div>
       <Title level={4}>{title}</Title>
       <Text type="secondary">选择一只股票和时间间隔以查看其图表。</Text>
-      
+      {error && <Text type="danger">{error}</Text>} {/* 显示错误信息 */}
       <Card style={{ margin: '20px 0' }}>
         <Row gutter={[16, 16]} align="middle">
           <Col>
@@ -188,10 +190,10 @@ const Dashboard = ({ marketType }) => {
               placeholder={placeholder}
               style={{ width: 300 }}
               onChange={handleStockChange}
-              filterOption={marketType === 'A_share' 
+              filterOption={marketType === 'A_share'
                 ? (input, option) =>
-                    (option.children.toLowerCase().includes(input.toLowerCase()) ||
-                    option.value.toLowerCase().includes(input.toLowerCase()))
+                (option.children.toLowerCase().includes(input.toLowerCase()) ||
+                  option.value.toLowerCase().includes(input.toLowerCase()))
                 : false
               }
             >
@@ -212,9 +214,9 @@ const Dashboard = ({ marketType }) => {
             </Radio.Group>
           </Col>
           <Col>
-            <DatePicker 
-              value={selectedDate} 
-              onChange={handleDateChange} 
+            <DatePicker
+              value={selectedDate}
+              onChange={handleDateChange}
               disabled={!isDateSelectorEnabled}
               allowClear={false}
             />
@@ -230,29 +232,26 @@ const Dashboard = ({ marketType }) => {
           </Col>
         </Row>
       </Card>
-
       <Spin spinning={loading}>
-        <StockChart 
-          chartData={chartData} 
+        <StockChart
+          chartData={chartData}
           stockCode={displayedStockCode}
-          stockName={displayedStockName} 
+          stockName={displayedStockName}
           interval={selectedInterval}
           corporateActions={corporateActions}
           showEvents={showEvents}
         />
       </Spin>
-
-      {/* Render Financial Overview and Actions */}
-      <div className="deep-dive-container" style={{marginTop: '20px'}}>
-          <FinancialOverviewAndActions 
-            marketType={marketType}
-            annualEarningsData={annualEarningsData}
-            loadingAnnualEarnings={loadingAnnualEarnings}
-            annualEarningsError={annualEarningsError}
-            corporateActionsData={corporateActions}
-            loadingCorporateActions={loadingActions}
-            corporateActionsError={actionsError}
-          />
+      <div className="deep-dive-container" style={{ marginTop: '20px' }}>
+        <FinancialOverviewAndActions
+          marketType={marketType}
+          annualEarningsData={annualEarningsData}
+          loadingAnnualEarnings={loadingAnnualEarnings}
+          annualEarningsError={annualEarningsError}
+          corporateActionsData={corporateActions}
+          loadingCorporateActions={loadingActions}
+          corporateActionsError={actionsError}
+        />
       </div>
     </div>
   );
