@@ -6,25 +6,30 @@ from fastapi_cache.backends.redis import RedisBackend
 from redis import asyncio as aioredis
 import logging
 import warnings
+from app.api.v1 import stocks as stocks_v1
+from app.api.v1 import admin as admin_v1
+from app.api.v1 import backtest as backtest_v1
+from app.db.session import engine, SessionLocal
+from app.db import models
+from app.core.config import settings
 
 # Suppress the specific FutureWarning from baostock
 warnings.filterwarnings(
     "ignore",
     category=FutureWarning,
     message="The frame.append method is deprecated and will be removed from pandas in a future version. Use pandas.concat instead.",
-    module="baostock.data.resultset"
+    module="baostock.data.resultset",
 )
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logging.getLogger("yfinance").setLevel(logging.WARNING) # Quieten yfinance's debug messages
-logging.getLogger("urllib3").setLevel(logging.INFO) # Quieten urllib3's debug messages
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logging.getLogger("yfinance").setLevel(
+    logging.WARNING
+)  # Quieten yfinance's debug messages
+logging.getLogger("urllib3").setLevel(logging.INFO)  # Quieten urllib3's debug messages
 
-from app.api.v1 import stocks as stocks_v1
-from app.api.v1 import admin as admin_v1
-from app.api.v1 import backtest as backtest_v1 # Import the new backtest router
-from app.db.session import engine, SessionLocal
-from app.db import models
 
 def create_db_and_tables():
     """
@@ -50,7 +55,6 @@ def create_db_and_tables():
     finally:
         db.close()
 
-from app.core.config import settings # New import
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -59,7 +63,9 @@ async def lifespan(app: FastAPI):
     create_db_and_tables()
 
     # Initialize FastAPI-Cache with Redis backend
-    redis = aioredis.from_url(settings.REDIS_URL, encoding="utf8", decode_responses=True)
+    redis = aioredis.from_url(
+        settings.REDIS_URL, encoding="utf8", decode_responses=True
+    )
     FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
     print("FastAPI-Cache initialized with Redis.")
 
@@ -68,11 +74,12 @@ async def lifespan(app: FastAPI):
     # On shutdown
     print("Application shutdown.")
 
+
 app = FastAPI(
     title="ChronoRetrace API",
     description="API for the ChronoRetrace financial analysis tool.",
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -87,7 +94,10 @@ app.add_middleware(
 # Include API routers
 app.include_router(stocks_v1.router, prefix="/api/v1/stocks", tags=["stocks"])
 app.include_router(admin_v1.router, prefix="/api/v1/admin", tags=["admin"])
-app.include_router(backtest_v1.router, prefix="/api/v1/backtest", tags=["backtest"]) # Register the new backtest router
+app.include_router(
+    backtest_v1.router, prefix="/api/v1/backtest", tags=["backtest"]
+)  # Register the new backtest router
+
 
 @app.get("/")
 def read_root():

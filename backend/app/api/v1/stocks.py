@@ -1,35 +1,32 @@
-import akshare as ak
-import pandas as pd
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta, date
-import asyncio
 
 from starlette.concurrency import run_in_threadpool
 
 from app.db.session import get_db
-from app.schemas.stock import StockInfo, StockDataInDB, StockDataBase
+from app.schemas.stock import StockInfo, StockDataBase
 from app.schemas.fundamental import FundamentalDataInDB
 from app.schemas.corporate_action import CorporateActionResponse
 from app.schemas.annual_earnings import AnnualEarningsInDB
 from app.services import data_fetcher
 from fastapi_cache.decorator import cache
-from app.db import models
 
 
 router = APIRouter()
 
-import logging
-
 logger = logging.getLogger(__name__)
-
 
 
 @router.get("/list/all", response_model=List[StockInfo])
 @cache(expire=86400)  # Cache for 24 hours
-def get_all_stock_list(market_type: str = Query("A_share", enum=["A_share", "US_stock"]), db: Session = Depends(get_db)):
+def get_all_stock_list(
+    market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
+    db: Session = Depends(get_db),
+):
     """
     Get all stocks for a given market type from the local database cache.
     This endpoint is cached for 24 hours.
@@ -41,29 +38,42 @@ def get_all_stock_list(market_type: str = Query("A_share", enum=["A_share", "US_
             return []
         return stocks
     except Exception as e:
-        logger.error(f"An error occurred while fetching the stock list for {market_type}: {e}", exc_info=True)
-        raise HTTPException(status_code=503, detail=f"An error occurred while fetching the stock list.")
+        logger.error(
+            f"An error occurred while fetching the stock list for {market_type}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=503, detail="An error occurred while fetching the stock list."
+        )
 
 
 def get_trade_date(offset: int = 0) -> str:
     """Helper to get a valid trade date string."""
     return (datetime.now() - timedelta(days=offset)).strftime("%Y%m%d")
 
+
 @router.get("/{stock_code}", response_model=List[StockDataBase])
 @cache(expire=900)  # Cache for 15 minutes
 async def get_stock_data(
     stock_code: str,
-    interval: str = Query("daily", enum=["minute", "5day", "daily", "weekly", "monthly"]),
+    interval: str = Query(
+        "daily", enum=["minute", "5day", "daily", "weekly", "monthly"]
+    ),
     market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
-    trade_date: Optional[date] = Query(None, description="Date for 'minute' or '5day' interval, format YYYY-MM-DD")
+    trade_date: Optional[date] = Query(
+        None, description="Date for 'minute' or '5day' interval, format YYYY-MM-DD"
+    ),
 ):
     """
     Get historical or intraday data for a specific stock using AKShare or yfinance.
     This endpoint is asynchronous and uses a thread pool for blocking I/O.
     """
     # Validation: A-share codes must have a market suffix.
-    if market_type == "A_share" and '.' not in stock_code:
-        raise HTTPException(status_code=400, detail="Invalid A-share stock_code format. Expected format: '<code>.<market>' (e.g., '600519.SH')")
+    if market_type == "A_share" and "." not in stock_code:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid A-share stock_code format. Expected format: '<code>.<market>' (e.g., '600519.SH')",
+        )
 
     try:
         # Run the synchronous, blocking function in a thread pool
@@ -72,20 +82,20 @@ async def get_stock_data(
             stock_code=stock_code,
             interval=interval,
             market_type=market_type,
-            trade_date=trade_date
+            trade_date=trade_date,
         )
 
         if df.empty:
             return []
-        
+
         # Convert DataFrame to list of dicts
-        records = df.to_dict('records')
-        
+        records = df.to_dict("records")
+
         # Add ts_code and interval to each record for frontend consistency
         for record in records:
-            record['ts_code'] = stock_code
-            record['interval'] = interval
-            
+            record["ts_code"] = stock_code
+            record["interval"] = interval
+
         return records
 
     except Exception as e:
@@ -94,7 +104,9 @@ async def get_stock_data(
 
 
 @router.post("/{symbol}/sync", status_code=202)
-async def sync_data_for_symbol(symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def sync_data_for_symbol(
+    symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
     """
     Trigger a background task to fetch and store fundamental and corporate action data
     for a given stock symbol.
@@ -104,11 +116,15 @@ async def sync_data_for_symbol(symbol: str, background_tasks: BackgroundTasks, d
         raise HTTPException(status_code=404, detail=f"Symbol '{symbol}' not found.")
 
     background_tasks.add_task(data_fetcher.sync_financial_data, resolved_symbol)
-    return {"message": f"Data synchronization for {resolved_symbol} has been started in the background."}
+    return {
+        "message": f"Data synchronization for {resolved_symbol} has been started in the background."
+    }
 
 
 @router.get("/{symbol}/fundamentals", response_model=FundamentalDataInDB)
-async def get_fundamental_data(symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def get_fundamental_data(
+    symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
     """
     Get fundamental data for a given stock symbol.
     Triggers a background sync if data is missing or stale (older than 24 hours).
@@ -120,19 +136,25 @@ async def get_fundamental_data(symbol: str, background_tasks: BackgroundTasks, d
     db_data = data_fetcher.get_fundamental_data_from_db(db, resolved_symbol)
 
     # Check if data is stale or missing
-    if not db_data or (db_data and (datetime.utcnow() - db_data.last_updated) > timedelta(hours=24)):
+    if not db_data or (
+        db_data and (datetime.utcnow() - db_data.last_updated) > timedelta(hours=24)
+    ):
         background_tasks.add_task(data_fetcher.sync_financial_data, resolved_symbol)
-        if not db_data: # If no data at all, inform user it's being synced
+        if not db_data:  # If no data at all, inform user it's being synced
             return JSONResponse(
                 status_code=status.HTTP_202_ACCEPTED,
-                content={"message": f"Fundamental data for {resolved_symbol} is being synced. Please try again in a moment."}
+                content={
+                    "message": f"Fundamental data for {resolved_symbol} is being synced. Please try again in a moment."
+                },
             )
-    
+
     return db_data
 
 
 @router.get("/{symbol}/corporate-actions", response_model=CorporateActionResponse)
-def get_corporate_actions(symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def get_corporate_actions(
+    symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
     """
     Get all corporate actions for a given stock symbol.
     Triggers a background sync if data is missing.
@@ -147,14 +169,19 @@ def get_corporate_actions(symbol: str, background_tasks: BackgroundTasks, db: Se
         background_tasks.add_task(data_fetcher.sync_financial_data, resolved_symbol)
         return JSONResponse(
             status_code=status.HTTP_202_ACCEPTED,
-            content={"message": f"Corporate actions for {resolved_symbol} not found. A background sync has been started. Please try again in a moment."}
+            content={
+                "message": f"Corporate actions for {resolved_symbol} not found. A background sync has been started. Please try again in a moment."
+            },
         )
-    
+
     # Return data that matches the CorporateActionResponse schema
     return {"symbol": resolved_symbol, "actions": actions}
 
+
 @router.get("/{symbol}/annual-earnings", response_model=List[AnnualEarningsInDB])
-async def get_annual_earnings(symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def get_annual_earnings(
+    symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
     """
     Get annual net profit data for a given stock symbol.
     Triggers a background sync if data is missing or stale (older than 24 hours).
@@ -166,12 +193,16 @@ async def get_annual_earnings(symbol: str, background_tasks: BackgroundTasks, db
     db_data = data_fetcher.get_annual_earnings_from_db(db, resolved_symbol)
 
     # Check if data is stale or missing
-    if not db_data or (db_data and (datetime.utcnow() - db_data[0].last_updated) > timedelta(hours=24)):
+    if not db_data or (
+        db_data and (datetime.utcnow() - db_data[0].last_updated) > timedelta(hours=24)
+    ):
         background_tasks.add_task(data_fetcher.sync_financial_data, resolved_symbol)
-        if not db_data: # If no data at all, inform user it's being synced
+        if not db_data:  # If no data at all, inform user it's being synced
             return JSONResponse(
                 status_code=status.HTTP_202_ACCEPTED,
-                content={"message": f"Annual earnings data for {resolved_symbol} is being synced. Please try again in a moment."}
+                content={
+                    "message": f"Annual earnings data for {resolved_symbol} is being synced. Please try again in a moment."
+                },
             )
-    
+
     return db_data

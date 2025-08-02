@@ -1,8 +1,8 @@
-from sqlalchemy import Column, String, Float, Date, Integer, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, String, Float, Date, Integer, DateTime
 from sqlalchemy.schema import UniqueConstraint
 from .session import Base
 from datetime import datetime
+
 
 class StockData(Base):
     __tablename__ = "stock_data"
@@ -19,19 +19,27 @@ class StockData(Base):
     pct_chg = Column(Float)
     vol = Column(Float)
     amount = Column(Float)
-    interval = Column(String, index=True, nullable=False, default='daily')
+    interval = Column(String, index=True, nullable=False, default="daily")
 
-    __table_args__ = (UniqueConstraint('ts_code', 'trade_date', 'interval', name='_ts_code_trade_date_interval_uc'),)
+    __table_args__ = (
+        UniqueConstraint(
+            "ts_code", "trade_date", "interval", name="_ts_code_trade_date_interval_uc"
+        ),
+    )
+
 
 class StockInfo(Base):
     __tablename__ = "stock_info"
 
     ts_code = Column(String, primary_key=True, index=True, nullable=False)
     name = Column(String, nullable=False)
-    market_type = Column(String, nullable=False, default='A_share') # New column
+    market_type = Column(String, nullable=False, default="A_share")  # New column
     last_updated = Column(DateTime, default=datetime.utcnow)
 
-    __table_args__ = (UniqueConstraint('ts_code', 'market_type', name='_ts_code_market_type_uc'),)
+    __table_args__ = (
+        UniqueConstraint("ts_code", "market_type", name="_ts_code_market_type_uc"),
+    )
+
 
 class FundamentalData(Base):
     __tablename__ = "fundamental_data"
@@ -52,6 +60,7 @@ class FundamentalData(Base):
     current_ratio = Column(Float)
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+
 class CorporateAction(Base):
     __tablename__ = "corporate_actions"
 
@@ -59,9 +68,14 @@ class CorporateAction(Base):
     symbol = Column(String, index=True, nullable=False)
     action_type = Column(String, nullable=False)  # 'dividend' or 'split'
     ex_date = Column(Date, nullable=False)
-    value = Column(Float, nullable=False) # Dividend per share or split coefficient
+    value = Column(Float, nullable=False)  # Dividend per share or split coefficient
 
-    __table_args__ = (UniqueConstraint('symbol', 'ex_date', 'action_type', name='_symbol_date_action_uc'),)
+    __table_args__ = (
+        UniqueConstraint(
+            "symbol", "ex_date", "action_type", name="_symbol_date_action_uc"
+        ),
+    )
+
 
 class AnnualEarnings(Base):
     __tablename__ = "annual_earnings"
@@ -72,4 +86,4 @@ class AnnualEarnings(Base):
     net_profit = Column(Float)
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    __table_args__ = (UniqueConstraint('symbol', 'year', name='_symbol_year_uc'),)
+    __table_args__ = (UniqueConstraint("symbol", "year", name="_symbol_year_uc"),)
