@@ -14,3 +14,6 @@ akshare
 yahoo_fin
 requests_html
 pydantic_settings
+ruff
+pytest
+pytest-mock

@@ -33,7 +33,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
-          pip install ruff pytest # Explicitly install testing/linting tools
           pip list
 
       # 4. Lint with Ruff
@@ -43,10 +42,6 @@ jobs:
       # 5. Run pytest
       - name: Run pytest
         run: pytest backend/
-
-      # 6. Debug: List installed packages
-      - name: List Python dependencies
-        run: pip list
 
   #---------------------------------
   # Frontend Job
