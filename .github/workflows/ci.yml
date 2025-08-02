@@ -32,7 +32,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install --upgrade numpy # Upgrade numpy first to prevent compatibility issues
+          pip install numpy==1.26.4 pandas==2.2.2 pytest
           pip install -r backend/requirements.txt
           pip install ruff pytest # Explicitly install testing/linting tools
 
@@ -61,18 +61,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20' # Use a recent LTS version
+          cache: 'npm' # Enable npm cache for faster installs
+          cache-dependency-path: ./frontend/package-lock.json # Specify cache path for frontend directory
 
-      # 3. Install dependencies
-      - name: Install npm dependencies
-        run: npm install
+      # 3. Clear npm cache
+      - name: Clear npm cache
+        run: npm cache clean --force
         working-directory: ./frontend
 
-      # 4. Lint with ESLint
+      # 4. Install dependencies
+      - name: Install npm dependencies
+        run: npm install react-router-dom@6.26.1
+        working-directory: ./frontend
+
+      # 5. Lint with ESLint
       - name: Lint with ESLint
         run: npm run lint
         working-directory: ./frontend
 
-      # 5. Run tests with Jest
+      # 6. Run tests with Jest
       # The --watchAll=false flag is crucial for running in a non-interactive CI environment
       - name: Run Jest tests
         run: npm test -- --watchAll=false
