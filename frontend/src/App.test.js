@@ -1,8 +1,6 @@
-import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from './App';
-import { getAllStocks, getStockData, getCorporateActions, getAnnualEarnings } from './api/stockApi';
 
 // 模拟组件
 jest.mock('./components/StockChart', () => () => <div data-testid="stock-chart">Mocked StockChart</div>);
@@ -40,7 +38,12 @@ test('renders main layout and navigates to A-share dashboard by default', async 
     () => {
       const headerElement = screen.getByText(/ChronoRetrace/i);
       expect(headerElement).toBeInTheDocument();
+    },
+    { timeout: 2000 }
+  );
 
+  await waitFor(
+    () => {
       const dashboardTitle = screen.getByText(/A股市场分析/i);
       expect(dashboardTitle).toBeInTheDocument();
     },
