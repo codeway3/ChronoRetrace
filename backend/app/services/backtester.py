@@ -39,7 +39,7 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
     # State variables based on user input
     cash_balance = config.total_investment
     position_quantity = config.initial_quantity  # Start with user-defined quantity
-    initial_cost_basis = config.initial_quantity * config.initial_per_share_cost
+    current_cost_basis = config.initial_quantity * config.initial_per_share_cost
     
     # Result accumulators
     transaction_log: List[Transaction] = []
@@ -47,6 +47,7 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
     
     # Metrics variables
     # The initial portfolio value includes the cash for the grid AND the value of initial holdings.
+    initial_cost_basis = current_cost_basis
     initial_portfolio_value = config.total_investment + initial_cost_basis
     peak_portfolio_value = initial_portfolio_value
     max_drawdown = 0.0
@@ -97,29 +98,45 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
                 if market_type == 'A_share':
                     num_lots = int(potential_quantity // 100)
                     if num_lots > 0:
-                        quantity_to_buy = num_lots * 100
+                        # Try to buy the calculated number of lots, but reduce if cost is too high
+                        for lots in range(num_lots, 0, -1):
+                            qty = lots * 100
+                            gross_cost = qty * buy_execution_price
+                            commission = max(gross_cost * config.commission_rate, config.min_commission)
+                            total_cost = gross_cost + commission
+                            if cash_balance >= total_cost:
+                                quantity_to_buy = qty
+                                break # Found a quantity we can afford
                 else: # US_stock
-                    quantity_to_buy = int(potential_quantity)
+                    # Similar logic for fractional shares if needed, for now, integer shares
+                    qty = int(potential_quantity)
+                    gross_cost = qty * buy_execution_price
+                    commission = max(gross_cost * config.commission_rate, config.min_commission)
+                    total_cost = gross_cost + commission
+                    if cash_balance >= total_cost:
+                        quantity_to_buy = qty
 
                 if quantity_to_buy > 0:
-                    actual_cost = quantity_to_buy * buy_execution_price
+                    # Recalculate final costs for the actual quantity
+                    gross_cost = quantity_to_buy * buy_execution_price
+                    commission = max(gross_cost * config.commission_rate, config.min_commission)
+                    total_cost = gross_cost + commission
+
+                    cash_balance -= total_cost
+                    position_quantity += quantity_to_buy
+                    current_cost_basis += total_cost
                     
-                    if cash_balance >= actual_cost:
-                        cash_balance -= actual_cost
-                        position_quantity += quantity_to_buy # Add to the unified pool
-                        
-                        # This grid slot is now filled
-                        grid.update({
-                            "status": "bought",
-                            "bought_quantity": quantity_to_buy,
-                            "cost_basis": actual_cost
-                        })
-                        
-                        transaction_log.append(Transaction(
-                            trade_date=current_date, trade_type="buy", price=buy_execution_price,
-                            quantity=quantity_to_buy
-                        ))
-                        trade_executed_today = True
+                    grid.update({
+                        "status": "bought",
+                        "bought_quantity": quantity_to_buy,
+                        "cost_basis": total_cost
+                    })
+                    
+                    transaction_log.append(Transaction(
+                        trade_date=current_date, trade_type="buy", price=buy_execution_price,
+                        quantity=quantity_to_buy
+                    ))
+                    trade_executed_today = True
 
             # --- Sell Logic (Crucial Change) ---
             # Trigger a sell if price rises above the sell price AND the grid slot was previously bought.
@@ -129,14 +146,26 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
 
                 # CRITICAL CHECK: Can we sell? Do we have enough shares in our total pool?
                 if position_quantity >= quantity_to_sell:
-                    sell_execution_price = grid["sell_price"]
-                    revenue = quantity_to_sell * sell_execution_price
+                    # Reduce cost basis proportionally before reducing quantity
+                    average_cost_before_sell = current_cost_basis / position_quantity if position_quantity > 0 else 0
+                    cost_of_shares_sold = quantity_to_sell * average_cost_before_sell
                     
-                    cash_balance += revenue
+                    sell_execution_price = grid["sell_price"]
+                    gross_revenue = quantity_to_sell * sell_execution_price
+                    
+                    # Calculate transaction costs for the sell
+                    commission = max(gross_revenue * config.commission_rate, config.min_commission)
+                    stamp_duty = gross_revenue * config.stamp_duty_rate
+                    total_fees = commission + stamp_duty
+                    net_revenue = gross_revenue - total_fees
+
+                    # Update state
+                    current_cost_basis -= cost_of_shares_sold
+                    cash_balance += net_revenue
                     position_quantity -= quantity_to_sell # Sell from the unified pool
                     
                     # PnL for this specific grid trade is calculated based on its own cost basis
-                    pnl = revenue - grid["cost_basis"]
+                    pnl = net_revenue - grid["cost_basis"]
                     sell_trades += 1
                     if pnl > 0:
                         winning_trades += 1
@@ -173,30 +202,36 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
         if config.on_exceed_upper == 'sell_all' and close_price > config.upper_price:
             if position_quantity > 0:
                 logger.info(f"Price {close_price} exceeded upper bound {config.upper_price}. Selling all {position_quantity} shares.")
-                revenue = position_quantity * close_price
-                cash_balance += revenue
-                # Note: PnL for this bulk sale isn't calculated per-grid, it's a strategy-level event.
-                # The final PnL calculation will correctly reflect this.
+                gross_revenue = position_quantity * close_price
+                commission = max(gross_revenue * config.commission_rate, config.min_commission)
+                stamp_duty = gross_revenue * config.stamp_duty_rate
+                net_revenue = gross_revenue - (commission + stamp_duty)
+                
+                cash_balance += net_revenue
                 transaction_log.append(Transaction(
                     trade_date=current_date, trade_type="sell", price=close_price,
-                    quantity=position_quantity, pnl=None # PnL is complex here, handled by total value change
+                    quantity=position_quantity, pnl=None
                 ))
                 position_quantity = 0
-                # Break the simulation for this stock as the strategy has concluded.
+                current_cost_basis = 0
                 break 
         
         # Falls Below Lower Bound
         if config.on_fall_below_lower == 'sell_all' and close_price < config.lower_price:
             if position_quantity > 0:
                 logger.info(f"Price {close_price} fell below lower bound {config.lower_price}. Selling all {position_quantity} shares (Stop-Loss).")
-                revenue = position_quantity * close_price
-                cash_balance += revenue
+                gross_revenue = position_quantity * close_price
+                commission = max(gross_revenue * config.commission_rate, config.min_commission)
+                stamp_duty = gross_revenue * config.stamp_duty_rate
+                net_revenue = gross_revenue - (commission + stamp_duty)
+
+                cash_balance += net_revenue
                 transaction_log.append(Transaction(
                     trade_date=current_date, trade_type="sell", price=close_price,
                     quantity=position_quantity, pnl=None
                 ))
                 position_quantity = 0
-                # Break the simulation
+                current_cost_basis = 0
                 break
 
     # --- 4. Final Metrics Calculation ---
@@ -227,6 +262,7 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
     annualized_return_rate = (1 + total_return_rate) ** (1 / years) - 1 if years > 0 and total_return_rate > -1 else 0.0
     
     win_rate = winning_trades / sell_trades if sell_trades > 0 else 0.0
+    average_holding_cost = current_cost_basis / position_quantity if position_quantity > 0 else 0.0
 
     # Prepare K-line data for the frontend
     kline_data = backtest_df.to_dict(orient='records')
@@ -242,7 +278,9 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
         kline_data=kline_data,
         transaction_log=transaction_log,
         strategy_config=config,
-        market_type=market_type
+        market_type=market_type,
+        final_holding_quantity=position_quantity,
+        average_holding_cost=average_holding_cost
     )
 
     logger.info(f"Finished grid backtest for {config.stock_code}. Final PnL: {total_pnl:.2f}")

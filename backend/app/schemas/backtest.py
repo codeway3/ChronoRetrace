@@ -27,6 +27,11 @@ class GridStrategyConfig(BaseModel):
     initial_per_share_cost: Optional[float] = Field(0.0, description="Optional: Per-share cost of the initial holdings.")
     on_exceed_upper: Optional[UpperBoundStrategy] = Field(UpperBoundStrategy.HOLD, description="Strategy when price exceeds upper bound.")
     on_fall_below_lower: Optional[LowerBoundStrategy] = Field(LowerBoundStrategy.HOLD, description="Strategy when price falls below lower bound.")
+    
+    # Transaction Costs
+    commission_rate: Optional[float] = Field(0.0003, description="Commission rate per transaction.")
+    stamp_duty_rate: Optional[float] = Field(0.001, description="Stamp duty rate, applied on sells only.")
+    min_commission: Optional[float] = Field(5.0, description="Minimum commission fee per transaction.")
 
 class Transaction(BaseModel):
     """
@@ -77,3 +82,7 @@ class BacktestResult(BaseModel):
     # 3. Informational data
     strategy_config: GridStrategyConfig = Field(..., description="The configuration used for this backtest")
     market_type: str = Field(..., description="The market type of the stock (e.g., 'A_share', 'US_stock')")
+
+    # 4. Final Holdings
+    final_holding_quantity: int = Field(..., description="Number of shares still held at the end of the backtest.")
+    average_holding_cost: float = Field(..., description="The average cost per share of the final holdings.")

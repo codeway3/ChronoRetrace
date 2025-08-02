@@ -46,6 +46,9 @@ const BacktestPage = () => {
             end_date: values.date_range[1].format('YYYY-MM-DD'),
             initial_quantity: values.initial_quantity || 0,
             initial_per_share_cost: values.initial_per_share_cost || 0,
+            // Convert percentages from form to decimals for backend
+            commission_rate: (values.commission_rate || 0) / 100,
+            stamp_duty_rate: (values.stamp_duty_rate || 0) / 100,
         };
         delete config.date_range;
 
@@ -83,6 +86,9 @@ const BacktestPage = () => {
         initial_per_share_cost: 0,
         on_exceed_upper: 'hold',
         on_fall_below_lower: 'hold',
+        commission_rate: 0.03, //万三
+        min_commission: 5,
+        stamp_duty_rate: 0.1, //千一
     };
 
     return (
@@ -104,7 +110,7 @@ const BacktestPage = () => {
                         </Col>
                         <Col xs={24} sm={12} md={8}>
                             <Form.Item name="total_investment" label={<span>网格策略资金 <Tooltip title="用于网格交易的现金总额"><QuestionCircleOutlined /></Tooltip></span>} rules={[{ required: true, message: '请输入总投资额' }]}>
-                                <InputNumber style={{ width: '100%' }} min={1} formatter={value => `${currencySymbol} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={value => value.replace(new RegExp(`\\${currencySymbol}\\s?|(,*)/g`), '')} />
+                                <InputNumber style={{ width: '100%' }} min={1} addonBefore={currencySymbol} formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={value => value.replace(/\$\s?|(,*)/g, '')} />
                             </Form.Item>
                         </Col>
                         
@@ -133,7 +139,7 @@ const BacktestPage = () => {
                         </Col>
                         <Col xs={24} sm={12} md={8}>
                             <Form.Item name="initial_per_share_cost" label={<span>每股成本 (选填) <Tooltip title="初始持股的每股成本价。用于精确计算盈亏。"><QuestionCircleOutlined /></Tooltip></span>}>
-                                <InputNumber style={{ width: '100%' }} min={0} formatter={value => `${currencySymbol} ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={value => value.replace(new RegExp(`\\${currencySymbol}\\s?|(,*)/g`), '')} />
+                                <InputNumber style={{ width: '100%' }} min={0} addonBefore={currencySymbol} formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={value => value.replace(/\$\s?|(,*)/g, '')} />
                             </Form.Item>
                         </Col>
                         <Col span={8} />
@@ -156,6 +162,23 @@ const BacktestPage = () => {
                             </Form.Item>
                         </Col>
                     </Row>
+                    <Row gutter={24} style={{ marginTop: '24px' }}>
+                        <Col xs={24} sm={12} md={8}>
+                            <Form.Item name="commission_rate" label={<span>佣金费率 (%) <Tooltip title="单边交易佣金的百分比。例如，0.03 代表万分之三。"><QuestionCircleOutlined /></Tooltip></span>}>
+                                <InputNumber style={{ width: '100%' }} min={0} step={0.01} />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={12} md={8}>
+                            <Form.Item name="min_commission" label={<span>最低佣金 <Tooltip title="每笔交易的最低佣金费用。"><QuestionCircleOutlined /></Tooltip></span>}>
+                                <InputNumber style={{ width: '100%' }} min={0} addonBefore={currencySymbol} />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={12} md={8}>
+                            <Form.Item name="stamp_duty_rate" label={<span>印花税率 (%) <Tooltip title="卖出时收取的印花税百分比。A股通常为0.1% (千分之一)。"><QuestionCircleOutlined /></Tooltip></span>}>
+                                <InputNumber style={{ width: '100%' }} min={0} step={0.01} />
+                            </Form.Item>
+                        </Col>
+                    </Row>
                     <Form.Item>
                         <Button type="primary" htmlType="submit" loading={isLoading}>开始回测</Button>
                     </Form.Item>
@@ -163,18 +186,22 @@ const BacktestPage = () => {
             </div>
 
             {isLoading && <div className="spinner-container"><Spin size="large" /></div>}
-            {error && <Alert message="回测出错" description={error} type="error" showIcon closable onClose={() => setError(null)} />} 
+            {error && <Alert message="回测出错" description={error} type="error" showIcon closable onClose={() => setError(null)} />}
 
             {results && (
                 <div className="results-container">
                     <h2>回测结果: {stockInfo.name} ({stockInfo.code})</h2>
                     <Row gutter={[16, 16]} className="kpi-grid">
-                        <Col xs={24} sm={12} md={8} lg={4}><KpiCard title="总盈亏" value={results.total_pnl} format="currency" market={results.market_type} /></Col>
-                        <Col xs={24} sm={12} md={8} lg={4}><KpiCard title="总回报率" value={results.total_return_rate} format="percent" market={results.market_type} /></Col>
-                        <Col xs={24} sm={12} md={8} lg={4}><KpiCard title="年化回报率" value={results.annualized_return_rate} format="percent" market={results.market_type} /></Col>
-                        <Col xs={24} sm={12} md={8} lg={4}><KpiCard title="最大回撤" value={results.max_drawdown} format="percent" isDrawdown={true} market={results.market_type} /></Col>
-                        <Col xs={24} sm={12} md={8} lg={4}><KpiCard title="胜率" value={results.win_rate} format="percent" market={results.market_type} /></Col>
-                        <Col xs={24} sm={12} md={8} lg={4}><KpiCard title="交易次数" value={results.trade_count} format="number" /></Col>
+                        <Col xs={12} sm={12} md={6}><KpiCard title="总盈亏" value={results.total_pnl} format="currency" market={results.market_type} /></Col>
+                        <Col xs={12} sm={12} md={6}><KpiCard title="总回报率" value={results.total_return_rate} format="percent" market={results.market_type} /></Col>
+                        <Col xs={12} sm={12} md={6}><KpiCard title="年化回报率" value={results.annualized_return_rate} format="percent" market={results.market_type} /></Col>
+                        <Col xs={12} sm={12} md={6}><KpiCard title="最大回撤" value={results.max_drawdown} format="percent" isDrawdown={true} market={results.market_type} /></Col>
+                    </Row>
+                    <Row gutter={[16, 16]} className="kpi-grid" style={{ marginTop: '16px' }}>
+                        <Col xs={12} sm={12} md={6}><KpiCard title="胜率" value={results.win_rate} format="percent" market={results.market_type} /></Col>
+                        <Col xs={12} sm={12} md={6}><KpiCard title="交易次数" value={results.trade_count} format="number" /></Col>
+                        <Col xs={12} sm={12} md={6}><KpiCard title="期末持仓" value={results.final_holding_quantity} format="number" /></Col>
+                        <Col xs={12} sm={12} md={6}><KpiCard title="持仓均价" value={results.average_holding_cost} format="currency" market={results.market_type} /></Col>
                     </Row>
 
                     <div className="chart-container">

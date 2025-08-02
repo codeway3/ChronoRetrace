@@ -1,17 +1,22 @@
 .backtest-page-container {
     padding: 24px;
-    background-color: transparent; /* Inherit from main layout */
+    background-color: #f0f2f5;
+    min-height: 100vh;
 }
 
 .form-container {
-    background-color: #25252e; /* Match sidebar color for consistency */
+    background-color: #ffffff;
     padding: 24px;
     border-radius: 8px;
     margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
 }
 
 .results-container {
-    margin-top: 24px;
+    background-color: #ffffff;
+    padding: 24px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
 }
 
 .kpi-grid {
@@ -19,25 +24,17 @@
 }
 
 .chart-container {
-    background-color: #25252e;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 24px;
+    margin-top: 24px;
 }
 
 .spinner-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    text-align: center;
     padding: 50px;
 }
 
-/* Ant Design Overrides */
-.backtest-page-container .ant-form-item-label > label {
-    color: #a9a9b3;
-}
-
-.backtest-page-container .ant-form-item-label > label .ant-form-item-tooltip {
-    color: #a9a9b3;
-    margin-left: 4px;
+/* Style for InputNumber addon to improve visibility */
+.ant-input-group-addon {
+    background-color: #fafafa !important; /* A light grey background */
+    color: rgba(0, 0, 0, 0.85) !important; /* Ensure text is dark */
+    font-weight: 600;
 }
