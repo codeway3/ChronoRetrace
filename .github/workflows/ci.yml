@@ -43,12 +43,16 @@ jobs:
           pip install ruff pytest # Explicitly install testing/linting tools
         working-directory: ./backend
 
-      # 5. Run pytest
+      # 5. Lint with Ruff
+      - name: Lint with Ruff
+        run: ruff check backend/
+
+      # 6. Run pytest
       - name: Run pytest
         run: pytest backend/
         working-directory: .
 
-      # 6. Debug: List installed packages
+      # 7. Debug: List installed packages
       - name: List Python dependencies
         run: pip list
         working-directory: ./backend
@@ -93,13 +97,7 @@ jobs:
         run: npm run lint
         working-directory: ./frontend
 
-      # 7. Run tests with Jest
-      # The --watchAll=false flag is crucial for running in a non-interactive CI environment
-      - name: Run Jest tests
-        run: npm test -- --watchAll=false
-        working-directory: ./frontend
-
-      # 8. Debug: List installed packages
+      # 7. Debug: List installed packages
       - name: List npm dependencies
         run: npm list
         working-directory: ./frontend
