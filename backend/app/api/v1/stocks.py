@@ -14,6 +14,7 @@ from app.schemas.corporate_action import CorporateActionResponse
 from app.schemas.annual_earnings import AnnualEarningsInDB
 from app.services import data_fetcher
 from fastapi_cache.decorator import cache
+from fastapi_cache import FastAPICache
 
 
 router = APIRouter()
@@ -45,6 +46,38 @@ def get_all_stock_list(
         raise HTTPException(
             status_code=503, detail="An error occurred while fetching the stock list."
         )
+
+
+@router.post("/list/refresh", status_code=200)
+async def refresh_stock_list(
+    market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
+    db: Session = Depends(get_db),
+):
+    """
+    Force a refresh of the stock list for a given market type and clear the cache.
+    """
+    try:
+        logger.info(f"Force refreshing stock list for {market_type}...")
+        # This will call the updated function in a_share_fetcher.py
+        await run_in_threadpool(
+            data_fetcher.force_update_stock_list, db, market_type=market_type
+        )
+
+        # Clear the cache for the get_all_stock_list endpoint
+        await FastAPICache.clear(namespace="fastapi-cache")
+        logger.info(f"Cache cleared and stock list for {market_type} refreshed.")
+
+        return {"message": f"Successfully refreshed stock list for {market_type}."}
+    except Exception as e:
+        logger.error(
+            f"An error occurred during force refresh for {market_type}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="An error occurred during the refresh process."
+        )
+
+
 
 
 def get_trade_date(offset: int = 0) -> str:

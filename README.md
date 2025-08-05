@@ -1,116 +1,125 @@
-# ChronoRetrace - A Financial Backtesting Tool
+# ChronoRetrace
 
-ChronoRetrace is a web-based tool for backtesting financial market strategies. It provides a platform for quantitative analysts, investors, and researchers to fetch, store, visualize, and analyze historical financial data.
+[![CI/CD Pipeline](https://github.com/your-username/ChronoRetrace/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/ChronoRetrace/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-The initial focus is on the A-share market, but the architecture is designed to be extensible to other markets like Hong Kong stocks, US stocks, and cryptocurrencies.
+**ChronoRetrace** is a full-stack financial data analysis and backtesting platform designed for quantitative analysts, investors, and developers. It provides a powerful web interface to fetch, visualize, and analyze historical stock market data, with a primary focus on A-shares and US stocks.
 
-## 1. Core Features
+![ChronoRetrace Screenshot](https://your-image-host.com/screenshot.png) 
+*(Note: You can add a screenshot of your application here.)*
 
-- **Multi-Market Support**: Easily switch between different investment categories (currently A-shares) through a clean web interface.
-- **Data Fetching and Management**:
-    - Fetches historical market data from external APIs (Tushare).
-    - Persists data in a local database (SQLite) to improve access speed and avoid redundant requests.
-    - Supports data update mechanisms.
-- **Web Interaction and Visualization**:
-    - Displays a default set of core investment assets (e.g., indices, popular stocks).
-    - Allows users to search and select stocks by code or name.
-    - Visualizes K-line charts using ECharts with a selectable time range.
-- **Backtesting Framework (Future)**: Includes a placeholder for a strategy backtesting interface, with an initial implementation of a simple "buy and hold" strategy.
+---
 
-## 2. Technology Stack
+## ✨ Key Features
 
-- **Backend**:
-    - **Framework**: FastAPI
-    - **Data Processing**: Pandas
-    - **Database ORM**: SQLAlchemy
-    - **Database**: SQLite (Development) / PostgreSQL (Production)
-- **Frontend**:
-    - **Framework**: React
-    - **UI Component Library**: Ant Design
-    - **Charting Library**: ECharts for React
-    - **API Client**: Axios
+-   **Multi-Market Data**: Fetches and displays data for both A-shares and US stocks.
+-   **Interactive Charts**: Utilizes ECharts to provide responsive, interactive K-line (candlestick) charts with time range selection.
+-   **Financial Data Overview**: Displays key performance indicators (KPIs), annual earnings, and corporate actions for selected stocks.
+-   **Strategy Backtesting**: A flexible backtesting engine to test investment strategies. Comes with a simple "buy and hold" strategy as a baseline.
+-   **Modern Tech Stack**: Built with FastAPI on the backend for high performance and React on the frontend for a responsive user experience.
+-   **Persistent Storage**: Uses a database to cache financial data, reducing reliance on external API calls and improving performance.
 
-## 3. Project Structure
+## 🛠️ Technology Stack
+
+| Area      | Technology                                                                                             |
+| :-------- | :----------------------------------------------------------------------------------------------------- |
+| **Backend** | Python 3.10+, FastAPI, SQLAlchemy, Uvicorn, Pandas, Pydantic                                           |
+| **Frontend**| React.js, Node.js 20+, ECharts for React, Ant Design, Axios                                            |
+| **Database**| SQLite (for development), PostgreSQL (recommended for production)                                      |
+| **DevOps**  | GitHub Actions for CI/CD, Ruff for linting, Pytest for testing, ESLint for frontend linting             |
+| **Data Sources** | Akshare, yfinance, Baostock, and other financial data APIs.                                      |
+
+
+## 🚀 Getting Started
+
+Follow these instructions to set up and run the project on your local machine.
+
+### Prerequisites
+
+-   **Python**: Version 3.10 or newer.
+-   **Node.js**: Version 20.0 or newer.
+-   **(Optional) Tushare API Token**: Some data fetchers may require an API token from [Tushare](https://tushare.pro/). If needed, register and place your token in the backend's `.env` file.
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/your-username/ChronoRetrace.git
+cd ChronoRetrace
+```
+
+### 2. Backend Setup
+
+The backend server runs on port 8000.
+
+```bash
+# Navigate to the backend directory
+cd backend
+
+# Create and configure your environment file
+# (Add your API tokens here if needed)
+cp .env.example .env
+
+# Create a virtual environment and activate it
+python -m venv venv
+source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the development server
+uvicorn app.main:app --reload
+```
+The API documentation will be available at `http://127.0.0.1:8000/docs`.
+
+### 3. Frontend Setup
+
+The frontend React app runs on port 3000.
+
+```bash
+# Navigate to the frontend directory from the project root
+cd frontend
+
+# Install dependencies
+npm install
+
+# Run the development server
+npm start
+```
+The application should automatically open in your browser at `http://localhost:3000`.
+
+## 📂 Project Structure
 
 ```
 ChronoRetrace/
-├── backend/                  # FastAPI Backend
+├── .github/              # GitHub Actions Workflows
+├── backend/              # FastAPI Backend
 │   ├── app/
-│   │   ├── api/              # API Routers
-│   │   ├── core/             # Configuration
-│   │   ├── db/               # Database Models & Session
-│   │   ├── schemas/          # Pydantic Schemas
-│   │   └── services/         # Business Logic
-│   ├── .env.example          # Environment variable example
-│   ├── main.py               # App entrypoint
+│   │   ├── api/          # API Routers
+│   │   ├── core/         # Configuration
+│   │   ├── db/           # Database Models & Session
+│   │   ├── schemas/      # Pydantic Schemas
+│   │   └── services/     # Business Logic
+│   ├── .env.example      # Environment variable example
 │   └── requirements.txt
-├── frontend/                 # React Frontend
-│   ├── src/
-│   │   ├── api/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   └── App.js
-│   └── package.json
+├── frontend/             # React Frontend
+│   ├── public/
+│   └── src/
+│       ├── api/
+│       ├── components/
+│       ├── layouts/
+│       └── pages/
 ├── .gitignore
+├── LICENSE
+├── CONTRIBUTING.md
 └── README.md
 ```
 
-## 4. Running the Application
+## 🤝 Contributing
 
-Follow these steps to get the application running locally.
+Contributions are welcome! Whether it's bug reports, feature requests, or pull requests, we appreciate your help.
 
-### 4.1. Prerequisites: Get a Tushare API Token
+Please read our [**Contributing Guidelines**](CONTRIBUTING.md) to get started. Also, be sure to follow our [**Code of Conduct**](CODE_OF_CONDUCT.md).
 
-This tool uses the [Tushare Data Community](https://tushare.pro/) as its primary data source.
+## 📄 License
 
-1.  Visit the Tushare website and register for an account.
-2.  Log in and find your API Token on your personal profile page under "接口TOKEN".
-
-### 4.2. Backend Setup
-
-1.  **Configure Environment Variables**:
-    ```bash
-    cd backend
-    cp .env.example .env
-    ```
-    Open the `.env` file and add your Tushare API Token:
-    ```
-    TUSHARE_API_TOKEN="YOUR_TUSHARE_TOKEN_HERE"
-    ```
-
-2.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3.  **Run the Backend Server**:
-    ```bash
-    # From the backend directory
-    uvicorn app.main:app --reload
-    ```
-    The server will start at `http://127.0.0.1:8000`. You can view the API documentation at `http://127.0.0.1:8000/docs`.
-
-### 4.3. Frontend Setup
-
-1.  **Install Dependencies**:
-    ```bash
-    # From the project root directory
-    npm install --prefix frontend
-    ```
-
-2.  **Run the Frontend Development Server**:
-    ```bash
-    # From the project root directory
-    npm start --prefix frontend
-    ```
-    The application will open automatically in your browser at `http://localhost:3000`.
-
-## 5. Troubleshooting
-
-### Empty Stock Dropdown
-
-If the stock dropdown list is empty, it's likely due to one of the following issues:
-
-1.  **Missing Tushare API Token**: The backend requires a valid Tushare API token to fetch the stock list. Make sure you have created a `.env` file in the `backend` directory and added your token to it, as described in the "Backend Setup" section.
-2.  **Backend Server Not Running**: Ensure the backend server is running at `http://127.0.0.1:8000`.
-3.  **Invalid Tushare API Token**: If your token is invalid or has expired, the backend will not be able to fetch data. Please verify your token on the Tushare website.
+This project is licensed under the MIT License. See the [**LICENSE**](LICENSE) file for details.

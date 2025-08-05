@@ -34,6 +34,23 @@ def get_all_stocks_list(db: Session, market_type: str = "A_share"):
     return query.all()
 
 
+def force_update_stock_list(db: Session, market_type: str):
+    """
+    Explicitly triggers an update of the stock list from the data source.
+    """
+    logger.info(f"Force updating stock list for {market_type} from source.")
+    try:
+        if market_type == "A_share":
+            a_share_fetcher.update_stock_list_from_akshare(db)
+        elif market_type == "US_stock":
+            us_stock_fetcher.update_us_stock_list(db)
+        logger.info(f"Successfully forced update for {market_type}.")
+    except Exception as e:
+        logger.error(f"Failed to force update stock list for {market_type}: {e}")
+        # Re-raise the exception to be caught by the API endpoint
+        raise e
+
+
 class StockDataFetcher:
     def __init__(self, db: Session, stock_code: str, interval: str, market_type: str, trade_date: Optional[date] = None):
         self.db = db
@@ -156,21 +173,20 @@ async def _sync_a_share_data(db: Session, symbol: str):
     logger.info(f"BACKGROUND_TASK: Starting data sync for A-share: {symbol}")
     
     try:
-        with a_share_fetcher.baostock_session():
-            fund_data = await run_in_threadpool(a_share_fetcher.fetch_fundamental_data_from_baostock, symbol)
-            if fund_data:
-                await run_in_threadpool(db_writer.store_fundamental_data, db, symbol, fund_data)
-                logger.info(f"Successfully synced fundamental data for {symbol}.")
+        fund_data = await run_in_threadpool(a_share_fetcher.fetch_fundamental_data_from_baostock, symbol)
+        if fund_data:
+            await run_in_threadpool(db_writer.store_fundamental_data, db, symbol, fund_data)
+            logger.info(f"Successfully synced fundamental data for {symbol}.")
 
-            actions_data = await run_in_threadpool(a_share_fetcher.fetch_corporate_actions_from_baostock, symbol)
-            if actions_data:
-                count = await run_in_threadpool(db_writer.store_corporate_actions, db, symbol, actions_data)
-                logger.info(f"Successfully synced {count} corporate actions for {symbol}.")
+        actions_data = await run_in_threadpool(a_share_fetcher.fetch_corporate_actions_from_baostock, symbol)
+        if actions_data:
+            count = await run_in_threadpool(db_writer.store_corporate_actions, db, symbol, actions_data)
+            logger.info(f"Successfully synced {count} corporate actions for {symbol}.")
 
-            earnings_data = await run_in_threadpool(a_share_fetcher.fetch_annual_net_profit_from_baostock, symbol)
-            if earnings_data:
-                count = await run_in_threadpool(db_writer.store_annual_earnings, db, symbol, earnings_data)
-                logger.info(f"Successfully synced {count} annual earnings records for {symbol}.")
+        earnings_data = await run_in_threadpool(a_share_fetcher.fetch_annual_net_profit_from_baostock, symbol)
+        if earnings_data:
+            count = await run_in_threadpool(db_writer.store_annual_earnings, db, symbol, earnings_data)
+            logger.info(f"Successfully synced {count} annual earnings records for {symbol}.")
     except RuntimeError as e:
         logger.error(f"Baostock session error for {symbol}: {e}")
     except Exception as e:
