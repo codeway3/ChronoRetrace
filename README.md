@@ -1,12 +1,10 @@
 # ChronoRetrace
 
-[![CI/CD Pipeline](https://github.com/your-username/ChronoRetrace/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/ChronoRetrace/actions/workflows/ci.yml)
+[![CI/CD Pipeline](https://github.com/codeway3/ChronoRetrace/actions/workflows/ci.yml/badge.svg)](https://github.com/codeway3/ChronoRetrace/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **ChronoRetrace** is a full-stack financial data analysis and backtesting platform designed for quantitative analysts, investors, and developers. It provides a powerful web interface to fetch, visualize, and analyze historical stock market data, with a primary focus on A-shares and US stocks.
 
-![ChronoRetrace Screenshot](https://your-image-host.com/screenshot.png) 
-*(Note: You can add a screenshot of your application here.)*
 
 ---
 
@@ -43,7 +41,7 @@ Follow these instructions to set up and run the project on your local machine.
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/ChronoRetrace.git
+git clone https://github.com/codeway3/ChronoRetrace.git
 cd ChronoRetrace
 ```
 

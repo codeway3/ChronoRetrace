@@ -107,17 +107,19 @@ def to_sql_with_date(df, table_name, con):
 # --- Tests for a_share_fetcher.py ---
 
 
-@patch("akshare.stock_sh_a_spot_em")
-@patch("akshare.stock_sz_a_spot_em")
-@patch("akshare.stock_bj_a_spot_em")
+@patch("app.services.a_share_fetcher.ak.fund_etf_spot_em")
+@patch("app.services.a_share_fetcher.ak.stock_bj_a_spot_em")
+@patch("app.services.a_share_fetcher.ak.stock_sz_a_spot_em")
+@patch("app.services.a_share_fetcher.ak.stock_sh_a_spot_em")
 def test_update_stock_list_from_akshare(
-    mock_bj, mock_sz, mock_sh, db_session, mock_akshare_data
+    mock_sh, mock_sz, mock_bj, mock_etf, db_session, mock_akshare_data
 ):
-    """Tests updating the stock list from Akshare."""
+    """Tests updating the stock list from Akshare with proper mocking."""
     # 1. Setup: Mock the akshare functions
     mock_sh.return_value = mock_akshare_data
     mock_sz.return_value = pd.DataFrame({"代码": ["000001"], "名称": ["平安银行"]})
     mock_bj.return_value = pd.DataFrame()  # No BJ stocks for simplicity
+    mock_etf.return_value = pd.DataFrame() # No ETFs for simplicity
 
     # 2. Action: Call the function
     a_share_fetcher.update_stock_list_from_akshare(db_session)
@@ -126,10 +128,13 @@ def test_update_stock_list_from_akshare(
     with db_session.connection() as conn:
         result = conn.execute(text("SELECT * FROM stock_info")).fetchall()
         assert len(result) == 3
-        assert result[0][0] == "600000.SH"
-        assert result[0][1] == "浦发银行"
-        assert result[2][0] == "000001.SZ"
-        assert result[2][1] == "平安银行"
+        
+        # Convert result to a set of tuples for easier comparison
+        result_set = { (r[0], r[1]) for r in result }
+        
+        assert ("600000.SH", "浦发银行") in result_set
+        assert ("600001.SH", "白云机场") in result_set
+        assert ("000001.SZ", "平安银行") in result_set
 
 
 # --- Tests for us_stock_fetcher.py ---

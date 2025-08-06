@@ -129,18 +129,30 @@ def update_stock_list_from_akshare(db: Session):
     Fetches the stock and ETF list from Akshare and upserts it into the stock_info table.
     """
     all_securities = []
-
     # 1. Fetch Stocks
     stock_map = {
-        "sh": ("stock_sh_a_spot_em", ".SH"),
-        "sz": ("stock_sz_a_spot_em", ".SZ"),
-        "bj": ("stock_bj_a_spot_em", ".BJ"),
+        "sh": ("stock_sh_a_spot_em", ".SH", "代码"),
+        "sz": ("stock_sz_a_spot_em", ".SZ", "代码"),
+        "bj": ("stock_bj_a_spot_em", ".BJ", "代码"),
     }
-    for market, (func, suffix) in stock_map.items():
+    for market, (func, suffix, code_col) in stock_map.items():
         try:
             df = getattr(ak, func)()
-            df["ts_code"] = df["代码"] + suffix
-            df.rename(columns={"名称": "name"}, inplace=True)
+            # Standardize column names
+            if code_col not in df.columns:
+                # Fallback for BJ market or other inconsistencies
+                if "代码" in df.columns:
+                    code_col = "代码"
+                elif "code" in df.columns:
+                    code_col = "code"
+                else:
+                    # Add more fallbacks if necessary
+                    logger.warning(f"Could not find a valid code column for {market}. Skipping.")
+                    continue
+            
+            df.rename(columns={code_col: "代码", "名称": "name", "name": "name"}, inplace=True)
+            
+            df["ts_code"] = df["代码"].astype(str) + suffix
             all_securities.append(df[["ts_code", "name"]])
         except Exception as e:
             logger.error(
@@ -150,6 +162,8 @@ def update_stock_list_from_akshare(db: Session):
     # 2. Fetch ETFs
     try:
         etf_df = ak.fund_etf_spot_em()
+        # Standardize ETF column names
+        etf_df.rename(columns={"代码": "代码", "名称": "name"}, inplace=True)
 
         def get_etf_suffix(code):
             """Determines the market suffix for an ETF code."""
@@ -160,13 +174,11 @@ def update_stock_list_from_akshare(db: Session):
                 return ".SZ"
             else:
                 return ""  # Return empty for unknown prefixes
-
         etf_df["ts_code"] = etf_df["代码"].apply(
             lambda x: str(x) + get_etf_suffix(x)
         )
-        etf_df.rename(columns={"名称": "name"}, inplace=True)
         # Filter out ETFs where we couldn't determine the market
-        etf_df = etf_df[etf_df["ts_code"].str.contains("\.")]
+        etf_df = etf_df[etf_df["ts_code"].str.contains(r"\.")]
         all_securities.append(etf_df[["ts_code", "name"]])
         logger.info(f"Successfully fetched and processed {len(etf_df)} ETFs.")
     except Exception as e:
@@ -177,7 +189,6 @@ def update_stock_list_from_akshare(db: Session):
         combined_df = pd.concat(all_securities, ignore_index=True)
         combined_df["market_type"] = "A_share"
         combined_df["last_updated"] = datetime.utcnow()
-
         records = combined_df.to_dict(orient="records")
         if records:
             stmt = sqlite_insert(models.StockInfo).values(records)
