@@ -27,8 +27,10 @@ const MainLayout = ({ children }) => {
       setSelectedKeys(['1']);
     } else if (path.startsWith('/us-stock')) {
       setSelectedKeys(['2']);
-    } else if (path.startsWith('/backtest')) {
+    } else if (path.startsWith('/crypto')) {
       setSelectedKeys(['3']);
+    } else if (path.startsWith('/backtest')) {
+      setSelectedKeys(['4']);
     } else {
       setSelectedKeys(['1']);
     }
@@ -59,15 +61,15 @@ const MainLayout = ({ children }) => {
     },
     {
       key: '3',
-      icon: <ExperimentOutlined />,
-      label: '回测',
-      onClick: () => navigate('/backtest'),
+      icon: <GlobalOutlined />,
+      label: '加密货币',
+      onClick: () => navigate('/crypto'),
     },
     {
       key: '4',
-      icon: <GlobalOutlined />,
-      label: '加密货币 (即将推出)',
-      disabled: true,
+      icon: <ExperimentOutlined />,
+      label: '回溯测试',
+      onClick: () => navigate('/backtest'),
     },
   ];
 

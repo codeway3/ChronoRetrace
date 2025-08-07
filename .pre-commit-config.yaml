@@ -3,8 +3,10 @@ repos:
     hooks:
     -   id: pytest-backend
         name: pytest-backend
-        entry: poetry run pytest backend/
+        # Activate venv and run pytest. This is more robust.
+        entry: bash -c 'source backend/venv/bin/activate && pytest backend/'
         language: system
         types: [python]
         pass_filenames: false
         always_run: true
+        stages: [push] # Run this hook only on git push

@@ -8,6 +8,7 @@ import pandas as pd
 from app.db import models
 from app.db.session import get_db
 from . import a_share_fetcher, us_stock_fetcher, db_writer
+from .data_utils import calculate_ma
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,10 @@ class StockDataFetcher:
         # For minute/5day intervals, we currently bypass the DB cache and go straight to the source.
         # This logic can be refined to support DB caching for intraday data if needed.
         if self.interval in ["minute", "5day"]:
-            return self._fetch_from_api()
+            df = self._fetch_from_api()
+            if not df.empty:
+                df = calculate_ma(df)
+            return df
 
         db_data_df = self._fetch_from_db()
 
@@ -81,6 +85,7 @@ class StockDataFetcher:
             # If the last date in DB is yesterday or today, consider it fresh.
             if last_db_date >= (datetime.now() - timedelta(days=1)).date():
                 logger.info(f"DB data for {self.stock_code} is up-to-date. Returning from DB.")
+                db_data_df = calculate_ma(db_data_df)
                 return db_data_df
 
         logger.info(f"DB data for {self.stock_code} is missing or stale. Fetching from API.")
@@ -88,6 +93,7 @@ class StockDataFetcher:
 
         if not api_data_df.empty:
             self._store_in_db(api_data_df)
+            api_data_df = calculate_ma(api_data_df)
         
         return api_data_df
 

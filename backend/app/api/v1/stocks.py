@@ -121,13 +121,15 @@ async def get_stock_data(
         if df.empty:
             return []
 
-        # Convert DataFrame to list of dicts
-        records = df.to_dict("records")
-
-        # Add ts_code and interval to each record for frontend consistency
-        for record in records:
+        # Convert DataFrame to list of Pydantic models
+        # This explicitly validates and includes the MA fields
+        # Also, add ts_code and interval to each record for frontend consistency
+        dict_records = df.to_dict("records")
+        for record in dict_records:
             record["ts_code"] = stock_code
             record["interval"] = interval
+            
+        records = [StockDataBase.model_validate(record) for record in dict_records]
 
         return records
 

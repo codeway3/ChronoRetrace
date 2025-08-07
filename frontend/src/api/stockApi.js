@@ -36,3 +36,12 @@ export const clearCache = () => {
 export const runBacktest = (config) => {
   return apiClient.post('/backtest/grid', config);
 };
+
+// Crypto APIs
+export const getTopCryptos = () => {
+  return apiClient.get('/crypto/top');
+};
+
+export const getCryptoHistory = (symbol, interval = 'daily') => {
+  return apiClient.get(`/crypto/${symbol}/history?interval=${interval}`);
+};

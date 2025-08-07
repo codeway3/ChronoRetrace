@@ -10,8 +10,8 @@
 
 ## ✨ Key Features
 
--   **Multi-Market Data**: Fetches and displays data for both A-shares and US stocks.
--   **Interactive Charts**: Utilizes ECharts to provide responsive, interactive K-line (candlestick) charts with time range selection.
+-   **Multi-Market Data**: Fetches and displays data for A-shares, US stocks, and major cryptocurrencies.
+-   **Interactive Charts**: Utilizes ECharts to provide responsive, interactive K-line (candlestick) charts with time range selection and key Moving Averages (MA5, MA10, MA20, MA60).
 -   **Financial Data Overview**: Displays key performance indicators (KPIs), annual earnings, and corporate actions for selected stocks.
 -   **Strategy Backtesting**: A flexible backtesting engine to test investment strategies. Comes with a simple "buy and hold" strategy as a baseline.
 -   **Modern Tech Stack**: Built with FastAPI on the backend for high performance and React on the frontend for a responsive user experience.
@@ -25,7 +25,7 @@
 | **Frontend**| React.js, Node.js 20+, ECharts for React, Ant Design, Axios                                            |
 | **Database**| SQLite (for development), PostgreSQL (recommended for production)                                      |
 | **DevOps**  | GitHub Actions for CI/CD, Ruff for linting, Pytest for testing, ESLint for frontend linting             |
-| **Data Sources** | Akshare, yfinance, Baostock, and other financial data APIs.                                      |
+| **Data Sources** | Akshare, yfinance, Baostock, CryptoCompare, and other financial data APIs.                                      |
 
 
 ## 🚀 Getting Started
@@ -107,6 +107,7 @@ ChronoRetrace/
 │       ├── layouts/
 │       └── pages/
 ├── .gitignore
+├── todo.txt              # Future development plans
 ├── LICENSE
 ├── CONTRIBUTING.md
 └── README.md

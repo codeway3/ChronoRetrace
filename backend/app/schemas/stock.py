@@ -15,6 +15,10 @@ class StockDataBase(BaseModel):
     vol: Optional[float] = None
     amount: Optional[float] = None
     interval: str
+    ma5: Optional[float] = None
+    ma10: Optional[float] = None
+    ma20: Optional[float] = None
+    ma60: Optional[float] = None
 
 class StockDataCreate(StockDataBase):
     pass

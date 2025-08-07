@@ -1,0 +1,34 @@
+# 加密货币行情页面功能拓展计划
+
+## 目标
+为加密货币行情页面增加“分时图”和“五日K线图”功能，并支持“周线”和“月线”的K线图查看。
+
+## 前提
+以下功能的实现需要注册一个免费的 CryptoCompare API Key。
+
+### 1. 后端开发 (Backend)
+- **配置API Key**:
+  - 在 `backend/.env.example` 和 `backend/app/core/config.py` 中添加 `CRYPTOCOMPARE_API_KEY` 的配置项。
+  - 用户需自行在 CryptoCompare 官网注册并填入自己的 Key。
+
+- **开发分钟级数据接口**:
+  - 在 `backend/app/services/crypto_fetcher.py` 中，新增一个 `get_crypto_minute_data` 函数。
+  - 该函数应调用 CryptoCompare 的 `histominute` API 端点，并使用 API Key。
+  - 在 `backend/app/api/v1/crypto.py` 中，创建一个新的 API 路由，如 `/api/v1/crypto/{symbol}/minute`，用于暴露分钟级数据。
+
+- **开发周线和月线数据接口**:
+  - 在 `backend/app/services/crypto_fetcher.py` 中，添加数据处理逻辑。
+  - 创建新函数，接收日线数据作为输入，然后将其聚合成周线和月线数据（计算开、高、低、收和成交量）。
+  - 在 `backend/app/api/v1/crypto.py` 中，更新 `/api/v1/crypto/{symbol}/history` 路由，增加一个 `interval` 参数（如 `daily`, `weekly`, `monthly`），根据参数返回对应聚合后的数据。
+
+### 2. 前端开发 (Frontend)
+- **启用时间选择**:
+  - 在 `frontend/src/pages/Dashboard.js` 中，当 `marketType` 为 `crypto` 时，移除对“分时”、“五日”、“周线”、“月线”按钮的 `disabled` 属性。
+
+- **调用新接口**:
+  - 在 `frontend/src/api/stockApi.js` 中，添加调用分钟级数据接口的函数。
+  - 修改 `Dashboard.js` 中的 `fetchData` 或相关函数，当用户选择“分时”或“五日”时，调用对应的分钟数据接口。
+  - 当用户选择“周线”或“月线”时，调用 `/history` 接口并传递正确的 `interval` 参数。
+
+- **适配图表组件**:
+  - 确保 `frontend/src/components/StockChart.js` 中的 `createTimeShareOption` 和 `createKlineOption` 函数能够正确处理和渲染新接口返回的数据格式。

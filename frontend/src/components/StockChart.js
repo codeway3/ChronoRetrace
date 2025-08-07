@@ -24,8 +24,12 @@ const createKlineOption = (data, stockCode, stockName, interval, corporateAction
   const maData = {};
   const maColors = { ma5: '#f5a623', ma10: '#4a90e2', ma20: '#bd10e0', ma60: '#50e3c2' };
   ['ma5', 'ma10', 'ma20', 'ma60'].forEach(ma => {
-    if (data[0] && data[0][ma] != null) {
-      maData[ma] = data.map(item => item[ma]?.toFixed(2));
+    // Check if the key exists in the first data object, even if the value is null.
+    // This confirms the backend is providing MA data.
+    if (data[0] && ma in data[0]) {
+      // Map the data, converting non-null values to a fixed format for the tooltip.
+      // ECharts will correctly handle null/undefined values by creating gaps in the line.
+      maData[ma] = data.map(item => item[ma] != null ? item[ma].toFixed(2) : null);
     }
   });
 

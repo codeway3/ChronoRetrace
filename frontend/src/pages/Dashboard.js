@@ -3,10 +3,33 @@ import { Select, message, Spin, Row, Col, Card, Typography, Radio, DatePicker, S
 import dayjs from 'dayjs';
 import StockChart from '../components/StockChart';
 import FinancialOverviewAndActions from '../components/FinancialOverviewAndActions';
-import { getStockData, getAllStocks, getCorporateActions, getAnnualEarnings } from '../api/stockApi';
+import { getStockData, getAllStocks, getCorporateActions, getAnnualEarnings, getTopCryptos, getCryptoHistory } from '../api/stockApi';
 
 const { Option } = Select;
 const { Title, Text } = Typography;
+
+const cryptoChineseNames = {
+  BTC: '比特币',
+  ETH: '以太坊',
+  USDT: '泰达币',
+  BNB: '币安币',
+  SOL: '索拉纳',
+  XRP: '瑞波币',
+  USDC: '美元币',
+  DOGE: '狗狗币',
+  ADA: '艾达币',
+  SHIB: '柴犬币',
+  AVAX: '雪崩协议',
+  TRX: '波场',
+  DOT: '波卡',
+  LINK: 'Chainlink',
+  MATIC: 'Polygon',
+  LTC: '莱特币',
+  BCH: '比特币现金',
+  UNI: 'Uniswap',
+  XLM: '恒星币',
+  ETC: '以太坊经典',
+};
 
 const Dashboard = ({ marketType }) => {
   const [allStocks, setAllStocks] = useState([]);
@@ -31,30 +54,65 @@ const Dashboard = ({ marketType }) => {
   const [loadingAnnualEarnings, setLoadingAnnualEarnings] = useState(false);
   const [annualEarningsError, setAnnualEarningsError] = useState(null);
 
-  const title = marketType === 'A_share' ? 'A股市场分析' : '美股市场分析';
-  const placeholder = marketType === 'A_share' ? '搜索股票 (例如：600519.SH)' : '搜索或输入代码 (例如: AAPL)';
+  const titleMap = {
+    A_share: 'A股市场分析',
+    US_stock: '美股市场分析',
+    crypto: '加密货币行情',
+  };
+  const placeholderMap = {
+    A_share: '搜索股票 (例如：600519.SH)',
+    US_stock: '搜索或输入代码 (例如: AAPL)',
+    crypto: '搜索或选择加密货币 (例如: BTC)',
+  };
+
+  const title = titleMap[marketType] || '市场分析';
+  const placeholder = placeholderMap[marketType] || '搜索...';
 
   const fetchData = useCallback((stockCode, interval, date) => {
     if (!stockCode) return;
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     setLoading(true);
     setChartData([]);
+    setError(null);
+
     debounceTimeout.current = setTimeout(() => {
-      const dateStr = date ? date.format('YYYY-MM-DD') : null;
-      getStockData(stockCode, interval, dateStr, marketType)
-        .then(response => setChartData(response.data))
-        .catch(error => {
-          const errorMsg = error.response?.data?.detail || `加载 ${stockCode} 数据失败。`;
-          setError(errorMsg); // 使用状态记录错误
-          message.error(errorMsg);
-          setChartData([]);
-        })
-        .finally(() => setLoading(false));
+      if (marketType === 'crypto') {
+        getCryptoHistory(stockCode, interval)
+          .then(response => {
+            const formattedData = response.data.map(item => ({
+              ...item, // Pass all existing properties (ma5, ma10, etc.)
+              trade_date: dayjs.unix(item.time).format('YYYY-MM-DD'), // Format date
+              vol: item.volumeto, // Rename volumeto to vol
+            }));
+            setChartData(formattedData);
+          })
+          .catch(error => {
+            const errorMsg = error.response?.data?.detail || `加载 ${stockCode} 数据失败。`;
+            setError(errorMsg);
+            message.error(errorMsg);
+            setChartData([]);
+          })
+          .finally(() => setLoading(false));
+      } else {
+        const dateStr = date ? date.format('YYYY-MM-DD') : null;
+        getStockData(stockCode, interval, dateStr, marketType)
+          .then(response => {
+            // No special formatting needed, just pass the data through
+            setChartData(response.data);
+          })
+          .catch(error => {
+            const errorMsg = error.response?.data?.detail || `加载 ${stockCode} 数据失败。`;
+            setError(errorMsg);
+            message.error(errorMsg);
+            setChartData([]);
+          })
+          .finally(() => setLoading(false));
+      }
     }, 500);
   }, [marketType]);
 
   const fetchSecondaryData = useCallback((symbol) => {
-    if (!symbol) return;
+    if (!symbol || marketType === 'crypto') return;
 
     const baseSymbol = marketType === 'A_share' ? symbol.split('.')[0] : symbol;
 
@@ -94,23 +152,25 @@ const Dashboard = ({ marketType }) => {
       });
   }, [marketType]);
 
-  // Effect to fetch all data when stock changes
+  // Effect to fetch all data when stock or interval changes
   useEffect(() => {
     if (selectedStock) {
       // Fetch main chart data
       fetchData(selectedStock, selectedInterval, selectedDate);
 
-      // Clear previous secondary data and errors
-      setCorporateActions(null);
-      setAnnualEarningsData([]);
-      setActionsError(null);
-      setAnnualEarningsError(null);
-
-      // Fetch new secondary data
-      fetchSecondaryData(selectedStock);
+      // For non-crypto, fetch secondary data
+      if (marketType !== 'crypto') {
+        // Clear previous secondary data and errors
+        setCorporateActions(null);
+        setAnnualEarningsData([]);
+        setActionsError(null);
+        setAnnualEarningsError(null);
+        // Fetch new secondary data
+        fetchSecondaryData(selectedStock);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStock]);
+  }, [selectedStock, selectedInterval]);
 
   // Initial data load effect when marketType changes
   useEffect(() => {
@@ -120,25 +180,52 @@ const Dashboard = ({ marketType }) => {
     setChartData([]);
     setDisplayedStockCode(null);
     setDisplayedStockName(null);
-    setError(null); // 重置错误状态
+    setError(null);
 
-    getAllStocks(marketType)
-      .then(response => {
-        const stocks = response.data;
-        setAllStocks(stocks);
-        const initialStock = stocks[0];
-        if (initialStock) {
-          setSelectedStock(initialStock.ts_code);
-          setDisplayedStockCode(initialStock.ts_code);
-          setDisplayedStockName(initialStock.name);
-        }
-      })
-      .catch(error => {
-        const errorMsg = `加载${marketType === 'A_share' ? 'A股' : '美股'}列表失败。`;
-        setError(errorMsg); // 使用状态记录错误
-        console.error(errorMsg, error); // 记录日志代替 message.error
-      })
-      .finally(() => setLoading(false));
+    if (marketType === 'crypto') {
+      getTopCryptos()
+        .then(response => {
+          const cryptos = response.data.map(crypto => {
+            const symbol = crypto.CoinInfo.Name;
+            const chineseName = cryptoChineseNames[symbol] || '';
+            return {
+              ts_code: symbol,
+              name: `${crypto.CoinInfo.FullName}${chineseName ? ` (${chineseName})` : ''}`,
+            };
+          });
+          setAllStocks(cryptos);
+          if (cryptos.length > 0) {
+            const initialStock = cryptos[0];
+            setSelectedStock(initialStock.ts_code);
+            setDisplayedStockCode(initialStock.ts_code);
+            setDisplayedStockName(initialStock.name);
+          }
+        })
+        .catch(error => {
+          const errorMsg = '加载加密货币列表失败。';
+          setError(errorMsg);
+          console.error(errorMsg, error);
+        })
+        .finally(() => setLoading(false));
+    } else {
+      getAllStocks(marketType)
+        .then(response => {
+          const stocks = response.data;
+          setAllStocks(stocks);
+          if (stocks.length > 0) {
+            const initialStock = stocks[0];
+            setSelectedStock(initialStock.ts_code);
+            setDisplayedStockCode(initialStock.ts_code);
+            setDisplayedStockName(initialStock.name);
+          }
+        })
+        .catch(error => {
+          const errorMsg = `加载${marketType === 'A_share' ? 'A股' : '美股'}列表失败。`;
+          setError(errorMsg);
+          console.error(errorMsg, error);
+        })
+        .finally(() => setLoading(false));
+    }
   }, [marketType]);
 
   const handleStockChange = (stockCode) => {
@@ -179,7 +266,11 @@ const Dashboard = ({ marketType }) => {
   return (
     <div>
       <Title level={4}>{title}</Title>
-      <Text type="secondary">选择一只股票和时间间隔以查看其图表。</Text>
+      <Text type="secondary">
+        {marketType === 'crypto'
+          ? '从列表中选择一个加密货币以查看其日线图。'
+          : '选择一只股票和时间间隔以查看其图表。'}
+      </Text>
       {error && <Text type="danger">{error}</Text>} {/* 显示错误信息 */}
       <Card style={{ margin: '20px 0' }}>
         <Row gutter={[16, 16]} align="middle">
@@ -190,11 +281,9 @@ const Dashboard = ({ marketType }) => {
               placeholder={placeholder}
               style={{ width: 300 }}
               onChange={handleStockChange}
-              filterOption={marketType === 'A_share'
-                ? (input, option) =>
+              filterOption={(input, option) =>
                 (option.children.toLowerCase().includes(input.toLowerCase()) ||
                   option.value.toLowerCase().includes(input.toLowerCase()))
-                : false
               }
             >
               {allStocks.map(stock => (
@@ -206,8 +295,8 @@ const Dashboard = ({ marketType }) => {
           </Col>
           <Col>
             <Radio.Group value={selectedInterval} onChange={handleIntervalChange}>
-              <Radio.Button value="minute">分时</Radio.Button>
-              <Radio.Button value="5day">五日</Radio.Button>
+              <Radio.Button value="minute" disabled={marketType === 'crypto'}>分时</Radio.Button>
+              <Radio.Button value="5day" disabled={marketType === 'crypto'}>五日</Radio.Button>
               <Radio.Button value="daily">日线</Radio.Button>
               <Radio.Button value="weekly">周线</Radio.Button>
               <Radio.Button value="monthly">月线</Radio.Button>
@@ -217,7 +306,7 @@ const Dashboard = ({ marketType }) => {
             <DatePicker
               value={selectedDate}
               onChange={handleDateChange}
-              disabled={!isDateSelectorEnabled}
+              disabled={!isDateSelectorEnabled || marketType === 'crypto'}
               allowClear={false}
             />
           </Col>
@@ -227,12 +316,13 @@ const Dashboard = ({ marketType }) => {
               unCheckedChildren="事件"
               checked={showEvents}
               onChange={setShowEvents}
-              disabled={!isEventSwitchEnabled}
+              disabled={!isEventSwitchEnabled || marketType === 'crypto'}
             />
           </Col>
         </Row>
       </Card>
       <Spin spinning={loading}>
+        {chartData.length > 0 && process.env.NODE_ENV === 'development' && console.log("Chart Data being passed to StockChart:", chartData.slice(-5))}
         <StockChart
           chartData={chartData}
           stockCode={displayedStockCode}
@@ -242,17 +332,19 @@ const Dashboard = ({ marketType }) => {
           showEvents={showEvents}
         />
       </Spin>
-      <div className="deep-dive-container" style={{ marginTop: '20px' }}>
-        <FinancialOverviewAndActions
-          marketType={marketType}
-          annualEarningsData={annualEarningsData}
-          loadingAnnualEarnings={loadingAnnualEarnings}
-          annualEarningsError={annualEarningsError}
-          corporateActionsData={corporateActions}
-          loadingCorporateActions={loadingActions}
-          corporateActionsError={actionsError}
-        />
-      </div>
+      {marketType !== 'crypto' && (
+        <div className="deep-dive-container" style={{ marginTop: '20px' }}>
+          <FinancialOverviewAndActions
+            marketType={marketType}
+            annualEarningsData={annualEarningsData}
+            loadingAnnualEarnings={loadingAnnualEarnings}
+            annualEarningsError={annualEarningsError}
+            corporateActionsData={corporateActions}
+            loadingCorporateActions={loadingActions}
+            corporateActionsError={actionsError}
+          />
+        </div>
+      )}
     </div>
   );
 };
