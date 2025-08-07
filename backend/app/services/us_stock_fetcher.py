@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from app.db import models
 import yahoo_fin.stock_info as si
-from .data_utils import calculate_ma
 
 logger = logging.getLogger(__name__)
 

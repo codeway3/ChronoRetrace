@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 from app.main import app
@@ -54,4 +53,5 @@ def test_read_crypto_history_not_found(mock_get_crypto_ohlcv):
     mock_get_crypto_ohlcv.return_value = []
     response = client.get("/api/v1/crypto/NONEXISTENT/history")
     assert response.status_code == 404
-    assert response.json() == {"detail": "Could not fetch historical data for NONEXISTENT."}
+    # The default interval is 'daily', so the error message should reflect that.
+    assert response.json() == {"detail": "Could not fetch daily data for NONEXISTENT."}

@@ -3,10 +3,18 @@ repos:
     hooks:
     -   id: pytest-backend
         name: pytest-backend
-        # Activate venv and run pytest. This is more robust.
-        entry: bash -c 'source backend/venv/bin/activate && pytest backend/'
-        language: system
+        entry: pytest backend/
+        language: python
         types: [python]
         pass_filenames: false
         always_run: true
-        stages: [pre-push] # Run this hook only on git push
+        stages: [pre-push]
+        additional_dependencies:
+        -   -r backend/requirements.txt
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.1
+    hooks:
+    -   id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+        stages: [pre-push]

@@ -10,7 +10,6 @@ import time
 import threading
 from app.db import models
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from .data_utils import calculate_ma
 
 
 logger = logging.getLogger(__name__)
