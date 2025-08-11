@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date
 from typing import List, Optional
 
@@ -25,9 +25,7 @@ class StockDataCreate(StockDataBase):
 
 class StockDataInDB(StockDataBase):
     id: int
-
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class StockInfo(BaseModel):
     ts_code: str
