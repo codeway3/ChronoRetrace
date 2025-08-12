@@ -17,3 +17,4 @@ pydantic_settings
 ruff
 pytest
 pytest-mock
+pytest-cov

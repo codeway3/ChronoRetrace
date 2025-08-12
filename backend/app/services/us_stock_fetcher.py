@@ -113,12 +113,12 @@ def fetch_from_yfinance(
     df.sort_values(by="trade_date", inplace=True)
     df["pre_close"] = df["close"].shift(1)
     # For the first row, pre_close can be the same as close
-    df["pre_close"].fillna(df["close"], inplace=True)
+    df["pre_close"] = df["pre_close"].fillna(df["close"])
 
     df["change"] = df["close"] - df["pre_close"]
     # Avoid division by zero
     df["pct_chg"] = (df["change"] / df["pre_close"].replace(0, pd.NA)) * 100
-    df["pct_chg"].fillna(0.0, inplace=True)
+    df["pct_chg"] = df["pct_chg"].fillna(0.0)
 
     # yfinance doesn't provide 'amount'. Calculate it as a proxy.
     if "amount" not in df.columns:

@@ -10,6 +10,7 @@ from app.api.v1 import stocks as stocks_v1
 from app.api.v1 import admin as admin_v1
 from app.api.v1 import backtest as backtest_v1
 from app.api.v1 import crypto as crypto_v1
+from app.api.v1 import commodities as commodities_v1
 from app.db.session import engine, SessionLocal
 from app.db import models
 from app.core.config import settings
@@ -99,6 +100,10 @@ app.include_router(
     backtest_v1.router, prefix="/api/v1/backtest", tags=["backtest"]
 )  # Register the new backtest router
 app.include_router(crypto_v1.router, prefix="/api/v1/crypto", tags=["crypto"])
+app.include_router(
+    commodities_v1.router, prefix="/api/v1/commodities", tags=["commodities"]
+)
+
 
 
 

@@ -29,6 +29,14 @@ backend/chrono_retrace.db
 backend/app.main:app
 backend/uvicorn
 
+# 测试覆盖率文件
+.coverage*
+htmlcov/
+.pytest_cache/
+
+# Ruff缓存文件
+.ruff_cache/
+
 # Node / 前端
 frontend/node_modules/
 frontend/build/

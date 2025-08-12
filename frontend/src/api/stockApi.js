@@ -45,3 +45,12 @@ export const getTopCryptos = () => {
 export const getCryptoHistory = (symbol, interval = 'daily') => {
   return apiClient.get(`/crypto/${symbol}/history?interval=${interval}`);
 };
+
+// Commodity APIs
+export const getCommodityList = () => {
+  return apiClient.get('/commodities/list');
+};
+
+export const getCommodityData = (symbol, interval = 'daily') => {
+  return apiClient.get(`/commodities/${symbol}?interval=${interval}`);
+};

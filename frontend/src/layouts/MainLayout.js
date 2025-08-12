@@ -4,6 +4,7 @@ import {
   LineChartOutlined,
   DollarOutlined,
   GlobalOutlined,
+  GoldOutlined,
   DeleteOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -29,8 +30,10 @@ const MainLayout = ({ children }) => {
       setSelectedKeys(['2']);
     } else if (path.startsWith('/crypto')) {
       setSelectedKeys(['3']);
-    } else if (path.startsWith('/backtest')) {
+    } else if (path.startsWith('/commodities')) {
       setSelectedKeys(['4']);
+    } else if (path.startsWith('/backtest')) {
+      setSelectedKeys(['5']);
     } else {
       setSelectedKeys(['1']);
     }
@@ -67,6 +70,12 @@ const MainLayout = ({ children }) => {
     },
     {
       key: '4',
+      icon: <GoldOutlined />,
+      label: '大宗商品',
+      onClick: () => navigate('/commodities'),
+    },
+    {
+      key: '5',
       icon: <ExperimentOutlined />,
       label: '回溯测试',
       onClick: () => navigate('/backtest'),

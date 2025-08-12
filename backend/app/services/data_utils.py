@@ -5,27 +5,26 @@ def calculate_ma(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculates moving averages (MA) for a given DataFrame.
     The DataFrame must have a 'close' column.
-
-    Args:
-        df (pd.DataFrame): The input DataFrame with OHLCV data.
-
-    Returns:
-        pd.DataFrame: The DataFrame with added MA columns (ma5, ma10, ma20, ma60).
+    It calculates MAs only if there is enough data for the period.
     """
     if 'close' not in df.columns or df.empty:
         return df
-        
+
+    # Make a copy to avoid SettingWithCopyWarning
+    df_copy = df.copy()
+
     for period in [5, 10, 20, 60]:
-        if len(df) >= period:
-            df[f'ma{period}'] = df['close'].rolling(window=period).mean()
+        # Only calculate if the number of data points is sufficient for the window
+        if len(df_copy) >= period:
+            df_copy[f'ma{period}'] = df_copy['close'].rolling(window=period).mean()
         else:
-            df[f'ma{period}'] = np.nan # Use np.nan for consistency
-    
-    # Replace all occurrences of NaN with None for JSON compatibility.
-    # This is more robust as it handles NaNs in any column.
-    df = df.replace({np.nan: None})
-            
-    return df
+            # If not enough data, we can skip creating the column or fill with None
+            df_copy[f'ma{period}'] = None
+
+    # Replace all occurrences of NaN (from rolling means) with None for JSON compatibility.
+    df_copy.replace({np.nan: None}, inplace=True)
+
+    return df_copy
 
 if __name__ == '__main__':
     # Create a dummy DataFrame to test the MA calculation

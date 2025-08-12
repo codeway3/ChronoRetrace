@@ -9,9 +9,9 @@ help:
 
 test-backend:
 	@echo "--- Running backend unit tests (using your activated virtual environment) ---"
-	@pytest backend/
+	@cd backend && /usr/local/bin/python3.10 -m pytest
 	@echo "\n--- Running backend linter (using your activated virtual environment) ---"
-	@ruff check backend/
+	@cd backend && /usr/local/bin/python3.10 -m ruff check .
 	@echo "\n--- Backend checks complete ---"
 
 
