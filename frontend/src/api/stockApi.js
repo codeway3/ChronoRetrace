@@ -73,6 +73,6 @@ export const getOptionChain = (underlyingSymbol, expirationDate) => {
   return apiClient.get(`/options/chain/${underlyingSymbol}?expiration_date=${expirationDate}`);
 };
 
-export const getOptionsData = (symbol, interval = 'daily') => {
-  return apiClient.get(`/options/${symbol}?interval=${interval}`);
+export const getOptionsData = (symbol, interval = 'daily', window = 'MAX') => {
+  return apiClient.get(`/options/${symbol}?interval=${interval}&window=${window}`);
 };

@@ -38,9 +38,24 @@ async def get_option_chain_for_date(underlying_symbol: str, expiration_date: str
 async def get_options_data(
     symbol: str,
     interval: str = Query("daily", enum=["daily", "weekly", "monthly"]),
+    window: str = Query(
+        "MAX", enum=["3M", "6M", "1Y", "2Y", "5Y", "MAX"], description="历史窗口"
+    ),
 ):
-    start_date = (datetime.now() - timedelta(days=10 * 365)).strftime("%Y-%m-%d")
-    end_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+    now = datetime.now()
+    if window == "3M":
+        start_date = (now - timedelta(days=90)).strftime("%Y-%m-%d")
+    elif window == "6M":
+        start_date = (now - timedelta(days=180)).strftime("%Y-%m-%d")
+    elif window == "1Y":
+        start_date = (now - timedelta(days=365)).strftime("%Y-%m-%d")
+    elif window == "2Y":
+        start_date = (now - timedelta(days=2 * 365)).strftime("%Y-%m-%d")
+    elif window == "5Y":
+        start_date = (now - timedelta(days=5 * 365)).strftime("%Y-%m-%d")
+    else:
+        start_date = (now - timedelta(days=10 * 365)).strftime("%Y-%m-%d")
+    end_date = (now + timedelta(days=1)).strftime("%Y-%m-%d")
 
     try:
         df = await run_in_threadpool(

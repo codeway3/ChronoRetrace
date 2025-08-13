@@ -23,7 +23,7 @@ def clear_cache_between_tests():
 
 client = TestClient(app)
 
-@patch('app.services.futures_fetcher.fetch_futures_from_yfinance')
+@patch('app.services.futures_fetcher.fetch_china_futures_from_akshare')
 def test_get_futures_data_success(mock_fetch):
     successful_mock = MagicMock()
     successful_mock.return_value = pd.DataFrame({

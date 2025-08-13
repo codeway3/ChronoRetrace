@@ -38,32 +38,66 @@ async def get_futures_data(
     start_date = (datetime.now() - timedelta(days=10 * 365)).strftime("%Y-%m-%d")
     end_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
 
+    # Try common Yahoo suffix first (e.g., CL=F), then exchange-specific variants
+    base = symbol.upper()
     potential_symbols = [
-        symbol.upper(),
-        f"{symbol.upper()}.SHF", f"{symbol.upper()}.INE", f"{symbol.upper()}.DCE",
-        f"{symbol.upper()}.ZCE", f"{symbol.upper()}.CFX",
+        f"{base}=F",
+        base,
+        f"{base}.SHF", f"{base}.INE", f"{base}.DCE",
+        f"{base}.ZCE", f"{base}.CFX",
     ]
     
     df = None
     last_exception = None
 
-    for s in potential_symbols:
-        try:
-            fetched_df = await run_in_threadpool(
-                futures_fetcher.fetch_futures_from_yfinance,
-                symbol=s, start_date=start_date, end_date=end_date, interval=interval,
+    # If symbol looks like China futures (e.g., rb2410), fetch directly via Akshare
+    if futures_fetcher._is_china_futures_contract(base):  # type: ignore[attr-defined]
+        # First try with uppercase base (e.g., RB2410)
+        df = await run_in_threadpool(
+            futures_fetcher.fetch_china_futures_from_akshare,
+            symbol=base,
+            start_date=start_date,
+            end_date=end_date,
+            interval=interval,
+        )
+        # If empty, try with the original symbol (could be lowercase like rb2410)
+        if df is None or df.empty:
+            df = await run_in_threadpool(
+                futures_fetcher.fetch_china_futures_from_akshare,
+                symbol=symbol,
+                start_date=start_date,
+                end_date=end_date,
+                interval=interval,
             )
-            if not fetched_df.empty:
-                df = fetched_df
-                break
-        except Exception as e:
-            last_exception = e
-            logger.warning(f"Could not fetch data for symbol {s}: {e}")
-            continue
+        if not (df is None or df.empty):
+            potential_symbols = [base]
+        else:
+            # fall back to Yahoo attempts below
+            df = None
+
+    if df is None:
+        for s in potential_symbols:
+            try:
+                fetched_df = await run_in_threadpool(
+                    futures_fetcher.fetch_futures_from_yfinance,
+                    symbol=s, start_date=start_date, end_date=end_date, interval=interval,
+                )
+                if not fetched_df.empty:
+                    df = fetched_df
+                    break
+            except Exception as e:
+                last_exception = e
+                logger.warning(f"Could not fetch data for symbol {s}: {e}")
+                continue
 
     if df is None or df.empty:
-        logger.error(f"Failed to fetch futures data for {symbol} and its variants: {last_exception}", exc_info=True)
-        raise HTTPException(status_code=404, detail=f"Failed to fetch data for {symbol} after trying multiple variants.")
+        attempted = ", ".join(potential_symbols)
+        msg = f"Failed to fetch futures data for {symbol}. Attempted: {attempted}"
+        if last_exception is not None:
+            logger.error(f"{msg}: {last_exception}", exc_info=True)
+        else:
+            logger.error(msg)
+        raise HTTPException(status_code=404, detail=f"No data available for {symbol}. Tried: {attempted}")
 
     dict_records = df.to_dict("records")
     for record in dict_records:

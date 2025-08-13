@@ -33,6 +33,7 @@ const OptionsDashboard = () => {
   const [loadingChart, setLoadingChart] = useState(false);
   
   const [selectedInterval, setSelectedInterval] = useState('daily');
+  const [selectedWindow, setSelectedWindow] = useState('1Y');
   const [error, setError] = useState(null);
   const debounceTimeout = useRef(null);
 
@@ -70,7 +71,15 @@ const OptionsDashboard = () => {
 
     getOptionChain(symbol, expiration)
       .then(response => {
-        setOptionChain(response.data);
+        const chain = Array.isArray(response.data) ? response.data : [];
+        // 默认按成交量降序排序，便于用户优先看到更活跃的合约
+        const sorted = [...chain].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+        setOptionChain(sorted);
+        setError(null);
+        // 自动选择最活跃的合约，触发绘图
+        if (sorted.length > 0) {
+          setSelectedOption(sorted[0]);
+        }
       })
       .catch(error => {
         const errorMsg = error.response?.data?.detail || `加载期权链失败。`;
@@ -80,12 +89,12 @@ const OptionsDashboard = () => {
       .finally(() => setLoadingChain(false));
   }, []);
 
-  const fetchChartData = useCallback((symbol, interval) => {
+  const fetchChartData = useCallback((symbol, interval, window) => {
     if (!symbol) return;
     setLoadingChart(true);
     setChartData([]);
     
-    getOptionsData(symbol, interval)
+    getOptionsData(symbol, interval, window)
       .then(response => {
         setChartData(response.data);
       })
@@ -112,9 +121,9 @@ const OptionsDashboard = () => {
   // Fetch chart when option or interval changes
   useEffect(() => {
     if (selectedOption) {
-      fetchChartData(selectedOption.contract_symbol, selectedInterval);
+      fetchChartData(selectedOption.contract_symbol, selectedInterval, selectedWindow);
     }
-  }, [selectedOption, selectedInterval, fetchChartData]);
+  }, [selectedOption, selectedInterval, selectedWindow, fetchChartData]);
 
   const handleSymbolSearch = (symbol) => {
     if (symbol) {
@@ -126,11 +135,11 @@ const OptionsDashboard = () => {
   const columns = [
     { title: '类型', dataIndex: 'type', key: 'type', render: type => <Tag color={type === 'call' ? 'green' : 'volcano'}>{type.toUpperCase()}</Tag>, filters: [{text: 'Call', value: 'call'}, {text: 'Put', value: 'put'}], onFilter: (value, record) => record.type.indexOf(value) === 0 },
     { title: '代码', dataIndex: 'contract_symbol', key: 'contract_symbol', render: (text) => text, sorter: (a, b) => a.contract_symbol.localeCompare(b.contract_symbol) },
-    { title: '行权价', dataIndex: 'strike', key: 'strike', sorter: (a, b) => a.strike - b.strike, defaultSortOrder: 'ascend' },
+    { title: '行权价', dataIndex: 'strike', key: 'strike', sorter: (a, b) => a.strike - b.strike },
     { title: '最新价', dataIndex: 'last_price', key: 'last_price', sorter: (a, b) => a.last_price - b.last_price },
     { title: '买价', dataIndex: 'bid', key: 'bid', sorter: (a, b) => a.bid - b.bid },
     { title: '卖价', dataIndex: 'ask', key: 'ask', sorter: (a, b) => a.ask - b.ask },
-    { title: '成交量', dataIndex: 'volume', key: 'volume', sorter: (a, b) => a.volume - b.volume },
+    { title: '成交量', dataIndex: 'volume', key: 'volume', sorter: (a, b) => a.volume - b.volume, defaultSortOrder: 'descend' },
     { title: '持仓量', dataIndex: 'open_interest', key: 'open_interest', sorter: (a, b) => a.open_interest - b.open_interest },
     { title: '隐含波动率', dataIndex: 'implied_volatility', key: 'implied_volatility', render: val => `${(val * 100).toFixed(2)}%`, sorter: (a, b) => a.implied_volatility - b.implied_volatility },
   ];
@@ -173,6 +182,17 @@ const OptionsDashboard = () => {
               <Radio.Button value="monthly">月线</Radio.Button>
             </Radio.Group>
           </Col>
+          <Col>
+            <Text>时间范围</Text>
+            <Select value={selectedWindow} style={{ width: 120, display: 'block' }} onChange={setSelectedWindow}>
+              <Option value="3M">近3月</Option>
+              <Option value="6M">近6月</Option>
+              <Option value="1Y">近1年</Option>
+              <Option value="2Y">近2年</Option>
+              <Option value="5Y">近5年</Option>
+              <Option value="MAX">最大</Option>
+            </Select>
+          </Col>
         </Row>
       </Card>
 
@@ -196,14 +216,22 @@ const OptionsDashboard = () => {
         <div style={{ marginTop: '20px' }}>
           <Title level={5}>K线图: {selectedOption.contract_symbol}</Title>
           <Spin spinning={loadingChart}>
-            <StockChart
-              chartData={chartData}
-              stockCode={selectedOption.contract_symbol}
-              stockName={`${underlyingSymbol} ${selectedExpiration} ${selectedOption.strike} ${selectedOption.type.toUpperCase()}`}
-              interval={selectedInterval}
-              corporateActions={null}
-              showEvents={false}
-            />
+            {chartData.length > 0 ? (
+              <StockChart
+                chartData={chartData}
+                stockCode={selectedOption.contract_symbol}
+                stockName={`${underlyingSymbol} ${selectedExpiration} ${selectedOption.strike} ${selectedOption.type.toUpperCase()}`}
+                interval={selectedInterval}
+                corporateActions={null}
+                showEvents={false}
+              />
+            ) : (
+              <Empty description={error || '该合约暂无历史数据，请尝试更近的到期日或更高流动性的合约。'}>
+                <Button onClick={() => fetchChartData(selectedOption.contract_symbol, selectedInterval, selectedWindow)} disabled={loadingChart}>
+                  重试
+                </Button>
+              </Empty>
+            )}
           </Spin>
         </div>
       )}
