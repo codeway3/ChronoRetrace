@@ -54,3 +54,25 @@ export const getCommodityList = () => {
 export const getCommodityData = (symbol, interval = 'daily') => {
   return apiClient.get(`/commodities/${symbol}?interval=${interval}`);
 };
+
+// Futures APIs
+export const getFuturesList = () => {
+  return apiClient.get('/futures/list');
+};
+
+export const getFuturesData = (symbol, interval = 'daily') => {
+  return apiClient.get(`/futures/${symbol}?interval=${interval}`);
+};
+
+// Options APIs
+export const getOptionExpirations = (underlyingSymbol) => {
+  return apiClient.get(`/options/expirations/${underlyingSymbol}`);
+};
+
+export const getOptionChain = (underlyingSymbol, expirationDate) => {
+  return apiClient.get(`/options/chain/${underlyingSymbol}?expiration_date=${expirationDate}`);
+};
+
+export const getOptionsData = (symbol, interval = 'daily') => {
+  return apiClient.get(`/options/${symbol}?interval=${interval}`);
+};

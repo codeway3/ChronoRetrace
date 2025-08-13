@@ -11,6 +11,7 @@
 ## ✨ Key Features
 
 -   **Multi-Market Data**: Fetches and displays data for A-shares, US stocks, and major cryptocurrencies.
+-   **Futures and Options**: Fetches and displays data for futures and options.
 -   **Interactive Charts**: Utilizes ECharts to provide responsive, interactive K-line (candlestick) charts with time range selection and key Moving Averages (MA5, MA10, MA20, MA60).
 -   **Financial Data Overview**: Displays key performance indicators (KPIs), annual earnings, and corporate actions for selected stocks.
 -   **Strategy Backtesting**: A flexible backtesting engine to test investment strategies. Comes with a simple "buy and hold" strategy as a baseline.

@@ -32,8 +32,12 @@ const MainLayout = ({ children }) => {
       setSelectedKeys(['3']);
     } else if (path.startsWith('/commodities')) {
       setSelectedKeys(['4']);
-    } else if (path.startsWith('/backtest')) {
+    } else if (path.startsWith('/futures')) {
       setSelectedKeys(['5']);
+    } else if (path.startsWith('/options')) {
+      setSelectedKeys(['6']);
+    } else if (path.startsWith('/backtest')) {
+      setSelectedKeys(['7']);
     } else {
       setSelectedKeys(['1']);
     }
@@ -76,6 +80,18 @@ const MainLayout = ({ children }) => {
     },
     {
       key: '5',
+      icon: <GoldOutlined />,
+      label: '期货',
+      onClick: () => navigate('/futures'),
+    },
+    {
+      key: '6',
+      icon: <GoldOutlined />,
+      label: '期权',
+      onClick: () => navigate('/options'),
+    },
+    {
+      key: '7',
       icon: <ExperimentOutlined />,
       label: '回溯测试',
       onClick: () => navigate('/backtest'),
