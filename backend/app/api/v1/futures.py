@@ -6,7 +6,7 @@ import akshare as ak
 from starlette.concurrency import run_in_threadpool
 
 from app.schemas.stock import StockDataBase
-from app.services import commodity_fetcher
+from app.services import futures_fetcher
 from fastapi_cache.decorator import cache
 
 router = APIRouter()
@@ -14,26 +14,26 @@ logger = logging.getLogger(__name__)
 
 @router.get("/list", response_model=dict[str, str])
 @cache(expire=86400)  # Cache for 24 hours
-async def get_commodity_list():
+async def get_futures_list():
     """
-    Get a list of commodity symbols from Akshare.
+    Get a list of futures symbols from Akshare.
     """
     try:
         futures_df = await run_in_threadpool(ak.futures_display_main_sina)
         return dict(zip(futures_df['symbol'], futures_df['name']))
     except Exception as e:
-        logger.error(f"Failed to fetch commodity list from Akshare: {str(e)}", exc_info=True)
-        return { "GC=F": "黄金", "SI=F": "白银", "CL=F": "原油" }
+        logger.error(f"Failed to fetch futures list from Akshare: {str(e)}", exc_info=True)
+        return { "ES=F": "E-mini S&P 500", "NQ=F": "E-mini NASDAQ 100" }
 
 
 @router.get("/{symbol}", response_model=List[StockDataBase])
 @cache(expire=900)  # Cache for 15 minutes
-async def get_commodity_data(
+async def get_futures_data(
     symbol: str,
     interval: str = Query("daily", enum=["daily", "weekly", "monthly"]),
 ):
     """
-    Get historical data for a specific commodity using yfinance.
+    Get historical data for a specific future using yfinance.
     """
     start_date = (datetime.now() - timedelta(days=10 * 365)).strftime("%Y-%m-%d")
     end_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -50,7 +50,7 @@ async def get_commodity_data(
     for s in potential_symbols:
         try:
             fetched_df = await run_in_threadpool(
-                commodity_fetcher.fetch_commodity_from_yfinance,
+                futures_fetcher.fetch_futures_from_yfinance,
                 symbol=s, start_date=start_date, end_date=end_date, interval=interval,
             )
             if not fetched_df.empty:
@@ -62,7 +62,7 @@ async def get_commodity_data(
             continue
 
     if df is None or df.empty:
-        logger.error(f"Failed to fetch commodity data for {symbol} and its variants: {last_exception}", exc_info=True)
+        logger.error(f"Failed to fetch futures data for {symbol} and its variants: {last_exception}", exc_info=True)
         raise HTTPException(status_code=404, detail=f"Failed to fetch data for {symbol} after trying multiple variants.")
 
     dict_records = df.to_dict("records")

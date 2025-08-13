@@ -11,6 +11,8 @@ from app.api.v1 import admin as admin_v1
 from app.api.v1 import backtest as backtest_v1
 from app.api.v1 import crypto as crypto_v1
 from app.api.v1 import commodities as commodities_v1
+from app.api.v1 import futures as futures_v1
+from app.api.v1 import options as options_v1
 from app.db.session import engine, SessionLocal
 from app.db import models
 from app.core.config import settings
@@ -103,6 +105,8 @@ app.include_router(crypto_v1.router, prefix="/api/v1/crypto", tags=["crypto"])
 app.include_router(
     commodities_v1.router, prefix="/api/v1/commodities", tags=["commodities"]
 )
+app.include_router(futures_v1.router, prefix="/api/v1/futures", tags=["futures"])
+app.include_router(options_v1.router, prefix="/api/v1/options", tags=["options"])
 
 
 
