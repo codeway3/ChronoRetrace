@@ -10,10 +10,11 @@ baostock
 numpy==1.26.4
 pandas==2.2.2
 yfinance
-akshare
+akshare==1.17.35
 yahoo_fin
 requests_html
 pydantic_settings
+apscheduler
 ruff
 pytest
 pytest-mock

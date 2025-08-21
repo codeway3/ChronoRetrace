@@ -76,3 +76,16 @@ export const getOptionChain = (underlyingSymbol, expirationDate) => {
 export const getOptionsData = (symbol, interval = 'daily', window = 'MAX') => {
   return apiClient.get(`/options/${symbol}?interval=${interval}&window=${window}`);
 };
+
+// A-share Industries APIs
+export const getAIndustryList = (provider = 'em') => {
+  return apiClient.get(`/a-industries/list?provider=${provider}`);
+};
+
+export const getAIndustryOverview = (window = '20D', provider = 'em') => {
+  return apiClient.get(`/a-industries/overview?window=${window}&provider=${provider}`);
+};
+
+export const getAIndustryStocks = (industryCode) => {
+  return apiClient.get(`/a-industries/${industryCode}/stocks`);
+};

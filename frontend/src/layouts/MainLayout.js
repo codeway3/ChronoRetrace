@@ -24,7 +24,9 @@ const MainLayout = ({ children }) => {
 
   useEffect(() => {
     const path = location.pathname;
-    if (path.startsWith('/a-share')) {
+    if (path.startsWith('/a-share/industries')) {
+      setSelectedKeys(['8']);
+    } else if (path.startsWith('/a-share')) {
       setSelectedKeys(['1']);
     } else if (path.startsWith('/us-stock')) {
       setSelectedKeys(['2']);
@@ -95,6 +97,12 @@ const MainLayout = ({ children }) => {
       icon: <ExperimentOutlined />,
       label: '回溯测试',
       onClick: () => navigate('/backtest'),
+    },
+    {
+      key: '8',
+      icon: <LineChartOutlined />,
+      label: 'A股行业',
+      onClick: () => navigate('/a-share/industries'),
     },
   ];
 

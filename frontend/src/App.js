@@ -6,6 +6,7 @@ import USStockDashboard from './pages/USStockDashboard';
 import BacktestPage from './pages/BacktestPage';
 import CryptoDashboard from './pages/CryptoDashboard';
 import CommodityDashboard from './pages/CommodityDashboard';
+import AIndustriesDashboard from './pages/AIndustriesDashboard';
 import FuturesDashboard from './pages/FuturesDashboard';
 import OptionsDashboard from './pages/OptionsDashboard';
 import './App.css';
@@ -19,6 +20,7 @@ function App() {
         <Route path="/us-stock" element={<USStockDashboard />} />
         <Route path="/crypto" element={<CryptoDashboard />} />
         <Route path="/commodities" element={<CommodityDashboard />} />
+        <Route path="/a-share/industries" element={<AIndustriesDashboard />} />
         <Route path="/futures" element={<FuturesDashboard />} />
         <Route path="/options" element={<OptionsDashboard />} />
         <Route path="/backtest" element={<BacktestPage />} />

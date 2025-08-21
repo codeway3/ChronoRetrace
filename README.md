@@ -108,7 +108,6 @@ ChronoRetrace/
 │       ├── layouts/
 │       └── pages/
 ├── .gitignore
-├── todo.txt              # Future development plans
 ├── LICENSE
 ├── CONTRIBUTING.md
 └── README.md
