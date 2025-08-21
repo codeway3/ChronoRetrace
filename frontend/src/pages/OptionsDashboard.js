@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Input,
   Select,
@@ -35,7 +35,6 @@ const OptionsDashboard = () => {
   const [selectedInterval, setSelectedInterval] = useState('daily');
   const [selectedWindow, setSelectedWindow] = useState('1Y');
   const [error, setError] = useState(null);
-  const debounceTimeout = useRef(null);
 
   const fetchExpirations = useCallback((symbol) => {
     if (!symbol) return;
@@ -109,7 +108,7 @@ const OptionsDashboard = () => {
   // Initial load for default symbol
   useEffect(() => {
     fetchExpirations(underlyingSymbol);
-  }, [fetchExpirations]);
+  }, [fetchExpirations, underlyingSymbol]);
 
   // Fetch chain when expiration changes
   useEffect(() => {
@@ -128,7 +127,6 @@ const OptionsDashboard = () => {
   const handleSymbolSearch = (symbol) => {
     if (symbol) {
       setUnderlyingSymbol(symbol.toUpperCase());
-      fetchExpirations(symbol.toUpperCase());
     }
   };
 
