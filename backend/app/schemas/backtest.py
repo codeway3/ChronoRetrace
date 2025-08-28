@@ -1,8 +1,10 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel, field_validator
+from typing import List, Optional, Union, Dict, Any
 from datetime import date
 from enum import Enum
 
+
+# --- Enums and Basic Types ---
 
 class UpperBoundStrategy(str, Enum):
     HOLD = "hold"
@@ -14,12 +16,17 @@ class LowerBoundStrategy(str, Enum):
     SELL_ALL = "sell_all"
 
 
+# A type to represent a value that can be a single float or a range for optimization
+# Example: 5.0 or [5.0, 10.0, 1.0] for start, stop, step
+RangeValue = Union[float, List[float]]
+
+# --- Strategy Configuration Models ---
+
+
 class GridStrategyConfig(BaseModel):
     """
-    Configuration for a grid trading backtest.
-    Sent from the frontend to the backend.
+    Configuration for a SINGLE grid trading backtest.
     """
-
     stock_code: str
     start_date: date
     end_date: date
@@ -27,61 +34,82 @@ class GridStrategyConfig(BaseModel):
     lower_price: float
     grid_count: int
     total_investment: float
-    initial_quantity: Optional[int] = Field(
-        0, description="Optional: Number of shares held at the start of the backtest."
-    )
-    initial_per_share_cost: Optional[float] = Field(
-        0.0, description="Optional: Per-share cost of the initial holdings."
-    )
-    on_exceed_upper: Optional[UpperBoundStrategy] = Field(
-        UpperBoundStrategy.HOLD, description="Strategy when price exceeds upper bound."
-    )
-    on_fall_below_lower: Optional[LowerBoundStrategy] = Field(
-        LowerBoundStrategy.HOLD,
-        description="Strategy when price falls below lower bound.",
-    )
 
-    # Transaction Costs
-    commission_rate: Optional[float] = Field(
-        0.0003, description="Commission rate per transaction."
-    )
-    stamp_duty_rate: Optional[float] = Field(
-        0.001, description="Stamp duty rate, applied on sells only."
-    )
-    min_commission: Optional[float] = Field(
-        5.0, description="Minimum commission fee per transaction."
-    )
+    initial_quantity: int = 0
+    initial_per_share_cost: float = 0.0
+    on_exceed_upper: UpperBoundStrategy = UpperBoundStrategy.HOLD
+    on_fall_below_lower: LowerBoundStrategy = LowerBoundStrategy.HOLD
+    commission_rate: float = 0.0003
+    stamp_duty_rate: float = 0.001
+    min_commission: float = 5.0
+
+    @field_validator('end_date')
+    @classmethod
+    def check_date_range(cls, v, info):
+        if info.data and 'start_date' in info.data and v < info.data['start_date']:
+            raise ValueError("End date must be after or equal to start date")
+        return v
+
+
+class GridStrategyOptimizeConfig(BaseModel):
+    """
+    Configuration for a grid trading PARAMETER OPTIMIZATION.
+    Allows ranges for key parameters.
+    """
+    stock_code: str
+    start_date: date
+    end_date: date
+
+    # Parameters that can be optimized are defined as ranges
+    upper_price: RangeValue
+    lower_price: RangeValue
+    grid_count: Union[int, List[int]]  # Grid count must be integer
+
+    total_investment: float
+    initial_quantity: int = 0
+    initial_per_share_cost: float = 0.0
+    on_exceed_upper: UpperBoundStrategy = UpperBoundStrategy.HOLD
+    on_fall_below_lower: LowerBoundStrategy = LowerBoundStrategy.HOLD
+    commission_rate: float = 0.0003
+    stamp_duty_rate: float = 0.001
+    min_commission: float = 5.0
+
+    @field_validator('upper_price', 'lower_price', 'grid_count')
+    @classmethod
+    def check_range_format(cls, v):
+        if isinstance(v, list):
+            if len(v) != 3:
+                raise ValueError(
+                    "Range list must contain exactly 3 elements: [start, stop, step]")
+            if v[2] <= 0:
+                raise ValueError("Step value in a range must be positive")
+        return v
+
+    @field_validator('end_date')
+    @classmethod
+    def check_date_range(cls, v, info):
+        if info.data and 'start_date' in info.data and v < info.data['start_date']:
+            raise ValueError("End date must be after or equal to start date")
+        return v
+
+# --- Result Models ---
 
 
 class Transaction(BaseModel):
-    """
-    Represents a single trade executed during the backtest.
-    """
-
     trade_date: date
-    trade_type: str  # "buy" or "sell"
+    trade_type: str
     price: float
     quantity: int
-    pnl: Optional[float] = Field(
-        None, description="Profit and Loss for this specific trade (realized on sell)"
-    )
+    pnl: Optional[float] = None
 
 
 class ChartDataPoint(BaseModel):
-    """
-    Represents a single data point for the portfolio value chart.
-    """
-
     date: date
     portfolio_value: float
     benchmark_value: float
 
 
 class KLineDataPoint(BaseModel):
-    """
-    Represents a single OHLCV data point for the K-line chart.
-    """
-
     trade_date: date
     open: float
     high: float
@@ -92,46 +120,42 @@ class KLineDataPoint(BaseModel):
 
 class BacktestResult(BaseModel):
     """
-    The detailed results of a backtest, structured for frontend display.
+    Represents the detailed results of a SINGLE backtest run.
     """
+    total_pnl: float
+    total_return_rate: float
+    annualized_return_rate: float
+    annualized_volatility: float
+    sharpe_ratio: float
+    max_drawdown: float
+    win_rate: float
+    trade_count: int
 
-    # 1. Core KPI Metrics
-    total_pnl: float = Field(..., description="Total Profit and Loss")
-    total_return_rate: float = Field(
-        ..., description="Total return rate as a percentage of initial investment"
-    )
-    annualized_return_rate: float = Field(..., description="Annualized rate of return")
-    max_drawdown: float = Field(
-        ..., description="Maximum drawdown experienced during the backtest"
-    )
-    win_rate: float = Field(
-        ..., description="Percentage of profitable trades out of all sell trades"
-    )
-    trade_count: int = Field(..., description="Total number of trades (buys and sells)")
+    chart_data: List[ChartDataPoint]
+    kline_data: List[KLineDataPoint]
+    transaction_log: List[Transaction]
 
-    # 2. Data for Charts and Tables
-    chart_data: List[ChartDataPoint] = Field(
-        ..., description="Data for plotting portfolio and benchmark value over time"
-    )
-    kline_data: List[KLineDataPoint] = Field(
-        ..., description="OHLCV data for plotting the K-line chart"
-    )
-    transaction_log: List[Transaction] = Field(
-        ..., description="A detailed log of all trades executed"
-    )
+    strategy_config: GridStrategyConfig  # The exact config used for this run
+    market_type: str
+    final_holding_quantity: int
+    average_holding_cost: float
 
-    # 3. Informational data
-    strategy_config: GridStrategyConfig = Field(
-        ..., description="The configuration used for this backtest"
-    )
-    market_type: str = Field(
-        ..., description="The market type of the stock (e.g., 'A_share', 'US_stock')"
-    )
 
-    # 4. Final Holdings
-    final_holding_quantity: int = Field(
-        ..., description="Number of shares still held at the end of the backtest."
-    )
-    average_holding_cost: float = Field(
-        ..., description="The average cost per share of the final holdings."
-    )
+class OptimizationResultItem(BaseModel):
+    """
+    A summary of a single run within a larger optimization task.
+    """
+    parameters: Dict[str, Any]
+    annualized_return_rate: float
+    sharpe_ratio: float
+    max_drawdown: float
+    win_rate: float
+    trade_count: int
+
+
+class BacktestOptimizationResponse(BaseModel):
+    """
+    The final response for a parameter optimization request.
+    """
+    optimization_results: List[OptimizationResultItem]
+    best_result: OptimizationResultItem

@@ -65,8 +65,12 @@ source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the development server
-uvicorn app.main:app --reload
+# Run the development server (recommended)
+python start_dev.py
+
+# Alternative methods:
+# ./run_server.sh
+# or: uvicorn app.main:app --reload --reload-dir .
 ```
 The API documentation will be available at `http://127.0.0.1:8000/docs`.
 

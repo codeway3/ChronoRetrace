@@ -24,6 +24,8 @@ def test_run_grid_backtest_success():
             "total_pnl": 1500.0,
             "total_return_rate": 0.15,
             "annualized_return_rate": 0.12,
+            "annualized_volatility": 0.18,
+            "sharpe_ratio": 0.67,
             "max_drawdown": -0.08,
             "win_rate": 0.6,
             "trade_count": 2,
@@ -195,8 +197,8 @@ def test_run_grid_backtest_invalid_date_range():
 
     response = client.post("/api/v1/backtest/grid", json=config_data)
 
-    # Should return 400 (Bad Request) due to business logic error
-    assert response.status_code == 400
+    # Should return 422 (Unprocessable Entity) due to validation error
+    assert response.status_code == 422
 
 
 def test_run_grid_backtest_large_grid_levels():
@@ -217,6 +219,8 @@ def test_run_grid_backtest_large_grid_levels():
             "total_pnl": 1000.0,
             "total_return_rate": 0.10,
             "annualized_return_rate": 0.08,
+            "annualized_volatility": 0.15,
+            "sharpe_ratio": 0.53,
             "max_drawdown": -0.05,
             "win_rate": 0.5,
             "trade_count": 0,

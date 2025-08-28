@@ -37,6 +37,10 @@ export const runBacktest = (config) => {
   return apiClient.post('/backtest/grid', config);
 };
 
+export const runGridOptimization = (config) => {
+  return apiClient.post('/backtest/grid/optimize', config);
+};
+
 // Crypto APIs
 export const getTopCryptos = () => {
   return apiClient.get('/crypto/top');

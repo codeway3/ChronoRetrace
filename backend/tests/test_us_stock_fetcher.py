@@ -235,15 +235,19 @@ class TestUpdateUsStockList:
 
     @patch('app.services.us_stock_fetcher.si.tickers_sp500')
     @patch('app.services.us_stock_fetcher.si.tickers_nasdaq')
+    @patch('app.services.us_stock_fetcher.si.tickers_dow')
     @patch('app.services.us_stock_fetcher.si.tickers_other')
     @patch('app.services.us_stock_fetcher.sqlite_insert')
-    def test_update_us_stock_list_success(self, mock_insert, mock_other, mock_nasdaq, mock_sp500):
+    def test_update_us_stock_list_success(self, mock_insert, mock_other, mock_dow, mock_nasdaq, mock_sp500):
         """Test successful US stock list update."""
         # Mock S&P 500 data
         mock_sp500.return_value = ['AAPL', 'MSFT', 'GOOGL']
 
         # Mock NASDAQ data
         mock_nasdaq.return_value = ['AAPL', 'MSFT', 'GOOGL', 'TSLA']
+
+        # Mock Dow Jones data
+        mock_dow.return_value = ['AAPL', 'MSFT', 'GOOGL', 'JPM']
 
         # Mock other exchanges data
         mock_other.return_value = ['BRK.A', 'BRK.B']
@@ -265,14 +269,18 @@ class TestUpdateUsStockList:
 
     @patch('app.services.us_stock_fetcher.si.tickers_sp500')
     @patch('app.services.us_stock_fetcher.si.tickers_nasdaq')
+    @patch('app.services.us_stock_fetcher.si.tickers_dow')
     @patch('app.services.us_stock_fetcher.si.tickers_other')
-    def test_update_us_stock_list_sp500_failure(self, mock_other, mock_nasdaq, mock_sp500):
+    def test_update_us_stock_list_sp500_failure(self, mock_other, mock_dow, mock_nasdaq, mock_sp500):
         """Test US stock list update with S&P 500 failure."""
         # Mock S&P 500 failure
         mock_sp500.side_effect = Exception("S&P 500 error")
 
         # Mock NASDAQ success
         mock_nasdaq.return_value = ['AAPL', 'MSFT', 'GOOGL']
+
+        # Mock Dow Jones success
+        mock_dow.return_value = ['AAPL', 'MSFT', 'GOOGL', 'JPM']
 
         # Mock other exchanges success
         mock_other.return_value = ['BRK.A', 'BRK.B']
@@ -288,12 +296,14 @@ class TestUpdateUsStockList:
 
     @patch('app.services.us_stock_fetcher.si.tickers_sp500')
     @patch('app.services.us_stock_fetcher.si.tickers_nasdaq')
+    @patch('app.services.us_stock_fetcher.si.tickers_dow')
     @patch('app.services.us_stock_fetcher.si.tickers_other')
-    def test_update_us_stock_list_all_failures(self, mock_other, mock_nasdaq, mock_sp500):
+    def test_update_us_stock_list_all_failures(self, mock_other, mock_dow, mock_nasdaq, mock_sp500):
         """Test US stock list update when all exchanges fail."""
         # Mock all exchanges failing
         mock_sp500.side_effect = Exception("S&P 500 error")
         mock_nasdaq.side_effect = Exception("NASDAQ error")
+        mock_dow.side_effect = Exception("Dow Jones error")
         mock_other.side_effect = Exception("Other exchanges error")
 
         mock_db = Mock()
@@ -307,12 +317,14 @@ class TestUpdateUsStockList:
 
     @patch('app.services.us_stock_fetcher.si.tickers_sp500')
     @patch('app.services.us_stock_fetcher.si.tickers_nasdaq')
+    @patch('app.services.us_stock_fetcher.si.tickers_dow')
     @patch('app.services.us_stock_fetcher.si.tickers_other')
-    def test_update_us_stock_list_empty_lists(self, mock_other, mock_nasdaq, mock_sp500):
+    def test_update_us_stock_list_empty_lists(self, mock_other, mock_dow, mock_nasdaq, mock_sp500):
         """Test US stock list update with empty lists."""
         # Mock empty lists
         mock_sp500.return_value = []
         mock_nasdaq.return_value = []
+        mock_dow.return_value = []
         mock_other.return_value = []
 
         mock_db = Mock()
@@ -326,13 +338,16 @@ class TestUpdateUsStockList:
 
     @patch('app.services.us_stock_fetcher.si.tickers_sp500')
     @patch('app.services.us_stock_fetcher.si.tickers_nasdaq')
+    @patch('app.services.us_stock_fetcher.si.tickers_dow')
     @patch('app.services.us_stock_fetcher.si.tickers_other')
-    def test_update_us_stock_list_duplicate_symbols(self, mock_other, mock_nasdaq, mock_sp500):
+    def test_update_us_stock_list_duplicate_symbols(self, mock_other, mock_dow, mock_nasdaq, mock_sp500):
         """Test US stock list update with duplicate symbols across exchanges."""
         # Mock overlapping symbols
         mock_sp500.return_value = ['AAPL', 'MSFT', 'GOOGL']
         mock_nasdaq.return_value = ['AAPL', 'MSFT',
                                     'GOOGL', 'TSLA']  # Overlapping with S&P 500
+        mock_dow.return_value = ['AAPL', 'MSFT',
+                                 'GOOGL', 'JPM']  # Also overlapping
         mock_other.return_value = [
             'BRK.A', 'BRK.B', 'AAPL']  # Also overlapping
 
