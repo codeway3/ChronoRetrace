@@ -37,11 +37,15 @@ jobs:
 
       # 4. Lint with Ruff
       - name: Lint with Ruff
-        run: ruff check backend/
+        run: |
+          cd backend
+          ruff check .
 
       # 5. Run pytest
       - name: Run pytest
-        run: pytest backend/
+        run: |
+          cd backend
+          python -m pytest
 
   #---------------------------------
   # Frontend Job
