@@ -93,3 +93,7 @@ export const getAIndustryOverview = (window = '20D', provider = 'em') => {
 export const getAIndustryStocks = (industryCode) => {
   return apiClient.get(`/a-industries/${industryCode}/stocks`);
 };
+
+export const screenStocks = (request) => {
+  return apiClient.post('/screener/stocks', request);
+};

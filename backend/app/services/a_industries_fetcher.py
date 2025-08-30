@@ -50,21 +50,33 @@ def _normalize_hist_df(df: pd.DataFrame) -> pd.DataFrame:
 
 def fetch_industry_list_em() -> List[Dict[str, str]]:
     """Fetch industry list from Eastmoney."""
-    try:
-        logger.info("Fetching industry list from Eastmoney")
-        raw = ak.stock_board_industry_name_em()
-        column_map = {"板块名称": "industry_name", "板块代码": "industry_code"}
-        df = _normalize_df_columns(raw, column_map)
-        
-        if "industry_name" not in df.columns or "industry_code" not in df.columns:
-            logger.error(f"Could not find required columns in Eastmoney industry list. Got: {df.columns.tolist()}")
-            return []
+    max_retries = 3
+    retry_delay = 2  # 初始延迟2秒
+    
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Fetching industry list from Eastmoney (attempt {attempt+1}/{max_retries})")
+            raw = ak.stock_board_industry_name_em()
+            column_map = {"板块名称": "industry_name", "板块代码": "industry_code"}
+            df = _normalize_df_columns(raw, column_map)
             
-        return df[["industry_name", "industry_code"]].to_dict(orient="records")
+            if "industry_name" not in df.columns or "industry_code" not in df.columns:
+                logger.error(f"Could not find required columns in Eastmoney industry list. Got: {df.columns.tolist()}")
+                return []
+                
+            return df[["industry_name", "industry_code"]].to_dict(orient="records")
 
-    except Exception as exc:
-        logger.error(f"Failed to fetch Eastmoney industry list: {exc}", exc_info=True)
-        return []
+        except Exception as exc:
+            logger.warning(f"Attempt {attempt+1}/{max_retries} failed to fetch Eastmoney industry list: {exc}")
+            if attempt < max_retries - 1:
+                # 指数退避策略：每次重试增加延迟时间
+                sleep_time = retry_delay * (2 ** attempt)
+                logger.info(f"Retrying in {sleep_time} seconds...")
+                import time
+                time.sleep(sleep_time)
+            else:
+                logger.error(f"All {max_retries} attempts failed to fetch Eastmoney industry list: {exc}", exc_info=True)
+                return []
 
 
 def fetch_industry_list_ths() -> List[Dict[str, str]]:
@@ -135,12 +147,24 @@ def build_overview(window: str = "20D", provider: str = "em") -> List[Dict[str, 
     days_map = {"5D": 5, "20D": 20, "60D": 60}
     days = days_map.get(window.upper(), 20)
     results: List[Dict[str, object]] = []
+    
+    # 限制处理的行业数量，避免一次性请求过多
+    max_industries = 50
+    if len(industry_list) > max_industries:
+        logger.info(f"Limiting to {max_industries} industries to avoid rate limiting")
+        industry_list = industry_list[:max_industries]
 
-    for industry in industry_list:
+    import time
+    for i, industry in enumerate(industry_list):
         name = industry.get("industry_name")
         code = industry.get("industry_code")
         if not name or not code:
             continue
+        
+        # 每处理5个行业添加一个短暂延迟，避免请求过于频繁
+        if i > 0 and i % 5 == 0:
+            logger.info(f"Processed {i}/{len(industry_list)} industries, pausing briefly...")
+            time.sleep(2)
         
         hist = fetch_industry_hist(name)
         
@@ -197,3 +221,71 @@ def fetch_industry_constituents(industry_code: str) -> List[Dict[str, object]]:
     except Exception as exc:
         logger.error(f"Failed to fetch constituents for industry '{industry_code}': {exc}", exc_info=True)
         return []
+
+
+def build_industry_overview(window: str = "20D") -> Dict[str, object]:
+    """Build a comprehensive overview of all industries with their constituents."""
+    logger.info(f"Building comprehensive industry overview with window={window}")
+    
+    industry_list = fetch_industry_list_em()
+    if not industry_list:
+        logger.error("Could not fetch industry list from Eastmoney")
+        return {}
+    
+    days_map = {"5D": 5, "20D": 20, "60D": 60}
+    days = days_map.get(window.upper(), 20)
+    
+    # 限制处理的行业数量，避免一次性请求过多
+    max_industries = 30
+    if len(industry_list) > max_industries:
+        logger.info(f"Limiting to {max_industries} industries to avoid rate limiting")
+        industry_list = industry_list[:max_industries]
+    
+    results = {}
+    import time
+    for i, industry in enumerate(industry_list):
+        name = industry.get("industry_name")
+        code = industry.get("industry_code")
+        if not name or not code:
+            continue
+        
+        # 每处理3个行业添加一个短暂延迟，避免请求过于频繁
+        if i > 0 and i % 3 == 0:
+            logger.info(f"Processed {i}/{len(industry_list)} industries, pausing briefly...")
+            time.sleep(3)  # 延迟3秒
+        
+        hist = fetch_industry_hist(name)
+        
+        # 获取成分股前添加短暂延迟
+        time.sleep(1)  # 延迟1秒
+        constituents = fetch_industry_constituents(code)
+        
+        if hist.empty or len(hist) < 2:
+            logger.warning(f"Not enough historical data for industry: {name} ({code})")
+            continue
+        
+        # Calculate metrics from the last two days of history
+        last_row = hist.iloc[-1]
+        prev_row = hist.iloc[-2]
+        
+        today_pct = ((last_row["close"] - prev_row["close"]) / prev_row["close"]) * 100 if prev_row["close"] != 0 else 0
+        turnover = last_row.get("amount")
+        
+        period_return = compute_period_return(hist, days)
+        sparkline_data = hist.tail(days)[["trade_date", "close"]].copy()
+        sparkline_data["close"] = sparkline_data["close"].astype(float)
+        sparkline = sparkline_data.to_dict(orient="records")
+        
+        results[code] = {
+            "industry_code": code,
+            "industry_name": name,
+            "today_pct": float(today_pct),
+            "turnover": float(turnover) if turnover is not None else None,
+            "ret_window": period_return,
+            "window": window.upper(),
+            "sparkline": sparkline,
+            "constituents": constituents
+        }
+    
+    logger.info(f"Successfully built comprehensive overview for {len(results)} industries.")
+    return results

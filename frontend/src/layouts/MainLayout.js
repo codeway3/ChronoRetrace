@@ -9,6 +9,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ExperimentOutlined,
+  FilterOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { clearCache } from '../api/stockApi';
@@ -40,6 +41,8 @@ const MainLayout = ({ children }) => {
       setSelectedKeys(['6']);
     } else if (path.startsWith('/backtest')) {
       setSelectedKeys(['7']);
+    } else if (path.startsWith('/screener')) {
+      setSelectedKeys(['9']);
     } else {
       setSelectedKeys(['1']);
     }
@@ -103,6 +106,12 @@ const MainLayout = ({ children }) => {
       icon: <LineChartOutlined />,
       label: 'A股行业',
       onClick: () => navigate('/a-share/industries'),
+    },
+    {
+      key: '9',
+      icon: <FilterOutlined />,
+      label: '股票筛选器',
+      onClick: () => navigate('/screener'),
     },
   ];
 

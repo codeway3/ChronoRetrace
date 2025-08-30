@@ -9,6 +9,7 @@ import CommodityDashboard from './pages/CommodityDashboard';
 import AIndustriesDashboard from './pages/AIndustriesDashboard';
 import FuturesDashboard from './pages/FuturesDashboard';
 import OptionsDashboard from './pages/OptionsDashboard';
+import ScreenerPage from './pages/ScreenerPage';
 import './App.css';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
         <Route path="/futures" element={<FuturesDashboard />} />
         <Route path="/options" element={<OptionsDashboard />} />
         <Route path="/backtest" element={<BacktestPage />} />
+        <Route path="/screener" element={<ScreenerPage />} />
       </Routes>
     </MainLayout>
   );

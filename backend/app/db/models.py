@@ -87,3 +87,25 @@ class AnnualEarnings(Base):
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     __table_args__ = (UniqueConstraint("symbol", "year", name="_symbol_year_uc"),)
+
+
+class DailyStockMetrics(Base):
+    __tablename__ = "daily_stock_metrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, index=True, nullable=False)
+    date = Column(Date, index=True, nullable=False)
+    market = Column(String, index=True, nullable=False)
+    close_price = Column(Float)
+    pe_ratio = Column(Float, index=True)
+    pb_ratio = Column(Float, index=True)
+    market_cap = Column(Integer, index=True)
+    dividend_yield = Column(Float, index=True)
+    ma5 = Column(Float)
+    ma20 = Column(Float)
+    volume = Column(Integer)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("code", "date", "market", name="_code_date_market_uc"),
+    )

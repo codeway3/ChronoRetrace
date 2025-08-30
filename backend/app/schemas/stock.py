@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from datetime import date
-from typing import List, Optional
+from typing import List, Optional, Any
 
 class StockDataBase(BaseModel):
     ts_code: str
@@ -34,3 +34,31 @@ class StockInfo(BaseModel):
 class StockDataResponse(BaseModel):
     ts_code: str
     data: List[StockDataInDB]
+
+
+# Stock Screener Schemas
+class ScreenerCondition(BaseModel):
+    field: str
+    operator: str
+    value: Any
+
+class StockScreenerRequest(BaseModel):
+    market: str = 'A_share'
+    conditions: List[ScreenerCondition]
+    page: int = 1
+    size: int = 20
+
+class ScreenedStock(BaseModel):
+    code: str
+    name: str
+    pe_ratio: Optional[float] = None
+    market_cap: Optional[int] = None
+    # Add other fields you want to display in the screener results
+    model_config = ConfigDict(from_attributes=True)
+
+
+class StockScreenerResponse(BaseModel):
+    total: int
+    page: int
+    size: int
+    items: List[ScreenedStock]
