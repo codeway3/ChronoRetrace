@@ -1,13 +1,15 @@
 import logging
+from datetime import date, datetime, timedelta
 from typing import Optional
-from datetime import datetime, timedelta, date
+
+import pandas as pd
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
-import pandas as pd
 
 from app.db import models
 from app.db.session import get_db
-from . import a_share_fetcher, us_stock_fetcher, db_writer
+
+from . import a_share_fetcher, db_writer, us_stock_fetcher
 from .data_utils import calculate_ma
 
 logger = logging.getLogger(__name__)
@@ -18,13 +20,17 @@ def get_all_stocks_list(db: Session, market_type: str = "A_share"):
     Get stock list for a specific market. It serves from a local DB cache.
     If the cache is empty or older than 24 hours for that market, it refreshes from data sources.
     """
-    query = db.query(models.StockInfo).filter(models.StockInfo.market_type == market_type)
-    
+    query = db.query(models.StockInfo).filter(
+        models.StockInfo.market_type == market_type
+    )
+
     # Simplified logic: if the list is empty, try to refresh it.
     # More complex logic (e.g., checking age) can be added if needed.
     if query.count() == 0:
         try:
-            logger.info(f"Stock list for {market_type} is empty. Attempting to refresh.")
+            logger.info(
+                f"Stock list for {market_type} is empty. Attempting to refresh."
+            )
             if market_type == "A_share":
                 a_share_fetcher.update_stock_list_from_akshare(db)
             elif market_type == "US_stock":
@@ -53,7 +59,14 @@ def force_update_stock_list(db: Session, market_type: str):
 
 
 class StockDataFetcher:
-    def __init__(self, db: Session, stock_code: str, interval: str, market_type: str, trade_date: Optional[date] = None):
+    def __init__(
+        self,
+        db: Session,
+        stock_code: str,
+        interval: str,
+        market_type: str,
+        trade_date: Optional[date] = None,
+    ):
         self.db = db
         self.stock_code = stock_code
         self.interval = interval
@@ -81,60 +94,84 @@ class StockDataFetcher:
 
         # If we have some data from the DB, check if it's recent enough.
         if not db_data_df.empty:
-            last_db_date = pd.to_datetime(db_data_df['trade_date']).max().date()
+            last_db_date = pd.to_datetime(db_data_df["trade_date"]).max().date()
             # If the last date in DB is yesterday or today, consider it fresh.
             if last_db_date >= (datetime.now() - timedelta(days=1)).date():
-                logger.info(f"DB data for {self.stock_code} is up-to-date. Returning from DB.")
+                logger.info(
+                    f"DB data for {self.stock_code} is up-to-date. Returning from DB."
+                )
                 db_data_df = calculate_ma(db_data_df)
                 return db_data_df
 
-        logger.info(f"DB data for {self.stock_code} is missing or stale. Fetching from API.")
+        logger.info(
+            f"DB data for {self.stock_code} is missing or stale. Fetching from API."
+        )
         api_data_df = self._fetch_from_api()
 
         if not api_data_df.empty:
             self._store_in_db(api_data_df)
             api_data_df = calculate_ma(api_data_df)
-        
+
         return api_data_df
 
     def _fetch_from_db(self):
         """Fetches stock K-line data from the local SQLite database."""
-        logger.info(f"Querying DB for {self.stock_code} from {self.start_date} to {self.end_date}")
-        
-        query = self.db.query(models.StockData).filter(
-            models.StockData.ts_code == self.stock_code,
-            models.StockData.interval == self.interval,
-            models.StockData.trade_date >= self.start_date,
-            models.StockData.trade_date <= self.end_date
-        ).order_by(models.StockData.trade_date)
-        
+        logger.info(
+            f"Querying DB for {self.stock_code} from {self.start_date} to {self.end_date}"
+        )
+
+        query = (
+            self.db.query(models.StockData)
+            .filter(
+                models.StockData.ts_code == self.stock_code,
+                models.StockData.interval == self.interval,
+                models.StockData.trade_date >= self.start_date,
+                models.StockData.trade_date <= self.end_date,
+            )
+            .order_by(models.StockData.trade_date)
+        )
+
         df = pd.read_sql(query.statement, self.db.connection())
         if not df.empty:
             logger.info(f"Found {len(df)} records in DB for {self.stock_code}.")
             # Drop the 'id' column as it's not needed for the frontend.
-            df = df.drop(columns=['id'])
+            df = df.drop(columns=["id"])
         return df
 
     def _fetch_from_api(self):
         """Fetches stock data from the appropriate external API based on market type."""
         if self.market_type == "A_share":
-            return a_share_fetcher.fetch_a_share_data_from_akshare(self.stock_code, self.interval, self.trade_date)
+            return a_share_fetcher.fetch_a_share_data_from_akshare(
+                self.stock_code, self.interval, self.trade_date
+            )
         elif self.market_type == "US_stock":
-            return us_stock_fetcher.fetch_from_yfinance(self.stock_code, self.start_date.strftime('%Y-%m-%d'), self.end_date.strftime('%Y-%m-%d'), self.interval)
+            return us_stock_fetcher.fetch_from_yfinance(
+                self.stock_code,
+                self.start_date.strftime("%Y-%m-%d"),
+                self.end_date.strftime("%Y-%m-%d"),
+                self.interval,
+            )
         else:
             raise ValueError(f"Unsupported market type: {self.market_type}")
 
     def _store_in_db(self, df: pd.DataFrame):
         """Stores the fetched DataFrame into the stock_data table."""
-        logger.info(f"Storing {len(df)} records for {self.stock_code} into the database.")
+        logger.info(
+            f"Storing {len(df)} records for {self.stock_code} into the database."
+        )
         try:
             db_writer.store_stock_data(self.db, self.stock_code, self.interval, df)
             logger.info("Successfully stored data in DB.")
         except Exception as e:
-            logger.error(f"Failed to store stock data for {self.stock_code} in DB: {e}", exc_info=True)
+            logger.error(
+                f"Failed to store stock data for {self.stock_code} in DB: {e}",
+                exc_info=True,
+            )
 
 
-def fetch_stock_data(stock_code: str, interval: str, market_type: str, trade_date: Optional[date] = None):
+def fetch_stock_data(
+    stock_code: str, interval: str, market_type: str, trade_date: Optional[date] = None
+):
     """
     Main entry point for fetching stock data.
     Instantiates a fetcher and retrieves the data.
@@ -155,18 +192,30 @@ async def sync_financial_data(symbol: str):
     db_gen = get_db()
     db: Session = next(db_gen)
     try:
-        stock_info = db.query(models.StockInfo).filter(models.StockInfo.ts_code == symbol).first()
-        
-        market_type = stock_info.market_type if stock_info else ('US_stock' if '.' not in symbol else None)
+        stock_info = (
+            db.query(models.StockInfo)
+            .filter(models.StockInfo.ts_code == symbol)
+            .first()
+        )
+
+        market_type = (
+            stock_info.market_type
+            if stock_info
+            else ("US_stock" if "." not in symbol else None)
+        )
 
         if not market_type:
-            logger.warning(f"Could not determine market type for {symbol}. Aborting sync.")
+            logger.warning(
+                f"Could not determine market type for {symbol}. Aborting sync."
+            )
             return
 
-        logger.info(f"BACKGROUND_TASK: Dispatching sync for {symbol}, market: {market_type}")
-        if market_type == 'A_share':
+        logger.info(
+            f"BACKGROUND_TASK: Dispatching sync for {symbol}, market: {market_type}"
+        )
+        if market_type == "A_share":
             await _sync_a_share_data(db, symbol)
-        elif market_type == 'US_stock':
+        elif market_type == "US_stock":
             await _sync_us_stock_data(db, symbol)
     except Exception as e:
         logger.error(f"SYNC_TASK_ERROR for {symbol}: {e}", exc_info=True)
@@ -177,22 +226,36 @@ async def sync_financial_data(symbol: str):
 async def _sync_a_share_data(db: Session, symbol: str):
     """Syncs all financial data for an A-share stock."""
     logger.info(f"BACKGROUND_TASK: Starting data sync for A-share: {symbol}")
-    
+
     try:
-        fund_data = await run_in_threadpool(a_share_fetcher.fetch_fundamental_data_from_baostock, symbol)
+        fund_data = await run_in_threadpool(
+            a_share_fetcher.fetch_fundamental_data_from_baostock, symbol
+        )
         if fund_data:
-            await run_in_threadpool(db_writer.store_fundamental_data, db, symbol, fund_data)
+            await run_in_threadpool(
+                db_writer.store_fundamental_data, db, symbol, fund_data
+            )
             logger.info(f"Successfully synced fundamental data for {symbol}.")
 
-        actions_data = await run_in_threadpool(a_share_fetcher.fetch_corporate_actions_from_baostock, symbol)
+        actions_data = await run_in_threadpool(
+            a_share_fetcher.fetch_corporate_actions_from_baostock, symbol
+        )
         if actions_data:
-            count = await run_in_threadpool(db_writer.store_corporate_actions, db, symbol, actions_data)
+            count = await run_in_threadpool(
+                db_writer.store_corporate_actions, db, symbol, actions_data
+            )
             logger.info(f"Successfully synced {count} corporate actions for {symbol}.")
 
-        earnings_data = await run_in_threadpool(a_share_fetcher.fetch_annual_net_profit_from_baostock, symbol)
+        earnings_data = await run_in_threadpool(
+            a_share_fetcher.fetch_annual_net_profit_from_baostock, symbol
+        )
         if earnings_data:
-            count = await run_in_threadpool(db_writer.store_annual_earnings, db, symbol, earnings_data)
-            logger.info(f"Successfully synced {count} annual earnings records for {symbol}.")
+            count = await run_in_threadpool(
+                db_writer.store_annual_earnings, db, symbol, earnings_data
+            )
+            logger.info(
+                f"Successfully synced {count} annual earnings records for {symbol}."
+            )
     except RuntimeError as e:
         logger.error(f"Baostock session error for {symbol}: {e}")
     except Exception as e:
@@ -203,52 +266,95 @@ async def _sync_us_stock_data(db: Session, symbol: str):
     """Syncs all financial data for a US stock."""
     logger.info(f"BACKGROUND_TASK: Starting data sync for US stock: {symbol}")
 
-    fund_data = await run_in_threadpool(us_stock_fetcher.fetch_us_fundamental_data_from_yfinance, symbol)
+    fund_data = await run_in_threadpool(
+        us_stock_fetcher.fetch_us_fundamental_data_from_yfinance, symbol
+    )
     if fund_data:
         await run_in_threadpool(db_writer.store_fundamental_data, db, symbol, fund_data)
         logger.info(f"Successfully synced fundamental data for {symbol}.")
 
-    actions_data = await run_in_threadpool(us_stock_fetcher.fetch_us_corporate_actions_from_yfinance, symbol)
+    actions_data = await run_in_threadpool(
+        us_stock_fetcher.fetch_us_corporate_actions_from_yfinance, symbol
+    )
     if actions_data:
-        count = await run_in_threadpool(db_writer.store_corporate_actions, db, symbol, actions_data)
+        count = await run_in_threadpool(
+            db_writer.store_corporate_actions, db, symbol, actions_data
+        )
         logger.info(f"Successfully synced {count} corporate actions for {symbol}.")
 
-    earnings_data = await run_in_threadpool(us_stock_fetcher.fetch_us_annual_earnings_from_yfinance, symbol)
+    earnings_data = await run_in_threadpool(
+        us_stock_fetcher.fetch_us_annual_earnings_from_yfinance, symbol
+    )
     if earnings_data:
-        count = await run_in_threadpool(db_writer.store_annual_earnings, db, symbol, earnings_data)
-        logger.info(f"Successfully synced {count} annual earnings records for {symbol}.")
+        count = await run_in_threadpool(
+            db_writer.store_annual_earnings, db, symbol, earnings_data
+        )
+        logger.info(
+            f"Successfully synced {count} annual earnings records for {symbol}."
+        )
 
 
-def get_fundamental_data_from_db(db: Session, symbol: str) -> Optional[models.FundamentalData]:
-    return db.query(models.FundamentalData).filter(models.FundamentalData.symbol == symbol).first()
+def get_fundamental_data_from_db(
+    db: Session, symbol: str
+) -> Optional[models.FundamentalData]:
+    return (
+        db.query(models.FundamentalData)
+        .filter(models.FundamentalData.symbol == symbol)
+        .first()
+    )
 
-def get_corporate_actions_from_db(db: Session, symbol: str) -> list[models.CorporateAction]:
-    return db.query(models.CorporateAction).filter(models.CorporateAction.symbol == symbol).order_by(models.CorporateAction.ex_date).all()
 
-def get_annual_earnings_from_db(db: Session, symbol: str) -> list[models.AnnualEarnings]:
-    return db.query(models.AnnualEarnings).filter(models.AnnualEarnings.symbol == symbol).order_by(models.AnnualEarnings.year).all()
+def get_corporate_actions_from_db(
+    db: Session, symbol: str
+) -> list[models.CorporateAction]:
+    return (
+        db.query(models.CorporateAction)
+        .filter(models.CorporateAction.symbol == symbol)
+        .order_by(models.CorporateAction.ex_date)
+        .all()
+    )
+
+
+def get_annual_earnings_from_db(
+    db: Session, symbol: str
+) -> list[models.AnnualEarnings]:
+    return (
+        db.query(models.AnnualEarnings)
+        .filter(models.AnnualEarnings.symbol == symbol)
+        .order_by(models.AnnualEarnings.year)
+        .all()
+    )
+
 
 def resolve_symbol(db: Session, symbol: str) -> Optional[str]:
     """
     Resolves a potentially incomplete stock symbol to its full ts_code.
     """
-    if '.' in symbol:
+    if "." in symbol:
         return symbol
-    
-    a_share_info = db.query(models.StockInfo).filter(
-        models.StockInfo.market_type == 'A_share',
-        models.StockInfo.ts_code.ilike(f"{symbol}.%")
-    ).first()
+
+    a_share_info = (
+        db.query(models.StockInfo)
+        .filter(
+            models.StockInfo.market_type == "A_share",
+            models.StockInfo.ts_code.ilike(f"{symbol}.%"),
+        )
+        .first()
+    )
     if a_share_info:
         return a_share_info.ts_code
 
-    us_stock_info = db.query(models.StockInfo).filter(
-        models.StockInfo.market_type == 'US_stock',
-        models.StockInfo.ts_code.ilike(symbol)
-    ).first()
+    us_stock_info = (
+        db.query(models.StockInfo)
+        .filter(
+            models.StockInfo.market_type == "US_stock",
+            models.StockInfo.ts_code.ilike(symbol),
+        )
+        .first()
+    )
     if us_stock_info:
         return us_stock_info.ts_code
-    
+
     if not any(char.isdigit() for char in symbol):
         return symbol.upper()
 

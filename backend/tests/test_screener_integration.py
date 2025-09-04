@@ -4,12 +4,13 @@
 筛选器功能的集成测试
 """
 
-import pytest
 from datetime import date
 from unittest.mock import Mock
 
+import pytest
+
+from app.schemas.stock import ScreenerCondition, StockScreenerRequest
 from app.services.screener_service import screen_stocks
-from app.schemas.stock import StockScreenerRequest, ScreenerCondition
 
 
 class TestScreenerIntegration:
@@ -80,12 +81,7 @@ class TestScreenerIntegration:
             (sample_metrics[2], "贵州茅台"),
         ]
 
-        request = StockScreenerRequest(
-            market="A_share",
-            conditions=[],
-            page=1,
-            size=20
-        )
+        request = StockScreenerRequest(market="A_share", conditions=[], page=1, size=20)
 
         result = screen_stocks(mock_db, request)
 
@@ -117,22 +113,22 @@ class TestScreenerIntegration:
 
         # 重置 query mock 以便主查询使用
         mock_db.query.return_value = query_mock
-        
+
         # 设置主查询链：query.join().join().filter()
         query_mock.join.return_value = join_mock1
         join_mock1.join.return_value = join_mock2
         join_mock2.filter.return_value = filter_mock2
-        
+
         # 再次应用筛选条件后的查询链：filter().filter()
         filter_mock2.filter.return_value = filter_mock2  # 自引用以支持多次 filter
-        
+
         # 重要：确保 count() 直接返回整数
         filter_mock2.count.return_value = 2
-        
+
         # 设置分页链
         filter_mock2.limit.return_value = limit_mock
         limit_mock.offset.return_value = offset_mock
-        
+
         # 修复：确保 all() 返回的是可迭代的列表
         offset_mock.all.return_value = [
             (sample_metrics[0], "平安银行"),
@@ -141,11 +137,9 @@ class TestScreenerIntegration:
 
         request = StockScreenerRequest(
             market="A_share",
-            conditions=[
-                ScreenerCondition(field="pe_ratio", operator="lt", value=20.0)
-            ],
+            conditions=[ScreenerCondition(field="pe_ratio", operator="lt", value=20.0)],
             page=1,
-            size=20
+            size=20,
         )
 
         result = screen_stocks(mock_db, request)
@@ -156,7 +150,9 @@ class TestScreenerIntegration:
         assert result.items[0].pe_ratio == 15.2  # 平安银行
         assert result.items[1].pe_ratio == 12.5  # 万科A
 
-    def test_screen_stocks_with_market_cap_filter(self, mock_db, sample_stocks, sample_metrics):
+    def test_screen_stocks_with_market_cap_filter(
+        self, mock_db, sample_stocks, sample_metrics
+    ):
         """测试市值筛选"""
         # 创建完整的查询链模拟
         query_mock = Mock()
@@ -176,22 +172,22 @@ class TestScreenerIntegration:
 
         # 重置 query mock 以便主查询使用
         mock_db.query.return_value = query_mock
-        
+
         # 设置主查询链：query.join().join().filter()
         query_mock.join.return_value = join_mock1
         join_mock1.join.return_value = join_mock2
         join_mock2.filter.return_value = filter_mock2
-        
+
         # 再次应用筛选条件后的查询链：filter().filter()
         filter_mock2.filter.return_value = filter_mock2  # 自引用以支持多次 filter
-        
+
         # 重要：确保 count() 直接返回整数
         filter_mock2.count.return_value = 1
-        
+
         # 设置分页链
         filter_mock2.limit.return_value = limit_mock
         limit_mock.offset.return_value = offset_mock
-        
+
         # 修复：确保 all() 返回的是可迭代的列表
         offset_mock.all.return_value = [
             (sample_metrics[2], "贵州茅台"),
@@ -200,11 +196,12 @@ class TestScreenerIntegration:
         request = StockScreenerRequest(
             market="A_share",
             conditions=[
-                ScreenerCondition(field="market_cap",
-                                  operator="gt", value=1000000000000)  # > 1万亿
+                ScreenerCondition(
+                    field="market_cap", operator="gt", value=1000000000000
+                )  # > 1万亿
             ],
             page=1,
-            size=20
+            size=20,
         )
 
         result = screen_stocks(mock_db, request)
@@ -235,19 +232,19 @@ class TestScreenerIntegration:
 
         # 重置 query mock 以便主查询使用
         mock_db.query.return_value = query_mock
-        
+
         # 设置主查询链：query.join().join().filter()
         query_mock.join.return_value = join_mock1
         join_mock1.join.return_value = join_mock2
         join_mock2.filter.return_value = filter_mock2
-        
+
         # 重要：确保 count() 直接返回整数
         filter_mock2.count.return_value = 3
-        
+
         # 设置分页链
         filter_mock2.limit.return_value = limit_mock
         limit_mock.offset.return_value = offset_mock
-        
+
         # 修复：确保 all() 返回的是可迭代的列表
         offset_mock.all.return_value = [
             (sample_metrics[0], "平安银行"),
@@ -257,7 +254,7 @@ class TestScreenerIntegration:
             market="A_share",
             conditions=[],
             page=1,
-            size=1  # 每页1条
+            size=1,  # 每页1条
         )
 
         result = screen_stocks(mock_db, request)
@@ -267,7 +264,9 @@ class TestScreenerIntegration:
         assert result.size == 1
         assert len(result.items) == 1
 
-    def test_screen_stocks_multiple_conditions(self, mock_db, sample_stocks, sample_metrics):
+    def test_screen_stocks_multiple_conditions(
+        self, mock_db, sample_stocks, sample_metrics
+    ):
         """测试多个筛选条件"""
         # 创建完整的查询链模拟
         query_mock = Mock()
@@ -287,22 +286,22 @@ class TestScreenerIntegration:
 
         # 重置 query mock 以便主查询使用
         mock_db.query.return_value = query_mock
-        
+
         # 设置主查询链：query.join().join().filter()
         query_mock.join.return_value = join_mock1
         join_mock1.join.return_value = join_mock2
         join_mock2.filter.return_value = filter_mock2
-        
+
         # 再次应用筛选条件后的查询链：filter().filter()
         filter_mock2.filter.return_value = filter_mock2  # 自引用以支持多次 filter
-        
+
         # 重要：确保 count() 直接返回整数
         filter_mock2.count.return_value = 1
-        
+
         # 设置分页链
         filter_mock2.limit.return_value = limit_mock
         limit_mock.offset.return_value = offset_mock
-        
+
         # 修复：确保 all() 返回的是可迭代的列表
         offset_mock.all.return_value = [
             (sample_metrics[1], "万科A"),
@@ -311,13 +310,15 @@ class TestScreenerIntegration:
         request = StockScreenerRequest(
             market="A_share",
             conditions=[
-                ScreenerCondition(field="pe_ratio",
-                                  operator="lt", value=20.0),  # PE < 20
-                ScreenerCondition(field="market_cap", operator="lt",
-                                  value=1000000000000),  # 市值 < 1万亿
+                ScreenerCondition(
+                    field="pe_ratio", operator="lt", value=20.0
+                ),  # PE < 20
+                ScreenerCondition(
+                    field="market_cap", operator="lt", value=1000000000000
+                ),  # 市值 < 1万亿
             ],
             page=1,
-            size=20
+            size=20,
         )
 
         result = screen_stocks(mock_db, request)

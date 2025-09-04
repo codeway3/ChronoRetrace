@@ -1,9 +1,9 @@
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import patch, Mock
-from app.services.data_fetcher import (
-    get_all_stocks_list,
-    force_update_stock_list
-)
+
+from app.services.data_fetcher import (force_update_stock_list,
+                                       get_all_stocks_list)
 
 
 class TestGetAllStocksList:
@@ -17,7 +17,9 @@ class TestGetAllStocksList:
         mock_query.filter.return_value = mock_query
         mock_query.count.return_value = 0
 
-        with patch('app.services.data_fetcher.a_share_fetcher.update_stock_list_from_akshare') as mock_update:
+        with patch(
+            "app.services.data_fetcher.a_share_fetcher.update_stock_list_from_akshare"
+        ) as mock_update:
             get_all_stocks_list(mock_db, "A_share")
 
             mock_update.assert_called_once_with(mock_db)
@@ -44,7 +46,9 @@ class TestGetAllStocksList:
         mock_query.filter.return_value = mock_query
         mock_query.count.return_value = 0
 
-        with patch('app.services.data_fetcher.us_stock_fetcher.update_us_stock_list') as mock_update:
+        with patch(
+            "app.services.data_fetcher.us_stock_fetcher.update_us_stock_list"
+        ) as mock_update:
             get_all_stocks_list(mock_db, "US_stock")
 
             mock_update.assert_called_once_with(mock_db)
@@ -71,7 +75,9 @@ class TestGetAllStocksList:
         mock_query.filter.return_value = mock_query
         mock_query.count.return_value = 0
 
-        with patch('app.services.data_fetcher.a_share_fetcher.update_stock_list_from_akshare') as mock_update:
+        with patch(
+            "app.services.data_fetcher.a_share_fetcher.update_stock_list_from_akshare"
+        ) as mock_update:
             mock_update.side_effect = Exception("Update failed")
 
             get_all_stocks_list(mock_db, "A_share")
@@ -87,7 +93,9 @@ class TestForceUpdateStockList:
         """Test successful forced update of A-share stock list."""
         mock_db = Mock()
 
-        with patch('app.services.data_fetcher.a_share_fetcher.update_stock_list_from_akshare') as mock_update:
+        with patch(
+            "app.services.data_fetcher.a_share_fetcher.update_stock_list_from_akshare"
+        ) as mock_update:
             force_update_stock_list(mock_db, "A_share")
 
             mock_update.assert_called_once_with(mock_db)
@@ -96,7 +104,9 @@ class TestForceUpdateStockList:
         """Test successful forced update of US stock list."""
         mock_db = Mock()
 
-        with patch('app.services.data_fetcher.us_stock_fetcher.update_us_stock_list') as mock_update:
+        with patch(
+            "app.services.data_fetcher.us_stock_fetcher.update_us_stock_list"
+        ) as mock_update:
             force_update_stock_list(mock_db, "US_stock")
 
             mock_update.assert_called_once_with(mock_db)
@@ -116,7 +126,9 @@ class TestForceUpdateStockList:
         """Test handling of A-share update failure."""
         mock_db = Mock()
 
-        with patch('app.services.data_fetcher.a_share_fetcher.update_stock_list_from_akshare') as mock_update:
+        with patch(
+            "app.services.data_fetcher.a_share_fetcher.update_stock_list_from_akshare"
+        ) as mock_update:
             mock_update.side_effect = Exception("Update failed")
 
             with pytest.raises(Exception, match="Update failed"):
@@ -126,7 +138,9 @@ class TestForceUpdateStockList:
         """Test handling of US stock update failure."""
         mock_db = Mock()
 
-        with patch('app.services.data_fetcher.us_stock_fetcher.update_us_stock_list') as mock_update:
+        with patch(
+            "app.services.data_fetcher.us_stock_fetcher.update_us_stock_list"
+        ) as mock_update:
             mock_update.side_effect = Exception("Update failed")
 
             with pytest.raises(Exception, match="Update failed"):

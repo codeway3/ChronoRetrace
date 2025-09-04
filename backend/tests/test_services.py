@@ -1,13 +1,15 @@
-import pytest
-import pandas as pd
+import os
+import sys
+from datetime import date, datetime
 from unittest.mock import patch
+
+import pandas as pd
+import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from datetime import date, datetime
-import sys
-import os
+
 from app.db import models
-from app.services import a_share_fetcher, us_stock_fetcher, db_admin, db_writer
+from app.services import a_share_fetcher, db_admin, db_writer, us_stock_fetcher
 from app.services.data_fetcher import StockDataFetcher
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -119,7 +121,7 @@ def test_update_stock_list_from_akshare(
     mock_sh.return_value = mock_akshare_data
     mock_sz.return_value = pd.DataFrame({"代码": ["000001"], "名称": ["平安银行"]})
     mock_bj.return_value = pd.DataFrame()  # No BJ stocks for simplicity
-    mock_etf.return_value = pd.DataFrame() # No ETFs for simplicity
+    mock_etf.return_value = pd.DataFrame()  # No ETFs for simplicity
 
     # 2. Action: Call the function
     a_share_fetcher.update_stock_list_from_akshare(db_session)
@@ -128,10 +130,10 @@ def test_update_stock_list_from_akshare(
     with db_session.connection() as conn:
         result = conn.execute(text("SELECT * FROM stock_info")).fetchall()
         assert len(result) == 3
-        
+
         # Convert result to a set of tuples for easier comparison
-        result_set = { (r[0], r[1]) for r in result }
-        
+        result_set = {(r[0], r[1]) for r in result}
+
         assert ("600000.SH", "浦发银行") in result_set
         assert ("600001.SH", "白云机场") in result_set
         assert ("000001.SZ", "平安银行") in result_set

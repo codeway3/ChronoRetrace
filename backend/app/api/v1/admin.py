@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from fastapi_cache import FastAPICache
 from redis import asyncio as aioredis
-from app.core.config import settings
+from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.session import get_db
 from app.services import db_admin
 
@@ -44,7 +44,9 @@ async def clear_cache(db: Session = Depends(get_db)):
         # Clear Redis cache
         await FastAPICache.clear()
 
-        db_result["message"] = "All database and Redis cache has been cleared successfully."
+        db_result["message"] = (
+            "All database and Redis cache has been cleared successfully."
+        )
         return db_result
 
     except Exception as e:

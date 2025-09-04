@@ -1,6 +1,8 @@
-from pydantic import BaseModel, ConfigDict
 from datetime import date
-from typing import List, Optional, Any
+from typing import Any, List, Optional
+
+from pydantic import BaseModel, ConfigDict
+
 
 class StockDataBase(BaseModel):
     ts_code: str
@@ -20,16 +22,20 @@ class StockDataBase(BaseModel):
     ma20: Optional[float] = None
     ma60: Optional[float] = None
 
+
 class StockDataCreate(StockDataBase):
     pass
+
 
 class StockDataInDB(StockDataBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
 
+
 class StockInfo(BaseModel):
     ts_code: str
     name: str
+
 
 class StockDataResponse(BaseModel):
     ts_code: str
@@ -42,11 +48,13 @@ class ScreenerCondition(BaseModel):
     operator: str
     value: Any
 
+
 class StockScreenerRequest(BaseModel):
-    market: str = 'A_share'
+    market: str = "A_share"
     conditions: List[ScreenerCondition]
     page: int = 1
     size: int = 20
+
 
 class ScreenedStock(BaseModel):
     code: str

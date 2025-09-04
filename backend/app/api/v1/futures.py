@@ -1,16 +1,18 @@
 import logging
-from fastapi import APIRouter, HTTPException, Query
-from typing import List
 from datetime import datetime, timedelta
+from typing import List
+
 import akshare as ak
+from fastapi import APIRouter, HTTPException, Query
+from fastapi_cache.decorator import cache
 from starlette.concurrency import run_in_threadpool
 
 from app.schemas.stock import StockDataBase
 from app.services import futures_fetcher
-from fastapi_cache.decorator import cache
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
 
 @router.get("/list", response_model=dict[str, str])
 @cache(expire=86400)  # Cache for 24 hours
@@ -20,10 +22,12 @@ async def get_futures_list():
     """
     try:
         futures_df = await run_in_threadpool(ak.futures_display_main_sina)
-        return dict(zip(futures_df['symbol'], futures_df['name']))
+        return dict(zip(futures_df["symbol"], futures_df["name"]))
     except Exception as e:
-        logger.error(f"Failed to fetch futures list from Akshare: {str(e)}", exc_info=True)
-        return { "ES=F": "E-mini S&P 500", "NQ=F": "E-mini NASDAQ 100" }
+        logger.error(
+            f"Failed to fetch futures list from Akshare: {str(e)}", exc_info=True
+        )
+        return {"ES=F": "E-mini S&P 500", "NQ=F": "E-mini NASDAQ 100"}
 
 
 @router.get("/{symbol}", response_model=List[StockDataBase])
@@ -43,10 +47,13 @@ async def get_futures_data(
     potential_symbols = [
         f"{base}=F",
         base,
-        f"{base}.SHF", f"{base}.INE", f"{base}.DCE",
-        f"{base}.ZCE", f"{base}.CFX",
+        f"{base}.SHF",
+        f"{base}.INE",
+        f"{base}.DCE",
+        f"{base}.ZCE",
+        f"{base}.CFX",
     ]
-    
+
     df = None
     last_exception = None
 
@@ -80,7 +87,10 @@ async def get_futures_data(
             try:
                 fetched_df = await run_in_threadpool(
                     futures_fetcher.fetch_futures_from_yfinance,
-                    symbol=s, start_date=start_date, end_date=end_date, interval=interval,
+                    symbol=s,
+                    start_date=start_date,
+                    end_date=end_date,
+                    interval=interval,
                 )
                 if not fetched_df.empty:
                     df = fetched_df
@@ -97,12 +107,15 @@ async def get_futures_data(
             logger.error(f"{msg}: {last_exception}", exc_info=True)
         else:
             logger.error(msg)
-        raise HTTPException(status_code=404, detail=f"No data available for {symbol}. Tried: {attempted}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"No data available for {symbol}. Tried: {attempted}",
+        )
 
     dict_records = df.to_dict("records")
     for record in dict_records:
-        record["ts_code"] = symbol # Always return the original symbol
+        record["ts_code"] = symbol  # Always return the original symbol
         record["interval"] = interval
-        
+
     records = [StockDataBase.model_validate(record) for record in dict_records]
     return records

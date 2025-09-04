@@ -1,12 +1,13 @@
 import logging
 import math
-from typing import List, Dict
+from typing import Dict, List
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi_cache.decorator import cache
 from starlette.concurrency import run_in_threadpool
 
-from app.services import a_industries_fetcher as fetcher
 from app.schemas.industry import ConstituentStock
+from app.services import a_industries_fetcher as fetcher
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -49,17 +50,26 @@ async def get_industry_constituent_stocks(industry_code: str):
     """
     try:
         logger.info(f"Fetching constituents for industry: {industry_code}")
-        data = await run_in_threadpool(fetcher.fetch_industry_constituents, industry_code=industry_code)
-        
+        data = await run_in_threadpool(
+            fetcher.fetch_industry_constituents, industry_code=industry_code
+        )
+
         if not data:
             logger.warning(f"No constituent stocks found for industry: {industry_code}")
             return []
-        
+
         # Clean data to ensure JSON compliance
         cleaned_data = clean_json_data(data)
 
-        logger.info(f"Fetched {len(cleaned_data)} constituents for industry: {industry_code}")
+        logger.info(
+            f"Fetched {len(cleaned_data)} constituents for industry: {industry_code}"
+        )
         return cleaned_data
     except Exception as e:
-        logger.error(f"Failed to fetch constituent stocks for industry {industry_code}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to fetch constituent stocks")
+        logger.error(
+            f"Failed to fetch constituent stocks for industry {industry_code}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to fetch constituent stocks"
+        )

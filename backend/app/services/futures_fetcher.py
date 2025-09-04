@@ -1,12 +1,12 @@
-import re
 import logging
+import re
 from datetime import datetime
 from typing import Literal
 
+import akshare as ak
 import numpy as np
 import pandas as pd
 import yfinance as yf
-import akshare as ak
 
 from .data_utils import calculate_ma
 
@@ -74,7 +74,7 @@ def fetch_futures_from_yfinance(
             df[col] = 0.0
         else:
             df[col] = pd.to_numeric(df[col], errors="coerce")
-            if col == 'vol':
+            if col == "vol":
                 df[col] = df[col].fillna(0.0).astype(float)
 
     df.sort_values(by="trade_date", inplace=True)
@@ -89,7 +89,7 @@ def fetch_futures_from_yfinance(
         df["amount"] = df["close"] * df["vol"]
 
     # ** THE FIX: Replace 0s with NaN in price columns before MA calculation **
-    price_cols = ['open', 'high', 'low', 'close']
+    price_cols = ["open", "high", "low", "close"]
     for col in price_cols:
         if col in df.columns:
             df[col] = df[col].replace(0, np.nan)
@@ -97,9 +97,20 @@ def fetch_futures_from_yfinance(
     df = calculate_ma(df)
 
     final_cols = [
-        "trade_date", "open", "high", "low", "close", "pre_close",
-        "change", "pct_chg", "vol", "amount",
-        "ma5", "ma10", "ma20", "ma60",
+        "trade_date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "pre_close",
+        "change",
+        "pct_chg",
+        "vol",
+        "amount",
+        "ma5",
+        "ma10",
+        "ma20",
+        "ma60",
     ]
 
     for col in final_cols:
@@ -148,7 +159,9 @@ def _rename_columns_to_standard(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _aggregate_interval(df: pd.DataFrame, interval: Literal["daily", "weekly", "monthly"]) -> pd.DataFrame:
+def _aggregate_interval(
+    df: pd.DataFrame, interval: Literal["daily", "weekly", "monthly"]
+) -> pd.DataFrame:
     if interval == "daily":
         return df
     # Ensure datetime index
@@ -195,9 +208,15 @@ def fetch_china_futures_from_akshare(
         except Exception:
             start_ts = pd.Timestamp.today() - pd.Timedelta(days=365)
             end_ts = pd.Timestamp.today()
-        month_range = pd.date_range(start_ts - pd.offsets.MonthBegin(1), end_ts + pd.offsets.MonthBegin(3), freq="MS")
+        month_range = pd.date_range(
+            start_ts - pd.offsets.MonthBegin(1),
+            end_ts + pd.offsets.MonthBegin(3),
+            freq="MS",
+        )
         ym_codes = list(dict.fromkeys([dt.strftime("%y%m") for dt in month_range]))
-        candidates = [f"{base}{ym}" for ym in ym_codes[::-1]]  # try nearest months first
+        candidates = [
+            f"{base}{ym}" for ym in ym_codes[::-1]
+        ]  # try nearest months first
     else:
         candidates = [upper_symbol]
 
@@ -217,7 +236,9 @@ def fetch_china_futures_from_akshare(
 
     if df is None or df.empty:
         if last_exc:
-            logger.error(f"Akshare returned empty for {upper_symbol}; last error: {last_exc}")
+            logger.error(
+                f"Akshare returned empty for {upper_symbol}; last error: {last_exc}"
+            )
         else:
             logger.warning(f"Akshare returned empty DataFrame for {upper_symbol}")
         return pd.DataFrame()

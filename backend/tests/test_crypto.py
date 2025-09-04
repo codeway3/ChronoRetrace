@@ -1,21 +1,28 @@
+from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+
 from app.main import app
-from app.services.crypto_fetcher import get_top_cryptos, aggregate_ohlcv, get_crypto_ohlcv
+from app.services.crypto_fetcher import (aggregate_ohlcv, get_crypto_ohlcv,
+                                         get_top_cryptos)
 
 client = TestClient(app)
 
 
-@patch('app.api.v1.crypto.get_top_cryptos')
+@patch("app.api.v1.crypto.get_top_cryptos")
 def test_read_top_cryptos_success(mock_get_top_cryptos):
     """
     Test successful retrieval of top cryptos.
     """
     mock_get_top_cryptos.return_value = [
-        {"CoinInfo": {"Name": "BTC", "FullName": "Bitcoin"}, "RAW": {
-            "USD": {"PRICE": 50000, "MKTCAP": 1000000000000}}},
-        {"CoinInfo": {"Name": "ETH", "FullName": "Ethereum"},
-            "RAW": {"USD": {"PRICE": 4000, "MKTCAP": 500000000000}}},
+        {
+            "CoinInfo": {"Name": "BTC", "FullName": "Bitcoin"},
+            "RAW": {"USD": {"PRICE": 50000, "MKTCAP": 1000000000000}},
+        },
+        {
+            "CoinInfo": {"Name": "ETH", "FullName": "Ethereum"},
+            "RAW": {"USD": {"PRICE": 4000, "MKTCAP": 500000000000}},
+        },
     ]
     response = client.get("/api/v1/crypto/top")
     assert response.status_code == 200
@@ -25,7 +32,7 @@ def test_read_top_cryptos_success(mock_get_top_cryptos):
     assert data[1]["CoinInfo"]["Name"] == "ETH"
 
 
-@patch('app.api.v1.crypto.get_top_cryptos')
+@patch("app.api.v1.crypto.get_top_cryptos")
 def test_read_top_cryptos_not_found(mock_get_top_cryptos):
     """
     Test case where top cryptos cannot be fetched.
@@ -33,20 +40,31 @@ def test_read_top_cryptos_not_found(mock_get_top_cryptos):
     mock_get_top_cryptos.return_value = []
     response = client.get("/api/v1/crypto/top")
     assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Could not fetch top cryptocurrencies."}
+    assert response.json() == {"detail": "Could not fetch top cryptocurrencies."}
 
 
-@patch('app.api.v1.crypto.get_crypto_ohlcv')
+@patch("app.api.v1.crypto.get_crypto_ohlcv")
 def test_read_crypto_history_success(mock_get_crypto_ohlcv):
     """
     Test successful retrieval of crypto historical data.
     """
     mock_get_crypto_ohlcv.return_value = [
-        {"time": 1672531200, "open": 48000, "high": 52000,
-            "low": 47000, "close": 51000, "volumeto": 10000},
-        {"time": 1672617600, "open": 51000, "high": 53000,
-            "low": 50000, "close": 52000, "volumeto": 12000},
+        {
+            "time": 1672531200,
+            "open": 48000,
+            "high": 52000,
+            "low": 47000,
+            "close": 51000,
+            "volumeto": 10000,
+        },
+        {
+            "time": 1672617600,
+            "open": 51000,
+            "high": 53000,
+            "low": 50000,
+            "close": 52000,
+            "volumeto": 12000,
+        },
     ]
     response = client.get("/api/v1/crypto/BTC/history")
     assert response.status_code == 200
@@ -55,7 +73,7 @@ def test_read_crypto_history_success(mock_get_crypto_ohlcv):
     assert data[0]["close"] == 51000
 
 
-@patch('app.api.v1.crypto.get_crypto_ohlcv')
+@patch("app.api.v1.crypto.get_crypto_ohlcv")
 def test_read_crypto_history_not_found(mock_get_crypto_ohlcv):
     """
     Test case where historical data for a symbol cannot be fetched.
@@ -64,20 +82,20 @@ def test_read_crypto_history_not_found(mock_get_crypto_ohlcv):
     response = client.get("/api/v1/crypto/NONEXISTENT/history")
     assert response.status_code == 404
     # The default interval is 'daily', so the error message should reflect that.
-    assert response.json() == {
-        "detail": "Could not fetch daily data for NONEXISTENT."}
+    assert response.json() == {"detail": "Could not fetch daily data for NONEXISTENT."}
+
 
 # Direct testing of crypto_fetcher functions
 
 
-@patch('app.services.crypto_fetcher.requests.get')
+@patch("app.services.crypto_fetcher.requests.get")
 def test_get_top_cryptos_success(mock_get):
     """Test successful fetching of top cryptocurrencies."""
     mock_response = MagicMock()
     mock_response.json.return_value = {
         "Data": [
             {"CoinInfo": {"Name": "BTC", "FullName": "Bitcoin"}},
-            {"CoinInfo": {"Name": "ETH", "FullName": "Ethereum"}}
+            {"CoinInfo": {"Name": "ETH", "FullName": "Ethereum"}},
         ]
     }
     mock_response.raise_for_status.return_value = None
@@ -89,10 +107,11 @@ def test_get_top_cryptos_success(mock_get):
     assert result[0]["CoinInfo"]["Name"] == "BTC"
     assert result[1]["CoinInfo"]["Name"] == "ETH"
     mock_get.assert_called_once_with(
-        "https://min-api.cryptocompare.com/data/top/mktcapfull?limit=10&tsym=USD")
+        "https://min-api.cryptocompare.com/data/top/mktcapfull?limit=10&tsym=USD"
+    )
 
 
-@patch('app.services.crypto_fetcher.requests.get')
+@patch("app.services.crypto_fetcher.requests.get")
 def test_get_top_cryptos_no_data(mock_get):
     """Test handling when no data is returned."""
     mock_response = MagicMock()
@@ -105,7 +124,7 @@ def test_get_top_cryptos_no_data(mock_get):
     assert result == []
 
 
-@patch('app.services.crypto_fetcher.requests.get')
+@patch("app.services.crypto_fetcher.requests.get")
 def test_get_top_cryptos_missing_data_key(mock_get):
     """Test handling when Data key is missing from response."""
     mock_response = MagicMock()
@@ -118,10 +137,11 @@ def test_get_top_cryptos_missing_data_key(mock_get):
     assert result == []
 
 
-@patch('app.services.crypto_fetcher.requests.get')
+@patch("app.services.crypto_fetcher.requests.get")
 def test_get_top_cryptos_request_exception(mock_get):
     """Test handling of request exceptions."""
     from requests.exceptions import RequestException
+
     mock_get.side_effect = RequestException("Network Error")
 
     result = get_top_cryptos()
@@ -132,10 +152,22 @@ def test_get_top_cryptos_request_exception(mock_get):
 def test_aggregate_ohlcv_daily_interval():
     """Test that daily interval returns original data unchanged."""
     test_data = [
-        {"time": 1672531200, "open": 48000, "high": 52000,
-            "low": 47000, "close": 51000, "volumeto": 10000},
-        {"time": 1672617600, "open": 51000, "high": 53000,
-            "low": 50000, "close": 52000, "volumeto": 12000}
+        {
+            "time": 1672531200,
+            "open": 48000,
+            "high": 52000,
+            "low": 47000,
+            "close": 51000,
+            "volumeto": 10000,
+        },
+        {
+            "time": 1672617600,
+            "open": 51000,
+            "high": 53000,
+            "low": 50000,
+            "close": 52000,
+            "volumeto": 12000,
+        },
     ]
 
     result = aggregate_ohlcv(test_data, "daily")
@@ -149,14 +181,16 @@ def test_aggregate_ohlcv_weekly_interval():
     test_data = []
     base_time = 1672531200  # 2023-01-01
     for i in range(7):
-        test_data.append({
-            "time": base_time + (i * 86400),  # Add one day each time
-            "open": 48000 + (i * 100),
-            "high": 52000 + (i * 100),
-            "low": 47000 + (i * 100),
-            "close": 51000 + (i * 100),
-            "volumeto": 10000 + (i * 1000)
-        })
+        test_data.append(
+            {
+                "time": base_time + (i * 86400),  # Add one day each time
+                "open": 48000 + (i * 100),
+                "high": 52000 + (i * 100),
+                "low": 47000 + (i * 100),
+                "close": 51000 + (i * 100),
+                "volumeto": 10000 + (i * 1000),
+            }
+        )
 
     result = aggregate_ohlcv(test_data, "weekly")
 
@@ -175,14 +209,16 @@ def test_aggregate_ohlcv_monthly_interval():
     test_data = []
     base_time = 1672531200  # 2023-01-01
     for i in range(30):
-        test_data.append({
-            "time": base_time + (i * 86400),  # Add one day each time
-            "open": 48000 + (i * 10),
-            "high": 52000 + (i * 10),
-            "low": 47000 + (i * 10),
-            "close": 51000 + (i * 10),
-            "volumeto": 10000 + (i * 100)
-        })
+        test_data.append(
+            {
+                "time": base_time + (i * 86400),  # Add one day each time
+                "open": 48000 + (i * 10),
+                "high": 52000 + (i * 10),
+                "low": 47000 + (i * 10),
+                "close": 51000 + (i * 10),
+                "volumeto": 10000 + (i * 100),
+            }
+        )
 
     result = aggregate_ohlcv(test_data, "monthly")
 
@@ -201,8 +237,14 @@ def test_aggregate_ohlcv_empty_data():
 def test_aggregate_ohlcv_invalid_interval():
     """Test handling of invalid interval."""
     test_data = [
-        {"time": 1672531200, "open": 48000, "high": 52000,
-            "low": 47000, "close": 51000, "volumeto": 10000}
+        {
+            "time": 1672531200,
+            "open": 48000,
+            "high": 52000,
+            "low": 47000,
+            "close": 51000,
+            "volumeto": 10000,
+        }
     ]
 
     result = aggregate_ohlcv(test_data, "invalid")
@@ -210,17 +252,29 @@ def test_aggregate_ohlcv_invalid_interval():
     assert result == test_data  # Should return original data unchanged
 
 
-@patch('app.services.crypto_fetcher.requests.get')
+@patch("app.services.crypto_fetcher.requests.get")
 def test_get_crypto_ohlcv_daily_success(mock_get):
     """Test successful fetching of daily OHLCV data."""
     mock_response = MagicMock()
     mock_response.json.return_value = {
         "Data": {
             "Data": [
-                {"time": 1672531200, "open": 48000, "high": 52000,
-                    "low": 47000, "close": 51000, "volumeto": 10000},
-                {"time": 1672617600, "open": 51000, "high": 53000,
-                    "low": 50000, "close": 52000, "volumeto": 12000}
+                {
+                    "time": 1672531200,
+                    "open": 48000,
+                    "high": 52000,
+                    "low": 47000,
+                    "close": 51000,
+                    "volumeto": 10000,
+                },
+                {
+                    "time": 1672617600,
+                    "open": 51000,
+                    "high": 53000,
+                    "low": 50000,
+                    "close": 52000,
+                    "volumeto": 12000,
+                },
             ]
         }
     }
@@ -236,21 +290,23 @@ def test_get_crypto_ohlcv_daily_success(mock_get):
     assert "ma60" in result[0]
 
 
-@patch('app.services.crypto_fetcher.requests.get')
+@patch("app.services.crypto_fetcher.requests.get")
 def test_get_crypto_ohlcv_weekly_success(mock_get):
     """Test successful fetching of weekly OHLCV data."""
     # Create 14 days of data for weekly aggregation
     test_data = []
     base_time = 1672531200  # 2023-01-01
     for i in range(14):
-        test_data.append({
-            "time": base_time + (i * 86400),
-            "open": 48000 + (i * 100),
-            "high": 52000 + (i * 100),
-            "low": 47000 + (i * 100),
-            "close": 51000 + (i * 100),
-            "volumeto": 10000 + (i * 1000)
-        })
+        test_data.append(
+            {
+                "time": base_time + (i * 86400),
+                "open": 48000 + (i * 100),
+                "high": 52000 + (i * 100),
+                "low": 47000 + (i * 100),
+                "close": 51000 + (i * 100),
+                "volumeto": 10000 + (i * 1000),
+            }
+        )
 
     mock_response = MagicMock()
     mock_response.json.return_value = {"Data": {"Data": test_data}}
@@ -265,21 +321,23 @@ def test_get_crypto_ohlcv_weekly_success(mock_get):
     assert "ma5" in result[0]  # Should have MA columns
 
 
-@patch('app.services.crypto_fetcher.requests.get')
+@patch("app.services.crypto_fetcher.requests.get")
 def test_get_crypto_ohlcv_monthly_success(mock_get):
     """Test successful fetching of monthly OHLCV data."""
     # Create 60 days of data for monthly aggregation
     test_data = []
     base_time = 1672531200  # 2023-01-01
     for i in range(60):
-        test_data.append({
-            "time": base_time + (i * 86400),
-            "open": 48000 + (i * 10),
-            "high": 52000 + (i * 10),
-            "low": 47000 + (i * 10),
-            "close": 51000 + (i * 10),
-            "volumeto": 10000 + (i * 100)
-        })
+        test_data.append(
+            {
+                "time": base_time + (i * 86400),
+                "open": 48000 + (i * 10),
+                "high": 52000 + (i * 10),
+                "low": 47000 + (i * 10),
+                "close": 51000 + (i * 10),
+                "volumeto": 10000 + (i * 100),
+            }
+        )
 
     mock_response = MagicMock()
     mock_response.json.return_value = {"Data": {"Data": test_data}}
@@ -294,7 +352,7 @@ def test_get_crypto_ohlcv_monthly_success(mock_get):
     assert "ma5" in result[0]  # Should have MA columns
 
 
-@patch('app.services.crypto_fetcher.requests.get')
+@patch("app.services.crypto_fetcher.requests.get")
 def test_get_crypto_ohlcv_no_data(mock_get):
     """Test handling when no data is returned."""
     mock_response = MagicMock()
@@ -307,7 +365,7 @@ def test_get_crypto_ohlcv_no_data(mock_get):
     assert result == []
 
 
-@patch('app.services.crypto_fetcher.requests.get')
+@patch("app.services.crypto_fetcher.requests.get")
 def test_get_crypto_ohlcv_missing_data_structure(mock_get):
     """Test handling when data structure is missing expected keys."""
     mock_response = MagicMock()
@@ -320,10 +378,11 @@ def test_get_crypto_ohlcv_missing_data_structure(mock_get):
     assert result == []
 
 
-@patch('app.services.crypto_fetcher.requests.get')
+@patch("app.services.crypto_fetcher.requests.get")
 def test_get_crypto_ohlcv_request_exception(mock_get):
     """Test handling of request exceptions."""
     from requests.exceptions import RequestException
+
     mock_get.side_effect = RequestException("Network Error")
 
     result = get_crypto_ohlcv("BTC", "daily")

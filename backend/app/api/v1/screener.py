@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.session import get_db
 from app.schemas.stock import StockScreenerRequest, StockScreenerResponse
 from app.services import screener_service
@@ -26,8 +27,8 @@ async def screen_stocks_endpoint(
         # 记录异常详情以便调试
         import logging
         import traceback
+
         error_msg = f"Screener error: {str(e)}\n{traceback.format_exc()}"
         logging.error(error_msg)
         # Generic error handler for unexpected issues
-        raise HTTPException(
-            status_code=500, detail="An internal error occurred.")
+        raise HTTPException(status_code=500, detail="An internal error occurred.")

@@ -1,21 +1,21 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, status
-from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
+from datetime import date, datetime, timedelta
 from typing import List, Optional
-from datetime import datetime, timedelta, date
 
+from fastapi import (APIRouter, BackgroundTasks, Depends, HTTPException, Query,
+                     status)
+from fastapi.responses import JSONResponse
+from fastapi_cache import FastAPICache
+from fastapi_cache.decorator import cache
+from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from app.db.session import get_db
-from app.schemas.stock import StockInfo, StockDataBase
-from app.schemas.fundamental import FundamentalDataInDB
-from app.schemas.corporate_action import CorporateActionResponse
 from app.schemas.annual_earnings import AnnualEarningsInDB
+from app.schemas.corporate_action import CorporateActionResponse
+from app.schemas.fundamental import FundamentalDataInDB
+from app.schemas.stock import StockDataBase, StockInfo
 from app.services import data_fetcher
-from fastapi_cache.decorator import cache
-from fastapi_cache import FastAPICache
-
 
 router = APIRouter()
 
@@ -78,8 +78,6 @@ async def refresh_stock_list(
         )
 
 
-
-
 def get_trade_date(offset: int = 0) -> str:
     """Helper to get a valid trade date string."""
     return (datetime.now() - timedelta(days=offset)).strftime("%Y%m%d")
@@ -128,7 +126,7 @@ async def get_stock_data(
         for record in dict_records:
             record["ts_code"] = stock_code
             record["interval"] = interval
-            
+
         records = [StockDataBase.model_validate(record) for record in dict_records]
 
         return records

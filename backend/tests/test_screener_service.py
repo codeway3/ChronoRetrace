@@ -4,12 +4,14 @@
 筛选器服务的单元测试
 """
 
-import pytest
 from unittest.mock import MagicMock as Mock
 
-from app.services.screener_service import screen_stocks, get_operator_expression
-from app.schemas.stock import StockScreenerRequest, ScreenerCondition
+import pytest
+
 from app.db.models import DailyStockMetrics
+from app.schemas.stock import ScreenerCondition, StockScreenerRequest
+from app.services.screener_service import (get_operator_expression,
+                                           screen_stocks)
 
 
 class TestScreenerService:
@@ -21,14 +23,14 @@ class TestScreenerService:
 
         column = DailyStockMetrics.pe_ratio
 
-        assert isinstance(get_operator_expression(column, 'gt', 10), BinaryExpression)
-        assert isinstance(get_operator_expression(column, 'lt', 20), BinaryExpression)
-        assert isinstance(get_operator_expression(column, 'eq', 15), BinaryExpression)
-        assert isinstance(get_operator_expression(column, 'gte', 25), BinaryExpression)
-        assert isinstance(get_operator_expression(column, 'lte', 30), BinaryExpression)
+        assert isinstance(get_operator_expression(column, "gt", 10), BinaryExpression)
+        assert isinstance(get_operator_expression(column, "lt", 20), BinaryExpression)
+        assert isinstance(get_operator_expression(column, "eq", 15), BinaryExpression)
+        assert isinstance(get_operator_expression(column, "gte", 25), BinaryExpression)
+        assert isinstance(get_operator_expression(column, "lte", 30), BinaryExpression)
 
         with pytest.raises(ValueError, match="Unsupported operator: invalid"):
-            get_operator_expression(column, 'invalid', 100)
+            get_operator_expression(column, "invalid", 100)
 
     def test_screen_stocks_no_conditions(self):
         """测试无筛选条件的情况"""
@@ -79,12 +81,7 @@ class TestScreenerService:
         ]
 
         # 创建请求
-        request = StockScreenerRequest(
-            market="A_share",
-            conditions=[],
-            page=1,
-            size=20
-        )
+        request = StockScreenerRequest(market="A_share", conditions=[], page=1, size=20)
 
         # 执行测试
         result = screen_stocks(mock_db, request)
@@ -158,11 +155,9 @@ class TestScreenerService:
         # 创建请求
         request = StockScreenerRequest(
             market="A_share",
-            conditions=[
-                ScreenerCondition(field="pe_ratio", operator="lt", value=20.0)
-            ],
+            conditions=[ScreenerCondition(field="pe_ratio", operator="lt", value=20.0)],
             page=1,
-            size=20
+            size=20,
         )
 
         # 执行测试
@@ -219,7 +214,7 @@ class TestScreenerService:
             market="A_share",
             conditions=[],
             page=1,
-            size=1  # 每页1条
+            size=1,  # 每页1条
         )
 
         # 执行测试

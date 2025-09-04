@@ -1,7 +1,10 @@
-from sqlalchemy import Column, String, Float, Date, Integer, DateTime
-from sqlalchemy.schema import UniqueConstraint
-from .session import Base
 from datetime import datetime
+
+from sqlalchemy import (Boolean, Column, Date, DateTime, Float, Integer,
+                        String, Text)
+from sqlalchemy.schema import UniqueConstraint
+
+from .session import Base
 
 
 class StockData(Base):
@@ -104,8 +107,43 @@ class DailyStockMetrics(Base):
     ma5 = Column(Float)
     ma20 = Column(Float)
     volume = Column(Integer)
+    # 数据质量追踪字段
+    data_source = Column(String, index=True, nullable=True)  # 数据来源
+    quality_score = Column(Float, default=0.0)  # 数据质量评分 (0-1)
+    validation_status = Column(String, default="pending")  # pending, validated, failed
+    last_validated = Column(DateTime, nullable=True)  # 最后验证时间
+    is_duplicate = Column(Boolean, default=False, index=True)  # 是否为重复数据
+    duplicate_source = Column(String, nullable=True)  # 重复数据来源标识
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     __table_args__ = (
         UniqueConstraint("code", "date", "market", name="_code_date_market_uc"),
+    )
+
+
+class DataQualityLog(Base):
+    """数据质量日志表，记录校验和去重过程"""
+
+    __tablename__ = "data_quality_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    record_id = Column(Integer, index=True, nullable=False)  # 关联的数据记录ID
+    table_name = Column(String, index=True, nullable=False)  # 数据表名
+    operation_type = Column(
+        String, index=True, nullable=False
+    )  # validation, deduplication
+    status = Column(String, nullable=False)  # success, failed, warning
+    message = Column(Text, nullable=True)  # 详细信息
+    error_details = Column(Text, nullable=True)  # 错误详情
+    execution_time = Column(Float, nullable=True)  # 执行时间(秒)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "record_id",
+            "table_name",
+            "operation_type",
+            "created_at",
+            name="_record_table_operation_time_uc",
+        ),
     )

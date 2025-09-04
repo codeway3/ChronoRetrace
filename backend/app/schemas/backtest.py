@@ -1,10 +1,11 @@
-from pydantic import BaseModel, field_validator
-from typing import List, Optional, Union, Dict, Any
 from datetime import date
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
+from pydantic import BaseModel, field_validator
 
 # --- Enums and Basic Types ---
+
 
 class UpperBoundStrategy(str, Enum):
     HOLD = "hold"
@@ -27,6 +28,7 @@ class GridStrategyConfig(BaseModel):
     """
     Configuration for a SINGLE grid trading backtest.
     """
+
     stock_code: str
     start_date: date
     end_date: date
@@ -43,10 +45,10 @@ class GridStrategyConfig(BaseModel):
     stamp_duty_rate: float = 0.001
     min_commission: float = 5.0
 
-    @field_validator('end_date')
+    @field_validator("end_date")
     @classmethod
     def check_date_range(cls, v, info):
-        if info.data and 'start_date' in info.data and v < info.data['start_date']:
+        if info.data and "start_date" in info.data and v < info.data["start_date"]:
             raise ValueError("End date must be after or equal to start date")
         return v
 
@@ -56,6 +58,7 @@ class GridStrategyOptimizeConfig(BaseModel):
     Configuration for a grid trading PARAMETER OPTIMIZATION.
     Allows ranges for key parameters.
     """
+
     stock_code: str
     start_date: date
     end_date: date
@@ -74,23 +77,25 @@ class GridStrategyOptimizeConfig(BaseModel):
     stamp_duty_rate: float = 0.001
     min_commission: float = 5.0
 
-    @field_validator('upper_price', 'lower_price', 'grid_count')
+    @field_validator("upper_price", "lower_price", "grid_count")
     @classmethod
     def check_range_format(cls, v):
         if isinstance(v, list):
             if len(v) != 3:
                 raise ValueError(
-                    "Range list must contain exactly 3 elements: [start, stop, step]")
+                    "Range list must contain exactly 3 elements: [start, stop, step]"
+                )
             if v[2] <= 0:
                 raise ValueError("Step value in a range must be positive")
         return v
 
-    @field_validator('end_date')
+    @field_validator("end_date")
     @classmethod
     def check_date_range(cls, v, info):
-        if info.data and 'start_date' in info.data and v < info.data['start_date']:
+        if info.data and "start_date" in info.data and v < info.data["start_date"]:
             raise ValueError("End date must be after or equal to start date")
         return v
+
 
 # --- Result Models ---
 
@@ -122,6 +127,7 @@ class BacktestResult(BaseModel):
     """
     Represents the detailed results of a SINGLE backtest run.
     """
+
     total_pnl: float
     total_return_rate: float
     annualized_return_rate: float
@@ -145,6 +151,7 @@ class OptimizationResultItem(BaseModel):
     """
     A summary of a single run within a larger optimization task.
     """
+
     parameters: Dict[str, Any]
     annualized_return_rate: float
     sharpe_ratio: float
@@ -157,5 +164,6 @@ class BacktestOptimizationResponse(BaseModel):
     """
     The final response for a parameter optimization request.
     """
+
     optimization_results: List[OptimizationResultItem]
     best_result: OptimizationResultItem

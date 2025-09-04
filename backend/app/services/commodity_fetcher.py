@@ -1,8 +1,10 @@
-import yfinance as yf
-import pandas as pd
-import numpy as np
-from datetime import datetime
 import logging
+from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import yfinance as yf
+
 from .data_utils import calculate_ma
 
 logger = logging.getLogger(__name__)
@@ -73,7 +75,7 @@ def fetch_commodity_from_yfinance(
             df[col] = 0.0
         else:
             df[col] = pd.to_numeric(df[col], errors="coerce")
-            if col == 'vol':
+            if col == "vol":
                 df[col] = df[col].fillna(0.0).astype(float)
 
     df.sort_values(by="trade_date", inplace=True)
@@ -88,7 +90,7 @@ def fetch_commodity_from_yfinance(
         df["amount"] = df["close"] * df["vol"]
 
     # ** THE FIX: Replace 0s with NaN in price columns before MA calculation **
-    price_cols = ['open', 'high', 'low', 'close']
+    price_cols = ["open", "high", "low", "close"]
     for col in price_cols:
         if col in df.columns:
             df[col] = df[col].replace(0, np.nan)
@@ -96,9 +98,20 @@ def fetch_commodity_from_yfinance(
     df = calculate_ma(df)
 
     final_cols = [
-        "trade_date", "open", "high", "low", "close", "pre_close",
-        "change", "pct_chg", "vol", "amount",
-        "ma5", "ma10", "ma20", "ma60",
+        "trade_date",
+        "open",
+        "high",
+        "low",
+        "close",
+        "pre_close",
+        "change",
+        "pct_chg",
+        "vol",
+        "amount",
+        "ma5",
+        "ma10",
+        "ma20",
+        "ma60",
     ]
 
     for col in final_cols:

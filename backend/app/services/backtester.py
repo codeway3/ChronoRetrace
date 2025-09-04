@@ -1,19 +1,15 @@
+import itertools
 import logging
 from typing import List
-import pandas as pd
+
 import numpy as np
-import itertools
+import pandas as pd
 from sqlalchemy.orm import Session
 
-from app.schemas.backtest import (
-    GridStrategyConfig,
-    BacktestResult,
-    Transaction,
-    ChartDataPoint,
-    GridStrategyOptimizeConfig,
-    OptimizationResultItem,
-    BacktestOptimizationResponse,
-)
+from app.schemas.backtest import (BacktestOptimizationResponse, BacktestResult,
+                                  ChartDataPoint, GridStrategyConfig,
+                                  GridStrategyOptimizeConfig,
+                                  OptimizationResultItem, Transaction)
 from app.services import data_fetcher
 
 logger = logging.getLogger(__name__)
@@ -34,8 +30,7 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
         market_type="A_share" if "." in config.stock_code else "US_stock",
     )
     if history_df.empty:
-        raise ValueError(
-            "Could not fetch historical data for the given stock.")
+        raise ValueError("Could not fetch historical data for the given stock.")
 
     history_df["trade_date"] = pd.to_datetime(history_df["trade_date"]).dt.date
     mask = (history_df["trade_date"] >= config.start_date) & (
@@ -44,8 +39,7 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
     backtest_df = history_df.loc[mask].copy()
 
     if backtest_df.empty:
-        raise ValueError(
-            "No historical data available for the specified date range.")
+        raise ValueError("No historical data available for the specified date range.")
 
     # --- 2. Initialize Strategy and Metrics ---
     grid_lines = np.linspace(
@@ -116,7 +110,9 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
                             qty = lots * 100
                             gross_cost = qty * buy_execution_price
                             commission = max(
-                                gross_cost * config.commission_rate, config.min_commission)
+                                gross_cost * config.commission_rate,
+                                config.min_commission,
+                            )
                             total_cost = gross_cost + commission
                             if cash_balance >= total_cost:
                                 quantity_to_buy = qty
@@ -125,7 +121,8 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
                     qty = int(potential_quantity)
                     gross_cost = qty * buy_execution_price
                     commission = max(
-                        gross_cost * config.commission_rate, config.min_commission)
+                        gross_cost * config.commission_rate, config.min_commission
+                    )
                     total_cost = gross_cost + commission
                     if cash_balance >= total_cost:
                         quantity_to_buy = qty
@@ -133,27 +130,43 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
                 if quantity_to_buy > 0:
                     gross_cost = quantity_to_buy * buy_execution_price
                     commission = max(
-                        gross_cost * config.commission_rate, config.min_commission)
+                        gross_cost * config.commission_rate, config.min_commission
+                    )
                     total_cost = gross_cost + commission
                     cash_balance -= total_cost
                     position_quantity += quantity_to_buy
                     current_cost_basis += total_cost
                     grid.update(
-                        {"status": "bought", "bought_quantity": quantity_to_buy, "cost_basis": total_cost})
-                    transaction_log.append(Transaction(
-                        trade_date=current_date, trade_type="buy", price=buy_execution_price, quantity=quantity_to_buy))
+                        {
+                            "status": "bought",
+                            "bought_quantity": quantity_to_buy,
+                            "cost_basis": total_cost,
+                        }
+                    )
+                    transaction_log.append(
+                        Transaction(
+                            trade_date=current_date,
+                            trade_type="buy",
+                            price=buy_execution_price,
+                            quantity=quantity_to_buy,
+                        )
+                    )
                     trade_executed_today = True
 
             elif grid["status"] == "bought" and day_high >= grid["sell_price"]:
                 quantity_to_sell = grid["bought_quantity"]
                 if position_quantity >= quantity_to_sell:
-                    average_cost_before_sell = current_cost_basis / \
-                        position_quantity if position_quantity > 0 else 0
+                    average_cost_before_sell = (
+                        current_cost_basis / position_quantity
+                        if position_quantity > 0
+                        else 0
+                    )
                     cost_of_shares_sold = quantity_to_sell * average_cost_before_sell
                     sell_execution_price = grid["sell_price"]
                     gross_revenue = quantity_to_sell * sell_execution_price
                     commission = max(
-                        gross_revenue * config.commission_rate, config.min_commission)
+                        gross_revenue * config.commission_rate, config.min_commission
+                    )
                     stamp_duty = gross_revenue * config.stamp_duty_rate
                     total_fees = commission + stamp_duty
                     net_revenue = gross_revenue - total_fees
@@ -165,51 +178,87 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
                     if pnl > 0:
                         winning_trades += 1
                     grid.update(
-                        {"status": "open", "bought_quantity": 0, "cost_basis": 0.0})
-                    transaction_log.append(Transaction(
-                        trade_date=current_date, trade_type="sell", price=sell_execution_price, quantity=quantity_to_sell, pnl=pnl))
+                        {"status": "open", "bought_quantity": 0, "cost_basis": 0.0}
+                    )
+                    transaction_log.append(
+                        Transaction(
+                            trade_date=current_date,
+                            trade_type="sell",
+                            price=sell_execution_price,
+                            quantity=quantity_to_sell,
+                            pnl=pnl,
+                        )
+                    )
                     trade_executed_today = True
 
         current_position_value = position_quantity * row["close"]
         current_portfolio_value = cash_balance + current_position_value
-        peak_portfolio_value = max(
-            peak_portfolio_value, current_portfolio_value)
-        drawdown = (peak_portfolio_value - current_portfolio_value) / \
-            peak_portfolio_value if peak_portfolio_value > 0 else 0.0
+        peak_portfolio_value = max(peak_portfolio_value, current_portfolio_value)
+        drawdown = (
+            (peak_portfolio_value - current_portfolio_value) / peak_portfolio_value
+            if peak_portfolio_value > 0
+            else 0.0
+        )
         max_drawdown = max(max_drawdown, drawdown)
         benchmark_value = benchmark_shares * row["close"]
-        chart_data.append(ChartDataPoint(
-            date=current_date, portfolio_value=current_portfolio_value, benchmark_value=benchmark_value))
+        chart_data.append(
+            ChartDataPoint(
+                date=current_date,
+                portfolio_value=current_portfolio_value,
+                benchmark_value=benchmark_value,
+            )
+        )
 
         close_price = row["close"]
         if config.on_exceed_upper == "sell_all" and close_price > config.upper_price:
             if position_quantity > 0:
                 logger.info(
-                    f"Price {close_price} exceeded upper bound {config.upper_price}. Selling all {position_quantity} shares.")
+                    f"Price {close_price} exceeded upper bound {config.upper_price}. Selling all {position_quantity} shares."
+                )
                 gross_revenue = position_quantity * close_price
                 commission = max(
-                    gross_revenue * config.commission_rate, config.min_commission)
+                    gross_revenue * config.commission_rate, config.min_commission
+                )
                 stamp_duty = gross_revenue * config.stamp_duty_rate
                 net_revenue = gross_revenue - (commission + stamp_duty)
                 cash_balance += net_revenue
-                transaction_log.append(Transaction(
-                    trade_date=current_date, trade_type="sell", price=close_price, quantity=position_quantity, pnl=None))
+                transaction_log.append(
+                    Transaction(
+                        trade_date=current_date,
+                        trade_type="sell",
+                        price=close_price,
+                        quantity=position_quantity,
+                        pnl=None,
+                    )
+                )
                 position_quantity = 0
                 current_cost_basis = 0
                 break
 
-        if config.on_fall_below_lower == "sell_all" and close_price < config.lower_price:
+        if (
+            config.on_fall_below_lower == "sell_all"
+            and close_price < config.lower_price
+        ):
             if position_quantity > 0:
                 logger.info(
-                    f"Price {close_price} fell below lower bound {config.lower_price}. Selling all {position_quantity} shares (Stop-Loss).")
+                    f"Price {close_price} fell below lower bound {config.lower_price}. Selling all {position_quantity} shares (Stop-Loss)."
+                )
                 gross_revenue = position_quantity * close_price
                 commission = max(
-                    gross_revenue * config.commission_rate, config.min_commission)
+                    gross_revenue * config.commission_rate, config.min_commission
+                )
                 stamp_duty = gross_revenue * config.stamp_duty_rate
                 net_revenue = gross_revenue - (commission + stamp_duty)
                 cash_balance += net_revenue
-                transaction_log.append(Transaction(
-                    trade_date=current_date, trade_type="sell", price=close_price, quantity=position_quantity, pnl=None))
+                transaction_log.append(
+                    Transaction(
+                        trade_date=current_date,
+                        trade_type="sell",
+                        price=close_price,
+                        quantity=position_quantity,
+                        pnl=None,
+                    )
+                )
                 position_quantity = 0
                 current_cost_basis = 0
                 break
@@ -220,33 +269,47 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
     final_portfolio_value = cash_balance + final_position_value
 
     if not chart_data or chart_data[-1].date != backtest_df.iloc[-1]["trade_date"]:
-        chart_data.append(ChartDataPoint(
-            date=backtest_df.iloc[-1]["trade_date"], portfolio_value=final_portfolio_value, benchmark_value=benchmark_shares * final_close_price))
+        chart_data.append(
+            ChartDataPoint(
+                date=backtest_df.iloc[-1]["trade_date"],
+                portfolio_value=final_portfolio_value,
+                benchmark_value=benchmark_shares * final_close_price,
+            )
+        )
 
     portfolio_df = pd.DataFrame([item.model_dump() for item in chart_data])
-    portfolio_df['date'] = pd.to_datetime(portfolio_df['date'])
-    portfolio_df = portfolio_df.set_index('date')
-    portfolio_df['daily_return'] = portfolio_df['portfolio_value'].pct_change(
-    ).fillna(0)
+    portfolio_df["date"] = pd.to_datetime(portfolio_df["date"])
+    portfolio_df = portfolio_df.set_index("date")
+    portfolio_df["daily_return"] = (
+        portfolio_df["portfolio_value"].pct_change().fillna(0)
+    )
 
     total_pnl = final_portfolio_value - initial_portfolio_value
-    total_return_rate = total_pnl / \
-        initial_portfolio_value if initial_portfolio_value > 0 else 0.0
+    total_return_rate = (
+        total_pnl / initial_portfolio_value if initial_portfolio_value > 0 else 0.0
+    )
 
     total_days = (config.end_date - config.start_date).days
     years = total_days / 365.25 if total_days > 0 else 0
 
-    annualized_return_rate = (1 + total_return_rate)**(1 / years) - \
-        1 if years > 0 and total_return_rate > -1 else 0.0
+    annualized_return_rate = (
+        (1 + total_return_rate) ** (1 / years) - 1
+        if years > 0 and total_return_rate > -1
+        else 0.0
+    )
 
-    annualized_volatility = portfolio_df['daily_return'].std() * np.sqrt(252)
+    annualized_volatility = portfolio_df["daily_return"].std() * np.sqrt(252)
 
-    sharpe_ratio = annualized_return_rate / \
-        annualized_volatility if annualized_volatility != 0 else 0.0
+    sharpe_ratio = (
+        annualized_return_rate / annualized_volatility
+        if annualized_volatility != 0
+        else 0.0
+    )
 
     win_rate = winning_trades / sell_trades if sell_trades > 0 else 0.0
-    average_holding_cost = current_cost_basis / \
-        position_quantity if position_quantity > 0 else 0.0
+    average_holding_cost = (
+        current_cost_basis / position_quantity if position_quantity > 0 else 0.0
+    )
 
     kline_data = backtest_df.to_dict(orient="records")
 
@@ -293,13 +356,15 @@ def _generate_parameter_values(param_value):
         else:
             # Float range
             # Add small epsilon to include stop
-            return list(np.arange(start, stop + step/2, step))
+            return list(np.arange(start, stop + step / 2, step))
     else:
         # Single value
         return [param_value]
 
 
-def run_grid_optimization(db: Session, config: GridStrategyOptimizeConfig) -> BacktestOptimizationResponse:
+def run_grid_optimization(
+    db: Session, config: GridStrategyOptimizeConfig
+) -> BacktestOptimizationResponse:
     """
     Runs parameter optimization for grid trading strategy.
 
@@ -316,14 +381,11 @@ def run_grid_optimization(db: Session, config: GridStrategyOptimizeConfig) -> Ba
     grid_count_values = _generate_parameter_values(config.grid_count)
 
     # Generate all combinations
-    param_combinations = list(itertools.product(
-        upper_price_values,
-        lower_price_values,
-        grid_count_values
-    ))
+    param_combinations = list(
+        itertools.product(upper_price_values, lower_price_values, grid_count_values)
+    )
 
-    logger.info(
-        f"Generated {len(param_combinations)} parameter combinations to test")
+    logger.info(f"Generated {len(param_combinations)} parameter combinations to test")
 
     # Validate combinations and run backtests
     optimization_results = []
@@ -333,12 +395,14 @@ def run_grid_optimization(db: Session, config: GridStrategyOptimizeConfig) -> Ba
         # Skip invalid combinations
         if upper_price <= lower_price:
             logger.warning(
-                f"Skipping invalid combination: upper_price={upper_price} <= lower_price={lower_price}")
+                f"Skipping invalid combination: upper_price={upper_price} <= lower_price={lower_price}"
+            )
             continue
 
         if grid_count <= 0:
             logger.warning(
-                f"Skipping invalid combination: grid_count={grid_count} <= 0")
+                f"Skipping invalid combination: grid_count={grid_count} <= 0"
+            )
             continue
 
         # Create config for this combination
@@ -368,40 +432,40 @@ def run_grid_optimization(db: Session, config: GridStrategyOptimizeConfig) -> Ba
                 parameters={
                     "upper_price": upper_price,
                     "lower_price": lower_price,
-                    "grid_count": grid_count
+                    "grid_count": grid_count,
                 },
                 annualized_return_rate=backtest_result.annualized_return_rate,
                 sharpe_ratio=backtest_result.sharpe_ratio,
                 max_drawdown=backtest_result.max_drawdown,
                 win_rate=backtest_result.win_rate,
-                trade_count=backtest_result.trade_count
+                trade_count=backtest_result.trade_count,
             )
 
             optimization_results.append(result_item)
             valid_combinations += 1
 
             logger.debug(
-                f"Completed combination {valid_combinations}: upper={upper_price}, lower={lower_price}, grid={grid_count}, return={backtest_result.annualized_return_rate:.4f}")
+                f"Completed combination {valid_combinations}: upper={upper_price}, lower={lower_price}, grid={grid_count}, return={backtest_result.annualized_return_rate:.4f}"
+            )
 
         except Exception as e:
             logger.error(
-                f"Error running backtest for combination upper={upper_price}, lower={lower_price}, grid={grid_count}: {e}")
+                f"Error running backtest for combination upper={upper_price}, lower={lower_price}, grid={grid_count}: {e}"
+            )
             continue
 
     if not optimization_results:
         raise ValueError(
-            "No valid parameter combinations could be tested. Please check your parameter ranges.")
+            "No valid parameter combinations could be tested. Please check your parameter ranges."
+        )
 
-    logger.info(
-        f"Successfully tested {valid_combinations} parameter combinations")
+    logger.info(f"Successfully tested {valid_combinations} parameter combinations")
 
     # Find best result (by annualized return rate)
-    best_result = max(optimization_results,
-                      key=lambda x: x.annualized_return_rate)
+    best_result = max(optimization_results, key=lambda x: x.annualized_return_rate)
 
     # Sort results by annualized return rate (descending)
-    optimization_results.sort(
-        key=lambda x: x.annualized_return_rate, reverse=True)
+    optimization_results.sort(key=lambda x: x.annualized_return_rate, reverse=True)
 
     logger.info(
         f"Optimization completed. Best result: upper={best_result.parameters['upper_price']}, "
@@ -410,6 +474,5 @@ def run_grid_optimization(db: Session, config: GridStrategyOptimizeConfig) -> Ba
     )
 
     return BacktestOptimizationResponse(
-        optimization_results=optimization_results,
-        best_result=best_result
+        optimization_results=optimization_results, best_result=best_result
     )

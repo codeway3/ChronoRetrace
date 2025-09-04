@@ -1,11 +1,13 @@
-import yfinance as yf
-import pandas as pd
-from datetime import datetime
 import logging
-from sqlalchemy.orm import Session
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from app.db import models
+from datetime import datetime
+
+import pandas as pd
 import yahoo_fin.stock_info as si
+import yfinance as yf
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.orm import Session
+
+from app.db import models
 
 logger = logging.getLogger(__name__)
 

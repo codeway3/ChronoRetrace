@@ -5,11 +5,12 @@ pytest 配置文件
 包含通用的测试工具和 fixture
 """
 
-import pytest
 import asyncio
 from unittest.mock import Mock
+
+import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db.models import Base
@@ -28,10 +29,11 @@ def pytest_pyfunc_call(pyfuncitem):
     when pytest-asyncio is not installed. Uses the provided event_loop fixture
     if available, otherwise creates a new loop.
     """
-    import inspect
     import asyncio as _asyncio
+    import inspect
+
     if inspect.iscoroutinefunction(pyfuncitem.obj):
-        loop = pyfuncitem.funcargs.get('event_loop')
+        loop = pyfuncitem.funcargs.get("event_loop")
         if loop is None:
             loop = _asyncio.get_event_loop_policy().new_event_loop()
             try:
@@ -43,6 +45,7 @@ def pytest_pyfunc_call(pyfuncitem):
         else:
             loop.run_until_complete(pyfuncitem.obj(**pyfuncitem.funcargs))
         return True
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -75,7 +78,8 @@ def test_engine():
 def test_session(test_engine):
     """创建测试数据库会话"""
     TestingSessionLocal = sessionmaker(
-        autocommit=False, autoflush=False, bind=test_engine)
+        autocommit=False, autoflush=False, bind=test_engine
+    )
     session = TestingSessionLocal()
 
     try:

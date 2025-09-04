@@ -1,10 +1,13 @@
-from pydantic import BaseModel, ConfigDict
 from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
+
 
 class ConstituentStock(BaseModel):
     """
     Represents a single constituent stock within an industry.
     """
+
     stock_code: str
     stock_name: str
     latest_price: Optional[float] = None

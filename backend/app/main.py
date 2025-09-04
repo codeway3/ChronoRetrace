@@ -1,27 +1,29 @@
 import asyncio
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-from fastapi_cache import FastAPICache
-from fastapi_cache.backends.redis import RedisBackend
-from fastapi_cache.backends.inmemory import InMemoryBackend
-from redis import asyncio as aioredis
 import logging
 import warnings
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from contextlib import asynccontextmanager
 
-from app.api.v1 import stocks as stocks_v1
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
+from fastapi_cache.backends.redis import RedisBackend
+from redis import asyncio as aioredis
+
+from app.api.v1 import a_industries as a_industries_v1
 from app.api.v1 import admin as admin_v1
 from app.api.v1 import backtest as backtest_v1
-from app.api.v1 import crypto as crypto_v1
 from app.api.v1 import commodities as commodities_v1
+from app.api.v1 import crypto as crypto_v1
+from app.api.v1 import data_quality as data_quality_v1
 from app.api.v1 import futures as futures_v1
 from app.api.v1 import options as options_v1
-from app.api.v1 import a_industries as a_industries_v1
 from app.api.v1 import screener as screener_v1
-from app.db.session import engine, SessionLocal
-from app.db import models
+from app.api.v1 import stocks as stocks_v1
 from app.core.config import settings
+from app.db import models
+from app.db.session import SessionLocal, engine
 from app.services import a_industries_fetcher
 
 # Suppress the specific FutureWarning from baostock
@@ -32,11 +34,7 @@ warnings.filterwarnings(
     module="baostock.data.resultset",
 )
 # Suppress the warning from akshare about requests_html not being installed
-warnings.filterwarnings(
-    "ignore",
-    category=UserWarning,
-    message="Certain functionality"
-)
+warnings.filterwarnings("ignore", category=UserWarning, message="Certain functionality")
 
 # Configure logging
 logging.basicConfig(
@@ -45,8 +43,7 @@ logging.basicConfig(
 logging.getLogger("yfinance").setLevel(
     logging.WARNING
 )  # Quieten yfinance's debug messages
-logging.getLogger("urllib3").setLevel(
-    logging.INFO)  # Quieten urllib3's debug messages
+logging.getLogger("urllib3").setLevel(logging.INFO)  # Quieten urllib3's debug messages
 logging.getLogger("apscheduler").setLevel(logging.WARNING)
 # Ensure FastAPICache is initialized even in test/dev without Redis
 try:
@@ -87,7 +84,9 @@ scheduler = AsyncIOScheduler()
 
 async def warm_up_cache():
     """Pre-warms the cache for A-share industry overview for all windows."""
-    print("Warming up A-share industry overview cache for all windows (5D, 20D, 60D)...")
+    print(
+        "Warming up A-share industry overview cache for all windows (5D, 20D, 60D)..."
+    )
     try:
         windows = ["5D", "20D", "60D"]
         # 顺序执行而不是并行执行，避免同时发送大量请求
@@ -118,10 +117,12 @@ async def warm_up_cache():
                 max_industries = 50
                 if len(industry_list) > max_industries:
                     print(
-                        f"Limiting to {max_industries} industries to avoid rate limiting")
+                        f"Limiting to {max_industries} industries to avoid rate limiting"
+                    )
                     industry_list = industry_list[:max_industries]
 
                 import time
+
                 for i, industry in enumerate(industry_list):
                     name = industry.get("industry_name")
                     code = industry.get("industry_code")
@@ -131,7 +132,8 @@ async def warm_up_cache():
                     # 每处理5个行业添加一个短暂延迟，避免请求过于频繁
                     if i > 0 and i % 5 == 0:
                         print(
-                            f"Processed {i}/{len(industry_list)} industries, pausing briefly...")
+                            f"Processed {i}/{len(industry_list)} industries, pausing briefly..."
+                        )
                         time.sleep(2)
 
                     try:
@@ -140,11 +142,13 @@ async def warm_up_cache():
 
                         if hist.empty or len(hist) < 2:
                             print(
-                                f"Not enough historical data for industry: {name} ({code})")
+                                f"Not enough historical data for industry: {name} ({code})"
+                            )
                             consecutive_failures += 1
                             if consecutive_failures >= max_consecutive_failures:
                                 print(
-                                    f"连续{max_consecutive_failures}只股票数据获取失败，中断拉取流程")
+                                    f"连续{max_consecutive_failures}只股票数据获取失败，中断拉取流程"
+                                )
                                 # 保存已获取的数据
                                 if results:
                                     print(f"将已获取的{len(results)}条数据入库")
@@ -159,33 +163,44 @@ async def warm_up_cache():
                         last_row = hist.iloc[-1]
                         prev_row = hist.iloc[-2]
 
-                        today_pct = ((last_row["close"] - prev_row["close"]) /
-                                     prev_row["close"]) * 100 if prev_row["close"] != 0 else 0
+                        today_pct = (
+                            (
+                                (last_row["close"] - prev_row["close"])
+                                / prev_row["close"]
+                            )
+                            * 100
+                            if prev_row["close"] != 0
+                            else 0
+                        )
                         turnover = last_row.get("amount")
 
                         period_return = a_industries_fetcher.compute_period_return(
-                            hist, days)
-                        sparkline_data = hist.tail(
-                            days)[["trade_date", "close"]].copy()
-                        sparkline_data["close"] = sparkline_data["close"].astype(
-                            float)
+                            hist, days
+                        )
+                        sparkline_data = hist.tail(days)[["trade_date", "close"]].copy()
+                        sparkline_data["close"] = sparkline_data["close"].astype(float)
                         sparkline = sparkline_data.to_dict(orient="records")
 
-                        results.append({
-                            "industry_code": code,
-                            "industry_name": name,
-                            "today_pct": float(today_pct),
-                            "turnover": float(turnover) if turnover is not None else None,
-                            "ret_window": period_return,
-                            "window": window.upper(),
-                            "sparkline": sparkline,
-                        })
+                        results.append(
+                            {
+                                "industry_code": code,
+                                "industry_name": name,
+                                "today_pct": float(today_pct),
+                                "turnover": float(turnover)
+                                if turnover is not None
+                                else None,
+                                "ret_window": period_return,
+                                "window": window.upper(),
+                                "sparkline": sparkline,
+                            }
+                        )
                     except Exception as exc:
                         print(f"Failed to process industry {name}: {exc}")
                         consecutive_failures += 1
                         if consecutive_failures >= max_consecutive_failures:
                             print(
-                                f"连续{max_consecutive_failures}只股票数据获取失败，中断拉取流程")
+                                f"连续{max_consecutive_failures}只股票数据获取失败，中断拉取流程"
+                            )
                             # 保存已获取的数据
                             if results:
                                 print(f"将已获取的{len(results)}条数据入库")
@@ -193,16 +208,18 @@ async def warm_up_cache():
                             break
 
                 print(
-                    f"Successfully built overview for {len(results)} industries for window {window}.")
+                    f"Successfully built overview for {len(results)} industries for window {window}."
+                )
 
             except Exception as e:
-                print(
-                    f"An error occurred during processing window {window}: {e}")
+                print(f"An error occurred during processing window {window}: {e}")
 
             # 在每个窗口之间添加延迟，避免请求过于频繁
             await asyncio.sleep(5)
 
-        print("A-share industry overview cache is warmed up successfully for all windows.")
+        print(
+            "A-share industry overview cache is warmed up successfully for all windows."
+        )
     except Exception as e:
         print(f"An error occurred during cache warm-up: {e}")
 
@@ -221,8 +238,7 @@ async def lifespan(app: FastAPI):
     print("FastAPI-Cache initialized with Redis.")
 
     # Schedule the cache warm-up job
-    scheduler.add_job(warm_up_cache, "interval",
-                      hours=1, id="warm_up_cache_job")
+    scheduler.add_job(warm_up_cache, "interval", hours=1, id="warm_up_cache_job")
 
     # Add stock metrics update job
     from app.jobs.update_daily_metrics import update_metrics_for_market
@@ -232,11 +248,10 @@ async def lifespan(app: FastAPI):
         try:
             db = SessionLocal()
             try:
-                a_share_count = await update_metrics_for_market(db, 'A_share')
-                us_stock_count = await update_metrics_for_market(db, 'US_stock')
+                a_share_count = await update_metrics_for_market(db, "A_share")
+                us_stock_count = await update_metrics_for_market(db, "US_stock")
                 total_count = a_share_count + us_stock_count
-                print(
-                    f"Stock metrics update completed. Total updated: {total_count}")
+                print(f"Stock metrics update completed. Total updated: {total_count}")
             finally:
                 db.close()
         except Exception as e:
@@ -244,11 +259,7 @@ async def lifespan(app: FastAPI):
 
     # 每天下午6点执行（交易结束后）
     scheduler.add_job(
-        update_stock_metrics,
-        "cron",
-        hour=18,
-        minute=0,
-        id="update_stock_metrics_job"
+        update_stock_metrics, "cron", hour=18, minute=0, id="update_stock_metrics_job"
     )
 
     # 每6小时执行一次（避免过于频繁的请求）
@@ -256,7 +267,7 @@ async def lifespan(app: FastAPI):
         update_stock_metrics,
         "interval",
         hours=6,
-        id="update_stock_metrics_interval_job"
+        id="update_stock_metrics_interval_job",
     )
 
     scheduler.start()
@@ -296,15 +307,14 @@ app.include_router(crypto_v1.router, prefix="/api/v1/crypto", tags=["crypto"])
 app.include_router(
     commodities_v1.router, prefix="/api/v1/commodities", tags=["commodities"]
 )
-app.include_router(futures_v1.router,
-                   prefix="/api/v1/futures", tags=["futures"])
-app.include_router(options_v1.router,
-                   prefix="/api/v1/options", tags=["options"])
+app.include_router(futures_v1.router, prefix="/api/v1/futures", tags=["futures"])
+app.include_router(options_v1.router, prefix="/api/v1/options", tags=["options"])
 app.include_router(
     a_industries_v1.router, prefix="/api/v1/a-industries", tags=["a-industries"]
 )
+app.include_router(screener_v1.router, prefix="/api/v1", tags=["screener"])
 app.include_router(
-    screener_v1.router, prefix="/api/v1", tags=["screener"]
+    data_quality_v1.router, prefix="/api/v1/data-quality", tags=["data-quality"]
 )
 
 

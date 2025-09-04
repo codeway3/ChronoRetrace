@@ -1,6 +1,8 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from sqlalchemy.orm import Session
-from app.db.session import get_db, SessionLocal, engine, Base
+
+from app.db.session import Base, SessionLocal, engine, get_db
 
 
 def test_session_local_creation():
@@ -10,24 +12,25 @@ def test_session_local_creation():
     # So it doesn't have a 'bind' attribute directly
     # We can check that it's properly configured by checking its type
     from sqlalchemy.orm import sessionmaker
+
     assert isinstance(SessionLocal, sessionmaker)
 
 
 def test_base_declarative_base():
     """Test that Base is properly configured."""
     assert Base is not None
-    assert hasattr(Base, 'metadata')
+    assert hasattr(Base, "metadata")
 
 
 def test_engine_configuration():
     """Test that engine is properly configured."""
     assert engine is not None
-    assert hasattr(engine, 'url')
+    assert hasattr(engine, "url")
     # Check that it's configured for SQLite
-    assert 'sqlite' in str(engine.url).lower()
+    assert "sqlite" in str(engine.url).lower()
 
 
-@patch('app.db.session.SessionLocal')
+@patch("app.db.session.SessionLocal")
 def test_get_db_generator(mock_session_local):
     """Test that get_db is a generator function that yields a session."""
     mock_session = MagicMock(spec=Session)
@@ -46,7 +49,7 @@ def test_get_db_generator(mock_session_local):
     mock_session_local.assert_called_once()
 
 
-@patch('app.db.session.SessionLocal')
+@patch("app.db.session.SessionLocal")
 def test_get_db_session_cleanup(mock_session_local):
     """Test that get_db properly closes the session."""
     mock_session = MagicMock(spec=Session)
@@ -75,12 +78,12 @@ def test_get_db_is_generator():
     db_generator = get_db()
 
     # Check that it's a generator
-    assert hasattr(db_generator, '__iter__')
-    assert hasattr(db_generator, '__next__')
+    assert hasattr(db_generator, "__iter__")
+    assert hasattr(db_generator, "__next__")
 
 
 def test_session_local_autocommit_setting():
     """Test that SessionLocal has correct autocommit and autoflush settings."""
     # These settings are important for database transaction management
-    assert SessionLocal.kw['autocommit'] is False
-    assert SessionLocal.kw['autoflush'] is False
+    assert SessionLocal.kw["autocommit"] is False
+    assert SessionLocal.kw["autoflush"] is False

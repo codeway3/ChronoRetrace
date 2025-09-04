@@ -1,6 +1,8 @@
-from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
+
 
 class FundamentalDataBase(BaseModel):
     symbol: str
@@ -17,8 +19,10 @@ class FundamentalDataBase(BaseModel):
     debt_to_asset_ratio: Optional[float] = None
     current_ratio: Optional[float] = None
 
+
 class FundamentalDataCreate(FundamentalDataBase):
     pass
+
 
 class FundamentalDataInDB(FundamentalDataBase):
     id: int
