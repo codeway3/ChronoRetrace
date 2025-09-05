@@ -2,20 +2,19 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import List, Optional
 
-from fastapi import (APIRouter, BackgroundTasks, Depends, HTTPException, Query,
-                     status)
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from fastapi_cache import FastAPICache
 from fastapi_cache.decorator import cache
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.db.session import get_db
+from app.infrastructure.database.session import get_db
 from app.schemas.annual_earnings import AnnualEarningsInDB
 from app.schemas.corporate_action import CorporateActionResponse
 from app.schemas.fundamental import FundamentalDataInDB
 from app.schemas.stock import StockDataBase, StockInfo
-from app.services import data_fetcher
+from app.data.managers import data_manager as data_fetcher
 
 router = APIRouter()
 

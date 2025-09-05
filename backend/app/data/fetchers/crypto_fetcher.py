@@ -1,0 +1,98 @@
+from typing import Any, Dict, List
+
+import pandas as pd
+import requests
+
+from ..managers.data_utils import calculate_ma
+
+
+def get_top_cryptos(limit: int = 100) -> List[Dict[str, Any]]:
+    """
+    Fetches the top cryptocurrencies by market capitalization from the CryptoCompare API.
+    """
+    url = (
+        f"https://min-api.cryptocompare.com/data/top/mktcapfull?limit={limit}&tsym=USD"
+    )
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        if "Data" in data:
+            return data["Data"]
+        return []
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching crypto data: {e}")
+        return []
+
+
+def aggregate_ohlcv(data: List[Dict[str, Any]], interval: str) -> List[Dict[str, Any]]:
+    """
+    Aggregates daily OHLCV data to a weekly or monthly interval.
+    """
+    if not data:
+        return []
+
+    df = pd.DataFrame(data)
+    df["time"] = pd.to_datetime(df["time"], unit="s")
+    df.set_index("time", inplace=True)
+
+    rule_map = {"weekly": "W-MON", "monthly": "ME"}
+    if interval not in rule_map:
+        return data
+
+    rule = rule_map[interval]
+
+    agg_rules = {
+        "open": "first",
+        "high": "max",
+        "low": "min",
+        "close": "last",
+        "volumeto": "sum",
+    }
+
+    agg_df = df.resample(rule).agg(agg_rules)
+    agg_df.dropna(inplace=True)
+
+    # Calculate MAs on aggregated data
+    agg_df = calculate_ma(agg_df)
+
+    agg_df.reset_index(inplace=True)
+    agg_df["time"] = agg_df["time"].apply(lambda x: int(x.timestamp()))
+
+    return agg_df.to_dict("records")
+
+
+def get_crypto_ohlcv(
+    symbol: str, interval: str = "daily", limit: int = 2000
+) -> List[Dict[str, Any]]:
+    """
+    Fetches OHLCV data for a given cryptocurrency symbol and interval.
+    """
+    fetch_limit = limit
+    if interval in ["weekly", "monthly"]:
+        fetch_limit = 2000
+
+    url = f"https://min-api.cryptocompare.com/data/v2/histoday?fsym={symbol}&tsym=USD&limit={fetch_limit}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+
+        if "Data" in data and "Data" in data["Data"]:
+            daily_data = data["Data"]["Data"]
+            if interval in ["weekly", "monthly"]:
+                return aggregate_ohlcv(daily_data, interval)
+
+            # Calculate MAs for daily data
+            df = pd.DataFrame(daily_data)
+            df = calculate_ma(df)
+            return df.to_dict("records")
+
+        return []
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching crypto OHLCV data: {e}")
+        return []
+
+
+if __name__ == "__main__":
+    pass

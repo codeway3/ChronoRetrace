@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
+from app.infrastructure.database.session import get_db
 from app.schemas.stock import StockScreenerRequest, StockScreenerResponse
-from app.services import screener_service
+from app.analytics.screener import screener_service
 
 router = APIRouter()
 

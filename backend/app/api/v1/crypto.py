@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.services.crypto_fetcher import get_crypto_ohlcv, get_top_cryptos
+from app.data.fetchers.crypto_fetcher import get_crypto_ohlcv, get_top_cryptos
 
 router = APIRouter()
 

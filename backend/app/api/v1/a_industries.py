@@ -7,7 +7,7 @@ from fastapi_cache.decorator import cache
 from starlette.concurrency import run_in_threadpool
 
 from app.schemas.industry import ConstituentStock
-from app.services import a_industries_fetcher as fetcher
+from app.data.fetchers import a_industries_fetcher as fetcher
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

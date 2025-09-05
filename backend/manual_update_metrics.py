@@ -8,10 +8,10 @@ import asyncio
 import logging
 from datetime import date
 from sqlalchemy.orm import Session
-from app.db.session import SessionLocal
-from app.db.models import StockInfo, DailyStockMetrics
-from app.services.a_share_fetcher import fetch_a_share_data_from_akshare, _fetch_spot_data_batch
-from app.services.us_stock_fetcher import fetch_from_yfinance, fetch_us_fundamental_data_from_yfinance
+from app.infrastructure.database.session import SessionLocal
+from app.infrastructure.database.models import StockInfo, DailyStockMetrics
+from app.data.fetchers.stock_fetchers.a_share_fetcher import fetch_a_share_data_from_akshare, _fetch_spot_data_batch
+from app.data.fetchers.stock_fetchers.us_stock_fetcher import fetch_from_yfinance, fetch_us_fundamental_data_from_yfinance
 import pandas as pd
 from datetime import timedelta
 

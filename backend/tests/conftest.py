@@ -13,7 +13,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.db.models import Base
+from app.infrastructure.database.models import Base
 
 
 def pytest_configure(config):

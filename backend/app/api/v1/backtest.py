@@ -3,11 +3,14 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.schemas.backtest import (BacktestOptimizationResponse, BacktestResult,
-                                  GridStrategyConfig,
-                                  GridStrategyOptimizeConfig)
-from app.services import backtester
+from app.infrastructure.database.session import get_db
+from app.schemas.backtest import (
+    BacktestOptimizationResponse,
+    BacktestResult,
+    GridStrategyConfig,
+    GridStrategyOptimizeConfig,
+)
+from app.analytics.backtest import backtester
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

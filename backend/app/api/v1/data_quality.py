@@ -7,9 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi_cache.decorator import cache
 from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.services.data_quality_manager import (DataQualityConfig,
-                                               DataQualityManager)
+from app.infrastructure.database.session import get_db
+from app.data.quality.quality_manager import DataQualityConfig, DataQualityManager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

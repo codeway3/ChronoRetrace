@@ -4,8 +4,8 @@ from redis import asyncio as aioredis
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.session import get_db
-from app.services import db_admin
+from app.infrastructure.database.session import get_db
+from app.data.managers import database_admin as db_admin
 
 router = APIRouter()
 

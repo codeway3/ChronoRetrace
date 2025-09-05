@@ -22,9 +22,9 @@ from app.api.v1 import options as options_v1
 from app.api.v1 import screener as screener_v1
 from app.api.v1 import stocks as stocks_v1
 from app.core.config import settings
-from app.db import models
-from app.db.session import SessionLocal, engine
-from app.services import a_industries_fetcher
+from app.infrastructure.database import models
+from app.infrastructure.database.session import SessionLocal, engine
+from app.data.fetchers import a_industries_fetcher
 
 # Suppress the specific FutureWarning from baostock
 warnings.filterwarnings(

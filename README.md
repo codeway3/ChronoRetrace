@@ -94,26 +94,44 @@ The application should automatically open in your browser at `http://localhost:3
 
 ```
 ChronoRetrace/
-├── .github/              # GitHub Actions Workflows
-├── backend/              # FastAPI Backend
+├── .github/                    # GitHub Actions Workflows
+├── backend/                    # FastAPI Backend
 │   ├── app/
-│   │   ├── api/          # API Routers
-│   │   ├── core/         # Configuration
-│   │   ├── db/           # Database Models & Session
-│   │   ├── schemas/      # Pydantic Schemas
-│   │   └── services/     # Business Logic
-│   ├── .env.example      # Environment variable example
-│   └── requirements.txt
-├── frontend/             # React Frontend
+│   │   ├── analytics/          # Analytics service modules
+│   │   │   ├── backtesting/    # Backtesting functionality
+│   │   │   └── screener/       # Stock screener
+│   │   ├── api/                # API routing layer
+│   │   │   └── v1/             # API v1 version
+│   │   ├── core/               # Core configuration
+│   │   ├── data/               # Data layer
+│   │   │   ├── fetchers/       # Data fetchers
+│   │   │   │   ├── stock_fetchers/   # Stock data fetchers
+│   │   │   │   └── market_fetchers/  # Market data fetchers
+│   │   │   ├── managers/       # Data managers
+│   │   │   └── quality/        # Data quality control
+│   │   ├── db/                 # Database models and sessions
+│   │   ├── infrastructure/     # Infrastructure layer
+│   │   │   ├── database/       # Database related
+│   │   │   └── performance/    # Performance optimization
+│   │   ├── jobs/               # Scheduled tasks
+│   │   ├── schemas/            # Pydantic data models
+│   │   └── services/           # Business logic services
+│   ├── tests/                  # Test files
+│   │   ├── integration/        # Integration tests
+│   │   └── unit/               # Unit tests
+│   ├── .env.example            # Environment variables example
+│   └── requirements.txt        # Python dependencies
+├── frontend/                   # React 前端
 │   ├── public/
 │   └── src/
-│       ├── api/
-│       ├── components/
-│       ├── layouts/
-│       └── pages/
+│       ├── api/                # API calls
+│       ├── components/         # React components
+│       ├── layouts/            # Page layouts
+│       └── pages/              # Page components
 ├── .gitignore
 ├── LICENSE
 ├── CONTRIBUTING.md
+├── REFACTOR_REPORT.md          # Refactoring report
 └── README.md
 ```
 
