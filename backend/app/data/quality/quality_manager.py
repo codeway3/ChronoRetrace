@@ -1,4 +1,5 @@
 import logging
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -96,10 +97,10 @@ class DataQualityManager:
             self.deduplication_service = DataDeduplicationService(self.session)
 
         # 支持服务
-        self.error_service = ErrorHandlingService()
+        self.error_service = ErrorHandlingService(db_session=self.session)
 
         if self.config.enable_logging:
-            self.logging_service = LoggingService()
+            self.logging_service = LoggingService(db_session=self.session)
 
         # 性能优化服务
         if self.config.enable_performance_optimization:
@@ -140,9 +141,12 @@ class DataQualityManager:
 
             # 记录开始日志
             if self.config.enable_logging:
+                from ...infrastructure.logging_service import LogLevel
                 self.logging_service.log_operation(
+                    operation_id=str(uuid.uuid4()),
                     operation_type=OperationType.PIPELINE,
                     status=LogStatus.IN_PROGRESS,
+                    level=LogLevel.INFO,
                     message=f"开始处理 {len(data)} 条 {data_type} 数据",
                 )
 
@@ -194,9 +198,12 @@ class DataQualityManager:
 
             # 记录成功日志
             if self.config.enable_logging:
+                from ...infrastructure.logging_service import LogLevel
                 self.logging_service.log_operation(
+                    operation_id=str(uuid.uuid4()),
                     operation_type=OperationType.PIPELINE,
                     status=LogStatus.SUCCESS,
+                    level=LogLevel.INFO,
                     message="数据质量处理完成",
                     details={
                         "total_records": result.total_records,
@@ -226,9 +233,12 @@ class DataQualityManager:
 
             # 记录错误日志
             if self.config.enable_logging:
+                from ...infrastructure.logging_service import LogLevel
                 self.logging_service.log_operation(
+                    operation_id=str(uuid.uuid4()),
                     operation_type=OperationType.PIPELINE,
-                    status=LogStatus.ERROR,
+                    status=LogStatus.FAILED,
+                    level=LogLevel.ERROR,
                     message=f"数据质量处理失败: {str(e)}",
                     error_details=error_response,
                 )
@@ -248,7 +258,7 @@ class DataQualityManager:
                 quality_score=0.0,
                 validation_reports=[],
                 deduplication_report=None,
-                error_messages=[error_response.get("error_message", str(e))],
+                error_messages=[getattr(error_response, "error_message", str(e))],
                 warnings=[],
                 performance_metrics={},
             )
@@ -457,4 +467,5 @@ def quick_quality_check(
         DataQualityResult: 检查结果
     """
     with create_data_quality_manager(session) as manager:
-        return manager.process_data(data, data_type)
+        result = manager.process_data(data, data_type)
+        return result  # type: ignore

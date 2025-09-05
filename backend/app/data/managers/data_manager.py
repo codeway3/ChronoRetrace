@@ -300,17 +300,17 @@ def get_fundamental_data_from_db(
 ) -> Optional[models.FundamentalData]:
     """
     从数据库中获取指定股票的基本面数据。
-    
+
     Args:
         db: 数据库会话
         symbol: 股票代码
-        
+
     Returns:
         基本面数据对象，如果不存在则返回None
     """
     return (
         db.query(models.FundamentalData)
-        .filter(models.FundamentalData.symbol == symbol)
+        .filter(models.FundamentalData.symbol == symbol)  # type: ignore[attr-defined]
         .first()
     )
 
@@ -320,17 +320,17 @@ def get_corporate_actions_from_db(
 ) -> list[models.CorporateAction]:
     """
     从数据库中获取指定股票的公司行为数据。
-    
+
     Args:
         db: 数据库会话
         symbol: 股票代码
-        
+
     Returns:
         按除权除息日期排序的公司行为数据列表
     """
     return (
         db.query(models.CorporateAction)
-        .filter(models.CorporateAction.symbol == symbol)
+        .filter(models.CorporateAction.symbol == symbol)  # type: ignore[attr-defined]
         .order_by(models.CorporateAction.ex_date)
         .all()
     )
@@ -341,8 +341,8 @@ def get_annual_earnings_from_db(
 ) -> list[models.AnnualEarnings]:
     return (
         db.query(models.AnnualEarnings)
-        .filter(models.AnnualEarnings.symbol == symbol)
-        .order_by(models.AnnualEarnings.year)
+        .filter(models.AnnualEarnings.symbol == symbol)  # type: ignore[attr-defined]
+        .order_by(models.AnnualEarnings.year)  # type: ignore[attr-defined]
         .all()
     )
 
@@ -358,23 +358,23 @@ def resolve_symbol(db: Session, symbol: str) -> Optional[str]:
         db.query(models.StockInfo)
         .filter(
             models.StockInfo.market_type == "A_share",
-            models.StockInfo.ts_code.ilike(f"{symbol}.%"),
+            models.StockInfo.ts_code.ilike(f"{symbol}.%"),  # type: ignore[attr-defined]
         )
         .first()
     )
     if a_share_info:
-        return a_share_info.ts_code
+        return str(a_share_info.ts_code)
 
     us_stock_info = (
         db.query(models.StockInfo)
         .filter(
             models.StockInfo.market_type == "US_stock",
-            models.StockInfo.ts_code.ilike(symbol),
+            models.StockInfo.ts_code.ilike(symbol),  # type: ignore[attr-defined]
         )
         .first()
     )
     if us_stock_info:
-        return us_stock_info.ts_code
+        return str(us_stock_info.ts_code)
 
     if not any(char.isdigit() for char in symbol):
         return symbol.upper()

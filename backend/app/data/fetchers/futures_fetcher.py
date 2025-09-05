@@ -38,7 +38,7 @@ def fetch_futures_from_yfinance(
         progress=False,
     )
 
-    if df.empty:
+    if df is None or df.empty:
         logger.warning(f"yfinance returned empty DataFrame for {symbol}")
         return pd.DataFrame()
 
@@ -48,7 +48,7 @@ def fetch_futures_from_yfinance(
         df.columns = df.columns.get_level_values(0)
 
     df.dropna(subset=["Date"], inplace=True)
-    if df.empty:
+    if df is None or df.empty:
         logger.warning(
             f"DataFrame became empty after dropping rows with missing dates for {symbol}"
         )
@@ -166,7 +166,7 @@ def _aggregate_interval(
         return df
     # Ensure datetime index
     df = df.copy()
-    df["trade_date"] = pd.to_datetime(df["trade_date"])  # type: ignore[arg-type]
+    df["trade_date"] = pd.to_datetime(df["trade_date"])
     df = df.set_index("trade_date").sort_index()
     rule = "W-FRI" if interval == "weekly" else "M"
     agg = {
@@ -260,7 +260,7 @@ def fetch_china_futures_from_akshare(
     # Filter date range
     mask = (df["trade_date"] >= start_date) & (df["trade_date"] <= end_date)
     df = df.loc[mask].copy()
-    if df.empty:
+    if df is None or df.empty:
         return pd.DataFrame()
 
     # Ensure amount

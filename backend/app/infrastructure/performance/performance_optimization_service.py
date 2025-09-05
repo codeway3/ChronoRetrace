@@ -88,7 +88,7 @@ class MemoryManager:
         """检查当前内存使用量 (MB)"""
         process = psutil.Process()
         memory_info = process.memory_info()
-        return memory_info.rss / 1024 / 1024
+        return float(memory_info.rss) / 1024 / 1024
 
     def is_memory_available(self, required_mb: float = 0) -> bool:
         """检查是否有足够内存"""

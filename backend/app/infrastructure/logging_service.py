@@ -95,8 +95,8 @@ class BatchOperationLog:
     start_time: datetime
     end_time: Optional[datetime] = None
     status: LogStatus = LogStatus.STARTED
-    metrics: OperationMetrics = None
-    sub_operations: List[str] = None  # 子操作ID列表
+    metrics: Optional[OperationMetrics] = None
+    sub_operations: Optional[List[str]] = None  # 子操作ID列表
     error_summary: Optional[str] = None
 
     def __post_init__(self):
@@ -248,7 +248,7 @@ class LoggingService:
         table_name: str,
         is_valid: bool,
         quality_score: float,
-        validation_errors: List[str] = None,
+        validation_errors: Optional[List[str]] = None,
         execution_time: float = 0.0,
     ) -> None:
         """记录数据校验结果
@@ -485,7 +485,7 @@ class LoggingService:
         if logs:
             execution_times = [log.execution_time for log in logs if log.execution_time]
             if execution_times:
-                avg_execution_time = sum(execution_times) / len(execution_times)
+                avg_execution_time = float(sum(execution_times)) / len(execution_times)
 
         # 按操作类型分组统计
         operation_type_stats = {}
@@ -522,14 +522,14 @@ class LoggingService:
 
         try:
             # 删除过期日志
-            deleted_count = (
+            deleted_count = int(
                 self.db_session.query(DataQualityLog)
                 .filter(DataQualityLog.created_at < cutoff_date)
                 .delete()
             )
 
             # 如果日志数量超过限制，删除最旧的日志
-            total_logs = self.db_session.query(DataQualityLog).count()
+            total_logs = int(self.db_session.query(DataQualityLog).count())
             if total_logs > self.max_log_entries:
                 excess_count = total_logs - self.max_log_entries
                 oldest_logs = (

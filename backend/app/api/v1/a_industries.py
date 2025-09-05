@@ -1,7 +1,6 @@
 import logging
 import math
-from typing import Dict, List
-
+from typing import List, Dict, cast
 from fastapi import APIRouter, HTTPException, Query
 from fastapi_cache.decorator import cache
 from starlette.concurrency import run_in_threadpool
@@ -33,7 +32,7 @@ async def get_industry_overview(
     """
     try:
         logger.info(f"Fetching industry overview: window={window}, provider={provider}")
-        data = await fetcher.build_overview(window, provider)
+        data = cast(List[Dict[str, object]], await fetcher.build_overview(window, provider))
         logger.info(f"Industry overview fetched: count={len(data)}")
         return data
     except Exception as e:

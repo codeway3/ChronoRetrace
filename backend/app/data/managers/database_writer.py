@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from typing import Any
 
 import pandas as pd
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -34,7 +35,6 @@ def store_stock_data(db: Session, ts_code: str, interval: str, df: pd.DataFrame)
                 "vol": {"min_value": 0},
                 "trade_date": {"required": True},
             },
-            deduplication_fields=["ts_code", "trade_date", "interval"],
         )
 
         with DataQualityManager(config) as quality_manager:
@@ -84,25 +84,26 @@ def store_stock_data(db: Session, ts_code: str, interval: str, df: pd.DataFrame)
     # Using SQLAlchemy's ORM bulk_insert_mappings for efficiency with upsert logic
     # This requires getting the dialect to choose the correct insert statement
     dialect = db.bind.dialect.name
+    stmt: Any
     if dialect == "sqlite":
-        stmt = sqlite_insert(models.StockData).values(records_to_insert)
+        sqlite_stmt = sqlite_insert(models.StockData).values(records_to_insert)
         # Define what to do on conflict: update the existing row
         update_dict = {
             c.name: c
-            for c in stmt.excluded
+            for c in sqlite_stmt.excluded
             if c.name not in ["ts_code", "trade_date", "interval"]
         }
-        stmt = stmt.on_conflict_do_update(
+        stmt = sqlite_stmt.on_conflict_do_update(
             index_elements=["ts_code", "trade_date", "interval"], set_=update_dict
         )
     else:  # Assuming postgresql for production
-        stmt = pg_insert(models.StockData).values(records_to_insert)
+        pg_stmt = pg_insert(models.StockData).values(records_to_insert)
         update_dict = {
             c.name: c
-            for c in stmt.excluded
+            for c in pg_stmt.excluded
             if c.name not in ["ts_code", "trade_date", "interval"]
         }
-        stmt = stmt.on_conflict_do_update(
+        stmt = pg_stmt.on_conflict_do_update(
             index_elements=["ts_code", "trade_date", "interval"], set_=update_dict
         )
 
@@ -132,7 +133,6 @@ def store_corporate_actions(db: Session, symbol: str, actions_data: list[dict]):
                 "ex_date": {"required": True},
                 "value": {"min_value": 0, "required": True},
             },
-            deduplication_fields=["symbol", "ex_date", "action_type"],
         )
 
         # Convert to DataFrame for processing
@@ -178,14 +178,15 @@ def store_corporate_actions(db: Session, symbol: str, actions_data: list[dict]):
     if not actions_to_insert:
         return 0
 
+    stmt: Any
     if db.bind.dialect.name == "sqlite":
-        stmt = sqlite_insert(models.CorporateAction).values(actions_to_insert)
-        stmt = stmt.on_conflict_do_nothing(
+        sqlite_stmt = sqlite_insert(models.CorporateAction).values(actions_to_insert)
+        stmt = sqlite_stmt.on_conflict_do_nothing(
             index_elements=["symbol", "ex_date", "action_type"]
         )
     else:
-        stmt = pg_insert(models.CorporateAction).values(actions_to_insert)
-        stmt = stmt.on_conflict_do_nothing(
+        pg_stmt = pg_insert(models.CorporateAction).values(actions_to_insert)
+        stmt = pg_stmt.on_conflict_do_nothing(
             index_elements=["symbol", "ex_date", "action_type"]
         )
 
@@ -253,12 +254,13 @@ def store_fundamental_data(db: Session, symbol: str, data: dict):
         key: value for key, value in processed_data.items() if key != "symbol"
     }
 
+    stmt: Any
     if db.bind.dialect.name == "sqlite":
-        stmt = sqlite_insert(models.FundamentalData).values(insert_values)
-        stmt = stmt.on_conflict_do_update(index_elements=["symbol"], set_=update_values)
+        sqlite_stmt = sqlite_insert(models.FundamentalData).values(insert_values)
+        stmt = sqlite_stmt.on_conflict_do_update(index_elements=["symbol"], set_=update_values)
     else:
-        stmt = pg_insert(models.FundamentalData).values(insert_values)
-        stmt = stmt.on_conflict_do_update(index_elements=["symbol"], set_=update_values)
+        pg_stmt = pg_insert(models.FundamentalData).values(insert_values)
+        stmt = pg_stmt.on_conflict_do_update(index_elements=["symbol"], set_=update_values)
 
     try:
         result = db.execute(stmt)
@@ -290,7 +292,6 @@ def store_annual_earnings(db: Session, symbol: str, annual_earnings_data: list[d
                 "year": {"required": True, "min_value": 1900, "max_value": 2100},
                 "net_profit": {"required": True, "allow_negative": True},
             },
-            deduplication_fields=["symbol", "year"],
         )
 
         # Convert to DataFrame for processing
@@ -333,22 +334,23 @@ def store_annual_earnings(db: Session, symbol: str, annual_earnings_data: list[d
             }
         )
 
+    stmt: Any
     if db.bind.dialect.name == "sqlite":
-        stmt = sqlite_insert(models.AnnualEarnings).values(earnings_to_insert)
-        stmt = stmt.on_conflict_do_update(
+        sqlite_stmt = sqlite_insert(models.AnnualEarnings).values(earnings_to_insert)
+        stmt = sqlite_stmt.on_conflict_do_update(
             index_elements=["symbol", "year"],
             set_=dict(
-                net_profit=stmt.excluded.net_profit,
-                last_updated=stmt.excluded.last_updated,
+                net_profit=sqlite_stmt.excluded.net_profit,
+                last_updated=sqlite_stmt.excluded.last_updated,
             ),
         )
     else:
-        stmt = pg_insert(models.AnnualEarnings).values(earnings_to_insert)
-        stmt = stmt.on_conflict_do_update(
+        pg_stmt = pg_insert(models.AnnualEarnings).values(earnings_to_insert)
+        stmt = pg_stmt.on_conflict_do_update(
             index_elements=["symbol", "year"],
             set_=dict(
-                net_profit=stmt.excluded.net_profit,
-                last_updated=stmt.excluded.last_updated,
+                net_profit=pg_stmt.excluded.net_profit,
+                last_updated=pg_stmt.excluded.last_updated,
             ),
         )
 

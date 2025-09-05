@@ -53,5 +53,6 @@ if __name__ == "__main__":
     actual_ma60_last = df_with_ma.iloc[-1]["ma60"]
     print(f"Expected last MA60: {expected_ma60_last}")
     print(f"Actual last MA60:   {actual_ma60_last}")
-    assert abs(expected_ma60_last - actual_ma60_last) < 0.001
+    if abs(expected_ma60_last - actual_ma60_last) >= 0.001:
+        raise ValueError(f"MA60 calculation error: expected {expected_ma60_last}, got {actual_ma60_last}")
     print("\nTest successful!")

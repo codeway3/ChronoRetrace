@@ -42,7 +42,7 @@ def screen_stocks(db: Session, request: StockScreenerRequest) -> StockScreenerRe
 
     # 首先获取每个股票的最新日期
     latest_dates_subquery = (
-        db.query(
+        db.query(  # type: ignore
             DailyStockMetrics.code,
             func.max(DailyStockMetrics.date).label("latest_date"),
         )
@@ -53,7 +53,7 @@ def screen_stocks(db: Session, request: StockScreenerRequest) -> StockScreenerRe
 
     # 主查询：连接指标数据和股票信息
     query = (
-        db.query(DailyStockMetrics, StockInfo.name)
+        db.query(DailyStockMetrics, StockInfo.name)  # type: ignore
         .join(
             latest_dates_subquery,
             and_(

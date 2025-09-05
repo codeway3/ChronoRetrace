@@ -39,7 +39,7 @@ def fetch_commodity_from_yfinance(
         progress=False,
     )
 
-    if df.empty:
+    if df is None or df.empty:
         logger.warning(f"yfinance returned empty DataFrame for {symbol}")
         return pd.DataFrame()
 
@@ -49,7 +49,7 @@ def fetch_commodity_from_yfinance(
         df.columns = df.columns.get_level_values(0)
 
     df.dropna(subset=["Date"], inplace=True)
-    if df.empty:
+    if df is None or df.empty:
         logger.warning(
             f"DataFrame became empty after dropping rows with missing dates for {symbol}"
         )

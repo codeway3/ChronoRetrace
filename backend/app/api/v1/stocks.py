@@ -169,7 +169,7 @@ async def get_fundamental_data(
 
     # Check if data is stale or missing
     if not db_data or (
-        db_data and (datetime.utcnow() - db_data.last_updated) > timedelta(hours=24)
+        db_data and (datetime.utcnow() - db_data.last_updated) > timedelta(hours=24)  # type: ignore
     ):
         background_tasks.add_task(data_fetcher.sync_financial_data, resolved_symbol)
         if not db_data:  # If no data at all, inform user it's being synced
@@ -226,7 +226,7 @@ async def get_annual_earnings(
 
     # Check if data is stale or missing
     if not db_data or (
-        db_data and (datetime.utcnow() - db_data[0].last_updated) > timedelta(hours=24)
+        db_data and (datetime.utcnow() - db_data[0].last_updated) > timedelta(hours=24)  # type: ignore
     ):
         background_tasks.add_task(data_fetcher.sync_financial_data, resolved_symbol)
         if not db_data:  # If no data at all, inform user it's being synced

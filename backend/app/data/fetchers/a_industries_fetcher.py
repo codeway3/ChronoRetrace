@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import akshare as ak
 import pandas as pd
@@ -83,7 +83,8 @@ def fetch_industry_list_em() -> List[Dict[str, str]]:
                 )
                 return []
 
-            return df[["industry_name", "industry_code"]].to_dict(orient="records")
+            result = df[["industry_name", "industry_code"]].to_dict(orient="records")
+            return result  # type: ignore[no-any-return]
 
         except Exception as exc:
             logger.warning(
@@ -103,6 +104,9 @@ def fetch_industry_list_em() -> List[Dict[str, str]]:
                 )
                 return []
 
+    # 如果循环正常结束但没有返回，返回空列表
+    return []
+
 
 def fetch_industry_list_ths() -> List[Dict[str, str]]:
     """Fetch industry list from THS index endpoint."""
@@ -118,7 +122,8 @@ def fetch_industry_list_ths() -> List[Dict[str, str]]:
             )
             return []
 
-        return df[["industry_name", "industry_code"]].to_dict(orient="records")
+        result = df[["industry_name", "industry_code"]].to_dict(orient="records")
+        return result  # type: ignore[no-any-return]
 
     except Exception as exc:
         logger.error(f"Failed to fetch THS industry list: {exc}", exc_info=True)
@@ -203,7 +208,7 @@ def build_overview(
 
         hist = fetch_industry_hist(name)
 
-        if hist.empty or len(hist) < 2:
+        if hist is None or hist.empty or len(hist) < 2:
             logger.warning(f"Not enough historical data for industry: {name} ({code})")
             continue
 
@@ -262,7 +267,8 @@ def fetch_industry_constituents(industry_code: str) -> List[Dict[str, object]]:
             )
             return []
 
-        return df.to_dict(orient="records")
+        result = df.to_dict(orient="records")
+        return result  # type: ignore[no-any-return]
 
     except Exception as exc:
         logger.error(
@@ -272,7 +278,7 @@ def fetch_industry_constituents(industry_code: str) -> List[Dict[str, object]]:
         return []
 
 
-def build_industry_overview(window: str = "20D") -> Dict[str, object]:
+def build_industry_overview(window: str = "20D") -> Dict[str, Dict[str, Any]]:
     """Build a comprehensive overview of all industries with their constituents."""
     logger.info(f"Building comprehensive industry overview with window={window}")
 
@@ -312,7 +318,7 @@ def build_industry_overview(window: str = "20D") -> Dict[str, object]:
         time.sleep(1)  # 延迟1秒
         constituents = fetch_industry_constituents(code)
 
-        if hist.empty or len(hist) < 2:
+        if hist is None or hist.empty or len(hist) < 2:
             logger.warning(f"Not enough historical data for industry: {name} ({code})")
             continue
 

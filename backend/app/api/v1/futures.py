@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Literal
 
 import akshare as ak
 from fastapi import APIRouter, HTTPException, Query
@@ -34,7 +34,7 @@ async def get_futures_list():
 @cache(expire=900)  # Cache for 15 minutes
 async def get_futures_data(
     symbol: str,
-    interval: str = Query("daily", enum=["daily", "weekly", "monthly"]),
+    interval: Literal["daily", "weekly", "monthly"] = Query("daily", enum=["daily", "weekly", "monthly"]),
 ):
     """
     Get historical data for a specific future using yfinance.
@@ -58,7 +58,7 @@ async def get_futures_data(
     last_exception = None
 
     # If symbol looks like China futures (e.g., rb2410), fetch directly via Akshare
-    if futures_fetcher._is_china_futures_contract(base):  # type: ignore[attr-defined]
+    if futures_fetcher._is_china_futures_contract(base):
         # First try with uppercase base (e.g., RB2410)
         df = await run_in_threadpool(
             futures_fetcher.fetch_china_futures_from_akshare,

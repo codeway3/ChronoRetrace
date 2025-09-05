@@ -405,7 +405,7 @@ def fetch_corporate_actions_from_baostock(symbol: str) -> list[dict]:
 
         # Sort actions by date
         if actions:
-            actions.sort(key=lambda x: x["ex_date"], reverse=True)
+            actions.sort(key=lambda x: str(x["ex_date"]), reverse=True)
 
     return actions
 

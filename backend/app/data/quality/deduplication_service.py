@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database.models import DailyStockMetrics, DataQualityLog
+from app.infrastructure.database.models import DailyStockMetrics, DataQualityLog  # type: ignore
 
 
 class DeduplicationStrategy(Enum):
@@ -35,13 +35,13 @@ class DuplicateRecord:
 
     duplicate_type: DuplicateType
     similarity_score: float  # 0.0 - 1.0
-    record_id: int = None
-    conflicting_fields: List[str] = None
-    data_source: str = None
+    record_id: Optional[int] = None
+    conflicting_fields: Optional[List[str]] = None
+    data_source: Optional[str] = None
     quality_score: float = 0.0
-    created_at: datetime = None
-    index: int = None  # 记录在列表中的索引
-    data: Dict[str, Any] = None  # 记录的实际数据
+    created_at: Optional[datetime] = None
+    index: Optional[int] = None  # 记录在列表中的索引
+    data: Optional[Dict[str, Any]] = None  # 记录的实际数据
 
 
 @dataclass
@@ -64,7 +64,7 @@ class DeduplicationReport:
     duplicate_groups: List[DuplicateGroup]
     execution_time: float
     processed_at: datetime
-    deduplicated_data: List[Dict[str, Any]] = None  # 去重后的数据，用于向后兼容
+    deduplicated_data: Optional[List[Dict[str, Any]]] = None  # 去重后的数据，用于向后兼容
 
 
 class DataDeduplicationService:
@@ -136,7 +136,7 @@ class DataDeduplicationService:
         # 创建一个排序后的字符串表示
         sorted_items = sorted(data.items())
         data_str = str(sorted_items)
-        return hashlib.md5(data_str.encode()).hexdigest()
+        return hashlib.md5(data_str.encode(), usedforsecurity=False).hexdigest()
 
     def _identify_duplicate_type(
         self, data1: Dict[str, Any], data2: Dict[str, Any]
@@ -208,7 +208,7 @@ class DataDeduplicationService:
         total_duplicates = sum(len(group.records) for group in duplicate_groups)
 
         # 统计重复类型分布
-        duplicate_types = defaultdict(int)
+        duplicate_types: Dict[str, int] = defaultdict(int)
         similarity_scores = []
 
         for group in duplicate_groups:
@@ -249,7 +249,10 @@ class DataDeduplicationService:
         query = self.db_session.query(DailyStockMetrics)
 
         if date_range:
-            start_date, end_date = date_range
+            start_date_str, end_date_str = date_range
+            from datetime import datetime
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
             query = query.filter(
                 and_(
                     DailyStockMetrics.date >= start_date,
@@ -277,9 +280,9 @@ class DataDeduplicationService:
                         similarity_score=1.0,
                         record_id=record.id,
                         conflicting_fields=[],
-                        data_source=record.data_source or "unknown",
-                        quality_score=record.quality_score or 0.0,
-                        created_at=record.created_at or datetime.now(),
+                        data_source=record.data_source or "unknown",  # type: ignore
+                        quality_score=record.quality_score or 0.0,  # type: ignore
+                        created_at=record.updated_at or datetime.now(),
                     )
                     duplicate_records.append(duplicate_record)
 
@@ -294,7 +297,7 @@ class DataDeduplicationService:
         return duplicate_groups
 
     def find_duplicates_in_list(
-        self, data_list: List[Dict[str, Any]], unique_fields: List[str] = None
+        self, data_list: List[Dict[str, Any]], unique_fields: Optional[List[str]] = None
     ) -> List[DuplicateGroup]:
         """在数据列表中查找重复项
 
@@ -371,7 +374,7 @@ class DataDeduplicationService:
         self,
         data_list: List[Dict[str, Any]],
         strategy: DeduplicationStrategy = DeduplicationStrategy.KEEP_HIGHEST_QUALITY,
-        unique_fields: List[str] = None,
+        unique_fields: Optional[List[str]] = None,
     ) -> DeduplicationReport:
         """批量去重数据
 
@@ -400,7 +403,14 @@ class DataDeduplicationService:
         duplicate_groups = self.find_duplicates_in_list(data_list, unique_fields)
 
         if not duplicate_groups:
-            return data_list
+            return DeduplicationReport(
+                total_processed=len(data_list),
+                duplicates_found=0,
+                duplicates_removed=0,
+                duplicate_groups=[],
+                execution_time=0.0,
+                processed_at=datetime.now(),
+            )
 
         # 记录要删除的索引
         indices_to_remove = set()
@@ -480,8 +490,8 @@ class DataDeduplicationService:
 
                         if db_record:
                             # 标记为重复而非直接删除
-                            db_record.is_duplicate = True
-                            db_record.duplicate_source = keep_record.data_source
+                            db_record.is_duplicate = True  # type: ignore
+                            db_record.duplicate_source = keep_record.data_source  # type: ignore
                             removed_count += 1
 
                             # 记录去重日志
@@ -499,8 +509,8 @@ class DataDeduplicationService:
                 )
 
                 if keep_db_record:
-                    keep_db_record.is_duplicate = False
-                    keep_db_record.duplicate_source = None
+                    keep_db_record.is_duplicate = False  # type: ignore
+                    keep_db_record.duplicate_source = None  # type: ignore
 
             self.db_session.commit()
 
@@ -685,9 +695,9 @@ class DataDeduplicationService:
     ) -> DuplicateRecord:
         """选择要保留的记录"""
         if strategy == DeduplicationStrategy.KEEP_FIRST:
-            return min(records, key=lambda r: r.created_at)
+            return min(records, key=lambda r: r.created_at or datetime.min)
         elif strategy == DeduplicationStrategy.KEEP_LAST:
-            return max(records, key=lambda r: r.created_at)
+            return max(records, key=lambda r: r.created_at or datetime.min)
         elif strategy == DeduplicationStrategy.KEEP_HIGHEST_QUALITY:
             return max(records, key=lambda r: r.quality_score)
         else:
@@ -715,7 +725,7 @@ class DataDeduplicationService:
             self.logger.error(f"记录去重日志失败: {str(e)}")
 
     def generate_duplicate_hash(
-        self, data: Dict[str, Any], fields: List[str] = None
+        self, data: Dict[str, Any], fields: Optional[List[str]] = None
     ) -> str:
         """生成数据哈希值用于快速重复检测
 
@@ -741,4 +751,4 @@ class DataDeduplicationService:
                     hash_parts.append(f"{field}:{value}")
 
         hash_string = "|".join(hash_parts)
-        return hashlib.md5(hash_string.encode("utf-8")).hexdigest()
+        return hashlib.md5(hash_string.encode("utf-8"), usedforsecurity=False).hexdigest()

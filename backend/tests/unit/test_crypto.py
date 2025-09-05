@@ -110,7 +110,8 @@ def test_get_top_cryptos_success(mock_get):
     assert result[0]["CoinInfo"]["Name"] == "BTC"
     assert result[1]["CoinInfo"]["Name"] == "ETH"
     mock_get.assert_called_once_with(
-        "https://min-api.cryptocompare.com/data/top/mktcapfull?limit=10&tsym=USD"
+        "https://min-api.cryptocompare.com/data/top/mktcapfull?limit=10&tsym=USD",
+        timeout=30
     )
 
 

@@ -417,15 +417,18 @@ async def update_metrics_for_market(db: Session, market: str) -> int:
                     continue
 
                 # 3. 准备最终数据
+                # 安全处理 fundamentals 可能为 None 的情况
+                fund_data = fundamentals or {}
+
                 metrics_data = {
                     "code": stock.ts_code,
                     "market": market,
                     "date": end_date,
                     **tech_metrics,
-                    "pe_ratio": fundamentals.get("pe_ratio"),
-                    "pb_ratio": fundamentals.get("pb_ratio"),
-                    "market_cap": fundamentals.get("market_cap"),
-                    "dividend_yield": fundamentals.get("dividend_yield"),
+                    "pe_ratio": fund_data.get("pe_ratio"),
+                    "pb_ratio": fund_data.get("pb_ratio"),
+                    "market_cap": fund_data.get("market_cap"),
+                    "dividend_yield": fund_data.get("dividend_yield"),
                 }
 
                 # 4. 更新数据库

@@ -70,7 +70,7 @@ class ErrorResponse:
     error_message: str = ""
     user_message: str = ""  # 用户友好的错误信息
     details: Optional[Dict[str, Any]] = None
-    timestamp: datetime = None
+    timestamp: Optional[datetime] = None
     request_id: Optional[str] = None
 
     def __post_init__(self):

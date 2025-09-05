@@ -10,7 +10,7 @@ from ..managers.data_utils import calculate_ma
 logger = logging.getLogger(__name__)
 
 
-def get_expiration_dates(symbol: str) -> tuple:
+def get_expiration_dates(symbol: str) -> tuple[str, ...]:
     """
     Fetches the available expiration dates for a given underlying stock symbol.
     """
@@ -20,7 +20,7 @@ def get_expiration_dates(symbol: str) -> tuple:
         expirations = ticker.options
         if not expirations:
             logger.warning(f"No expiration dates found for symbol: {symbol}")
-        return expirations
+        return tuple(expirations) if expirations else ()
     except Exception as e:
         logger.error(
             f"Failed to fetch expiration dates for {symbol}: {e}", exc_info=True
@@ -117,7 +117,7 @@ def fetch_options_from_yfinance(
         progress=False,
     )
 
-    if df.empty:
+    if df is None or df.empty:
         logger.warning(f"yfinance returned empty DataFrame for {symbol}")
         return pd.DataFrame()
 
@@ -127,7 +127,7 @@ def fetch_options_from_yfinance(
         df.columns = df.columns.get_level_values(0)
 
     df.dropna(subset=["Date"], inplace=True)
-    if df.empty:
+    if df is None or df.empty:
         logger.warning(
             f"DataFrame became empty after dropping rows with missing dates for {symbol}"
         )

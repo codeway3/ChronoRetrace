@@ -244,7 +244,9 @@ class TestDataValidationService(unittest.TestCase):
         self.assertIsInstance(report, ValidationReport)
         self.assertFalse(report.is_valid)
         self.assertLess(report.quality_score, 0.5)  # 低质量分数
-        self.assertGreater(len(report.errors), 0)
+        self.assertIsNotNone(report.errors)
+        if report.errors is not None:
+            self.assertGreater(len(report.errors), 0)
 
     def test_calculate_quality_score(self):
         """测试质量分数计算"""

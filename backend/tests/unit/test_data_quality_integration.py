@@ -202,9 +202,12 @@ class TestDataQualityIntegration(unittest.TestCase):
         self.assertIsInstance(dedup_report, DeduplicationReport)
         deduplicated_data = dedup_report.deduplicated_data
         self.assertIsInstance(deduplicated_data, list)
-        self.assertLess(
-            len(deduplicated_data), len(self.test_dataset)
-        )  # 去重后数据应该减少
+        self.assertIsNotNone(deduplicated_data)
+        # 确保deduplicated_data不为None后再比较长度
+        if deduplicated_data is not None:
+            self.assertLess(
+                len(deduplicated_data), len(self.test_dataset)
+            )  # 去重后数据应该减少
 
         # 3. 日志记录
         self.logging_service.log_operation(
@@ -368,8 +371,8 @@ class TestDataQualityIntegration(unittest.TestCase):
             ),
             "average_quality_score": sum(r.quality_score for r in validation_reports)
             / len(validation_reports),
-            "validation_errors": sum(len(r.errors) for r in validation_reports),
-            "validation_warnings": sum(len(r.warnings) for r in validation_reports),
+            "validation_errors": sum(len(r.errors or []) for r in validation_reports),
+            "validation_warnings": sum(len(r.warnings or []) for r in validation_reports),
         }
 
         # 验证指标

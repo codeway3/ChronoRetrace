@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 import pandas as pd
 import requests
@@ -14,11 +14,12 @@ def get_top_cryptos(limit: int = 100) -> List[Dict[str, Any]]:
         f"https://min-api.cryptocompare.com/data/top/mktcapfull?limit={limit}&tsym=USD"
     )
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=30)
         response.raise_for_status()
         data = response.json()
         if "Data" in data:
-            return data["Data"]
+            result = data["Data"]
+            return cast(List[Dict[str, Any]], result)
         return []
     except requests.exceptions.RequestException as e:
         print(f"Error fetching crypto data: {e}")
@@ -59,7 +60,8 @@ def aggregate_ohlcv(data: List[Dict[str, Any]], interval: str) -> List[Dict[str,
     agg_df.reset_index(inplace=True)
     agg_df["time"] = agg_df["time"].apply(lambda x: int(x.timestamp()))
 
-    return agg_df.to_dict("records")
+    result = cast(List[Dict[str, Any]], agg_df.to_dict("records"))
+    return result
 
 
 def get_crypto_ohlcv(
@@ -74,7 +76,7 @@ def get_crypto_ohlcv(
 
     url = f"https://min-api.cryptocompare.com/data/v2/histoday?fsym={symbol}&tsym=USD&limit={fetch_limit}"
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=30)
         response.raise_for_status()
         data = response.json()
 
@@ -86,7 +88,8 @@ def get_crypto_ohlcv(
             # Calculate MAs for daily data
             df = pd.DataFrame(daily_data)
             df = calculate_ma(df)
-            return df.to_dict("records")
+            result = cast(List[Dict[str, Any]], df.to_dict("records"))
+            return result
 
         return []
     except requests.exceptions.RequestException as e:

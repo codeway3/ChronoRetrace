@@ -43,7 +43,7 @@ class ValidationRule:
 
     field_name: str
     rule_type: str  # 'format', 'range', 'type', 'logic'
-    rule_config: Dict[str, Any] = None
+    rule_config: Optional[Dict[str, Any]] = None
     severity: ValidationSeverity = ValidationSeverity.ERROR
     error_message: str = ""
     is_enabled: bool = True
@@ -72,8 +72,8 @@ class ValidationReport:
     validated_at: datetime
     record_id: Optional[str] = None
     validation_time: Optional[float] = None
-    errors: List[str] = None
-    warnings: List[str] = None
+    errors: Optional[List[str]] = None
+    warnings: Optional[List[str]] = None
 
     def __post_init__(self):
         if self.errors is None:
@@ -121,7 +121,7 @@ class DataValidationService:
         }
 
     def validate_stock_data(
-        self, data: Dict[str, Any], market_type: str = "A_share"
+        self, data: Optional[Dict[str, Any]], market_type: str = "A_share"
     ) -> ValidationReport:
         """校验股票数据
 
@@ -133,7 +133,7 @@ class DataValidationService:
             ValidationReport: 校验报告
         """
         start_time = datetime.now()
-        results = []
+        results: List[ValidationResult] = []
 
         # 检查数据是否为None
         if data is None:
@@ -149,22 +149,19 @@ class DataValidationService:
         # 股票代码格式校验
         if "code" in data:
             result = self._validate_stock_code(data["code"], market_type)
-            if result:
-                results.append(result)
+            results.append(result)
 
         # 日期格式校验
         if "date" in data:
             result = self._validate_date(data["date"])
-            if result:
-                results.append(result)
+            results.append(result)
 
         # 价格数据校验
         price_fields = ["open", "high", "low", "close", "pre_close"]
         for field in price_fields:
             if field in data:
                 result = self._validate_price(data[field], field)
-                if result:
-                    results.append(result)
+                results.append(result)
 
         # 价格逻辑关系校验
         if all(field in data for field in ["open", "high", "low", "close"]):
@@ -208,7 +205,7 @@ class DataValidationService:
             )
         return None
 
-    def _validate_stock_code(self, code: str, market_type: str) -> ValidationResult:
+    def _validate_stock_code(self, code: Any, market_type: str) -> ValidationResult:
         """校验股票代码格式"""
         if not isinstance(code, str):
             return ValidationResult(
@@ -229,13 +226,12 @@ class DataValidationService:
                 error_code="INVALID_CODE_FORMAT",
             )
 
-        # 验证成功时返回有效的ValidationResult
+        # 验证成功时返回成功的ValidationResult
         return ValidationResult(
             is_valid=True,
             field_name="code",
-            message="股票代码格式正确",
+            message=f"股票代码 '{code}' 格式正确",
             severity=ValidationSeverity.INFO,
-            error_code="VALID_CODE",
         )
 
     def _validate_date(self, date_value: Any) -> ValidationResult:
@@ -269,13 +265,12 @@ class DataValidationService:
                 error_code="INVALID_DATE_TYPE",
             )
 
-        # 验证成功时返回有效的ValidationResult
+        # 验证成功时返回成功的ValidationResult
         return ValidationResult(
             is_valid=True,
             field_name="date",
             message="日期格式正确",
             severity=ValidationSeverity.INFO,
-            error_code="VALID_DATE",
         )
 
     def _validate_price(self, price: Any, field_name: str) -> ValidationResult:
@@ -339,18 +334,17 @@ class DataValidationService:
                 error_code="PRICE_TOO_HIGH",
             )
 
-        # 验证成功时返回有效的ValidationResult
+        # 验证成功时返回成功的ValidationResult
         return ValidationResult(
             is_valid=True,
             field_name=field_name,
-            message=f"价格 '{field_name}' 格式正确",
+            message=f"价格 '{field_name}' 有效",
             severity=ValidationSeverity.INFO,
-            error_code="VALID_PRICE",
         )
 
     def _validate_price_logic(self, data: Dict[str, Any]) -> List[ValidationResult]:
         """校验价格逻辑关系"""
-        results = []
+        results: List[ValidationResult] = []
 
         # 验证价格数据是否可以转换为浮点数
         try:
@@ -363,8 +357,7 @@ class DataValidationService:
 
         # 添加价格关系验证
         price_relationship_result = self._validate_price_relationships(data)
-        if price_relationship_result:
-            results.append(price_relationship_result)
+        results.append(price_relationship_result)
 
         return results
 
@@ -404,13 +397,12 @@ class DataValidationService:
                 error_code="INVALID_LOW_PRICE",
             )
 
-        # 验证成功
+        # 验证成功时返回成功的ValidationResult
         return ValidationResult(
             is_valid=True,
             field_name="price_relationships",
             message="价格关系逻辑正确",
             severity=ValidationSeverity.INFO,
-            error_code="VALID_PRICE_RELATIONSHIPS",
         )
 
     def _validate_volume(self, volume: Any) -> ValidationResult:
@@ -454,13 +446,12 @@ class DataValidationService:
                 error_code="NON_INTEGER_VOLUME",
             )
 
-        # 验证成功
+        # 验证成功时返回成功的ValidationResult
         return ValidationResult(
             is_valid=True,
             field_name="volume",
-            message="成交量格式正确",
+            message="成交量数据有效",
             severity=ValidationSeverity.INFO,
-            error_code="VALID_VOLUME",
         )
 
     def _validate_change_percent(
@@ -526,7 +517,7 @@ class DataValidationService:
 
         return is_valid, quality_score
 
-    def get_validation_rules(self, table_name: str = None) -> List[ValidationRule]:
+    def get_validation_rules(self, table_name: Optional[str] = None) -> List[ValidationRule]:
         """获取所有验证规则"""
         rules = []
 

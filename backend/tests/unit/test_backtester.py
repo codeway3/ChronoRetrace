@@ -186,8 +186,8 @@ def test_run_grid_backtest_with_transaction_costs(mocker, mock_stock_data):
 
     assert result is not None
     assert result.trade_count == 2
-    assert round(result.total_pnl, 2) == 1839.20
-    assert round(result.transaction_log[1].pnl, 2) == 1839.20
+    assert result.total_pnl is not None and round(result.total_pnl, 2) == 1839.20
+    assert result.transaction_log[1].pnl is not None and round(result.transaction_log[1].pnl, 2) == 1839.20
     assert result.final_holding_quantity == 0
 
 

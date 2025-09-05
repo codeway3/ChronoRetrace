@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.infrastructure.database.session import get_db
 from app.schemas.stock import StockScreenerRequest, StockScreenerResponse
-from app.analytics.screener import screener_service
+from app.analytics.screener.screener_service import screen_stocks
 
 router = APIRouter()
 
@@ -11,7 +11,7 @@ router = APIRouter()
 @router.post("/screener/stocks", response_model=StockScreenerResponse)
 async def screen_stocks_endpoint(
     request: StockScreenerRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     """
     Screens stocks based on a dynamic set of filtering conditions.
@@ -20,7 +20,7 @@ async def screen_stocks_endpoint(
     and technical criteria.
     """
     try:
-        return screener_service.screen_stocks(db=db, request=request)
+        return screen_stocks(db=db, request=request)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

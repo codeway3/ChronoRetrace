@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.infrastructure.database.session import get_db
 from app.data.quality.quality_manager import DataQualityConfig, DataQualityManager
+from app.data.quality.deduplication_service import DeduplicationStrategy
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ async def validate_data(
 
         df = pd.DataFrame(data)
 
-        with DataQualityManager(config) as quality_manager:
+        with DataQualityManager(db, config) as quality_manager:
             result = quality_manager.validate_only(df)
 
             return {
@@ -72,13 +73,12 @@ async def deduplicate_data(
         config = DataQualityConfig(
             enable_validation=False,
             enable_deduplication=True,
-            deduplication_fields=deduplication_fields,
-            deduplication_strategy=strategy,
+            deduplication_strategy=DeduplicationStrategy(strategy),
         )
 
         df = pd.DataFrame(data)
 
-        with DataQualityManager(config) as quality_manager:
+        with DataQualityManager(db, config) as quality_manager:
             result = quality_manager.deduplicate_only(df)
 
             return {
@@ -120,13 +120,12 @@ async def process_data(
             enable_validation=bool(validation_rules),
             enable_deduplication=bool(deduplication_fields),
             validation_rules=validation_rules or {},
-            deduplication_fields=deduplication_fields or [],
-            deduplication_strategy=strategy,
+            deduplication_strategy=DeduplicationStrategy(strategy),
         )
 
         df = pd.DataFrame(data)
 
-        with DataQualityManager(config) as quality_manager:
+        with DataQualityManager(db, config) as quality_manager:
             result = quality_manager.process_data(df)
 
             response = {
@@ -165,7 +164,7 @@ async def process_data(
 
 @router.get("/health")
 @cache(expire=300)  # Cache for 5 minutes
-async def data_quality_health():
+async def data_quality_health(db: Session = Depends(get_db)):
     """
     Check the health status of data quality services.
     """
@@ -176,10 +175,9 @@ async def data_quality_health():
             enable_validation=True,
             enable_deduplication=True,
             validation_rules={"test": {"required": True}},
-            deduplication_fields=["test"],
         )
 
-        with DataQualityManager(config) as quality_manager:
+        with DataQualityManager(db, config) as quality_manager:
             result = quality_manager.process_data(test_data)
 
         return {

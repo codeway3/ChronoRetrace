@@ -111,7 +111,7 @@ async def warm_up_cache():
 
                 days_map = {"5D": 5, "20D": 20, "60D": 60}
                 days = days_map.get(window.upper(), 20)
-                results = []
+                results: list[dict] = []
 
                 # 限制处理的行业数量，避免一次性请求过多
                 max_industries = 50
@@ -179,7 +179,7 @@ async def warm_up_cache():
                         )
                         sparkline_data = hist.tail(days)[["trade_date", "close"]].copy()
                         sparkline_data["close"] = sparkline_data["close"].astype(float)
-                        sparkline = sparkline_data.to_dict(orient="records")
+                        sparkline = sparkline_data.to_dict("records")
 
                         results.append(
                             {

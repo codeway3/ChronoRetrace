@@ -344,6 +344,7 @@ def test_store_fundamental_data(db_session):
             result_updated = conn.execute(
                 text("SELECT * FROM fundamental_data")
             ).fetchone()
+            assert result_updated is not None
             assert result_updated[2] == 1.1e12
     finally:
         new_session.close()
