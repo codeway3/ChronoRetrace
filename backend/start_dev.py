@@ -5,8 +5,9 @@ This script configures uvicorn to only watch the backend directory for changes,
 avoiding issues with frontend node_modules directory.
 """
 
-import uvicorn
 from pathlib import Path
+
+import uvicorn
 
 if __name__ == "__main__":
     # Get the backend directory path

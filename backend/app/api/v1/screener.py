@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.analytics.screener.screener_service import screen_stocks
 from app.infrastructure.database.session import get_db
 from app.schemas.stock import StockScreenerRequest, StockScreenerResponse
-from app.analytics.screener.screener_service import screen_stocks
 
 router = APIRouter()
 
@@ -22,7 +22,7 @@ async def screen_stocks_endpoint(
     try:
         return screen_stocks(db=db, request=request)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         # 记录异常详情以便调试
         import logging
@@ -31,4 +31,4 @@ async def screen_stocks_endpoint(
         error_msg = f"Screener error: {str(e)}\n{traceback.format_exc()}"
         logging.error(error_msg)
         # Generic error handler for unexpected issues
-        raise HTTPException(status_code=500, detail="An internal error occurred.")
+        raise HTTPException(status_code=500, detail="An internal error occurred.") from e

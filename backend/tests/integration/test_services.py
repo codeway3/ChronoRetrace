@@ -8,10 +8,11 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from app.infrastructure.database import models
 from app.data.fetchers.stock_fetchers import a_share_fetcher, us_stock_fetcher
-from app.data.managers import database_admin as db_admin, database_writer as db_writer
+from app.data.managers import database_admin as db_admin
+from app.data.managers import database_writer as db_writer
 from app.data.managers.data_manager import StockDataFetcher
+from app.infrastructure.database import models
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

@@ -118,4 +118,10 @@ def fetch_commodity_from_yfinance(
         if col not in df.columns:
             df[col] = None
 
-    return df[final_cols]
+    result = df[final_cols]
+
+    # Ensure we return a DataFrame, not a Series
+    if isinstance(result, pd.Series):
+        result = result.to_frame().T
+
+    return result

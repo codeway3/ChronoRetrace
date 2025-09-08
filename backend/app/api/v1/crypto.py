@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -7,7 +7,7 @@ from app.data.fetchers.crypto_fetcher import get_crypto_ohlcv, get_top_cryptos
 router = APIRouter()
 
 
-@router.get("/top", response_model=List[Dict[str, Any]])
+@router.get("/top", response_model=list[dict[str, Any]])
 async def read_top_cryptos():
     """
     Retrieve the top 100 cryptocurrencies by market capitalization.
@@ -20,7 +20,7 @@ async def read_top_cryptos():
     return cryptos
 
 
-@router.get("/{symbol}/history", response_model=List[Dict[str, Any]])
+@router.get("/{symbol}/history", response_model=list[dict[str, Any]])
 async def read_crypto_history(
     symbol: str, interval: str = Query("daily", enum=["daily", "weekly", "monthly"])
 ):

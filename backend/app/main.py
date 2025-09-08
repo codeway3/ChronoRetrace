@@ -22,9 +22,9 @@ from app.api.v1 import options as options_v1
 from app.api.v1 import screener as screener_v1
 from app.api.v1 import stocks as stocks_v1
 from app.core.config import settings
+from app.data.fetchers import a_industries_fetcher
 from app.infrastructure.database import models
 from app.infrastructure.database.session import SessionLocal, engine
-from app.data.fetchers import a_industries_fetcher
 
 # Suppress the specific FutureWarning from baostock
 warnings.filterwarnings(
@@ -179,7 +179,7 @@ async def warm_up_cache():
                         )
                         sparkline_data = hist.tail(days)[["trade_date", "close"]].copy()
                         sparkline_data["close"] = sparkline_data["close"].astype(float)
-                        sparkline = sparkline_data.to_dict("records")
+                        sparkline = sparkline_data.to_dict(orient="records")  # type: ignore[misc]
 
                         results.append(
                             {

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 pytest 配置文件
 包含通用的测试工具和 fixture

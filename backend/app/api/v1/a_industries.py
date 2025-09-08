@@ -1,18 +1,19 @@
 import logging
 import math
-from typing import List, Dict, cast
+from typing import cast
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi_cache.decorator import cache
 from starlette.concurrency import run_in_threadpool
 
-from app.schemas.industry import ConstituentStock
 from app.data.fetchers import a_industries_fetcher as fetcher
+from app.schemas.industry import ConstituentStock
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def clean_json_data(data: List[Dict]) -> List[Dict]:
+def clean_json_data(data: list[dict]) -> list[dict]:
     """Recursively clean data to make it JSON compliant."""
     for item in data:
         for key, value in item.items():
@@ -21,7 +22,7 @@ def clean_json_data(data: List[Dict]) -> List[Dict]:
     return data
 
 
-@router.get("/overview", response_model=List[Dict[str, object]])
+@router.get("/overview", response_model=list[dict[str, object]])
 async def get_industry_overview(
     window: str = Query("20D", enum=["5D", "20D", "60D"]),
     provider: str = Query("em", enum=["em", "ths"]),
@@ -32,15 +33,15 @@ async def get_industry_overview(
     """
     try:
         logger.info(f"Fetching industry overview: window={window}, provider={provider}")
-        data = cast(List[Dict[str, object]], await fetcher.build_overview(window, provider))
+        data = cast(list[dict[str, object]], await fetcher.build_overview(window, provider))
         logger.info(f"Industry overview fetched: count={len(data)}")
         return data
     except Exception as e:
         logger.error(f"Failed to fetch industry overview: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to fetch industry overview")
+        raise HTTPException(status_code=500, detail="Failed to fetch industry overview") from e
 
 
-@router.get("/{industry_code}/stocks", response_model=List[ConstituentStock])
+@router.get("/{industry_code}/stocks", response_model=list[ConstituentStock])
 @cache(expire=3600)
 async def get_industry_constituent_stocks(industry_code: str):
     """
@@ -71,4 +72,4 @@ async def get_industry_constituent_stocks(industry_code: str):
         )
         raise HTTPException(
             status_code=500, detail="Failed to fetch constituent stocks"
-        )
+        ) from e

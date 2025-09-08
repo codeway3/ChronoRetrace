@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 筛选器服务的单元测试
 """
@@ -8,12 +7,12 @@ from unittest.mock import MagicMock as Mock
 
 import pytest
 
-from app.infrastructure.database.models import DailyStockMetrics
-from app.schemas.stock import ScreenerCondition, StockScreenerRequest
 from app.analytics.screener.screener_service import (
     get_operator_expression,
     screen_stocks,
 )
+from app.infrastructure.database.models import DailyStockMetrics
+from app.schemas.stock import ScreenerCondition, StockScreenerRequest
 
 
 class TestScreenerService:

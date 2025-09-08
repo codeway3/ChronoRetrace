@@ -2,12 +2,12 @@ from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from app.main import app
 from app.data.fetchers.crypto_fetcher import (
     aggregate_ohlcv,
     get_crypto_ohlcv,
     get_top_cryptos,
 )
+from app.main import app
 
 client = TestClient(app)
 

@@ -1,4 +1,3 @@
-from typing import List
 
 from sqlalchemy import and_, func, literal
 from sqlalchemy.orm import Session
@@ -12,7 +11,7 @@ from app.schemas.stock import ScreenedStock, StockScreenerRequest, StockScreener
 def get_operator_expression(column, operator: str, value):
     """Converts a string operator to a SQLAlchemy expression."""
     # If this is a real SQLAlchemy column/expression, build a ClauseElement
-    is_sqlalchemy_col = isinstance(column, (InstrumentedAttribute, ColumnElement))
+    is_sqlalchemy_col = isinstance(column, InstrumentedAttribute | ColumnElement)
     if is_sqlalchemy_col:
         rhs = literal(value)
         if operator == "gt":
@@ -139,7 +138,7 @@ def screen_stocks(db: Session, request: StockScreenerRequest) -> StockScreenerRe
             results = []
 
     # 格式化结果
-    screened_items: List[ScreenedStock] = []
+    screened_items: list[ScreenedStock] = []
 
     # 确保 results 是可迭代的（防止 Mock 对象导致的问题）
     if not hasattr(results, "__iter__") or isinstance(results, str):

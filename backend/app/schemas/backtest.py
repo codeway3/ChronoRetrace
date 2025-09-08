@@ -1,6 +1,6 @@
 from datetime import date
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, field_validator
 
@@ -19,7 +19,7 @@ class LowerBoundStrategy(str, Enum):
 
 # A type to represent a value that can be a single float or a range for optimization
 # Example: 5.0 or [5.0, 10.0, 1.0] for start, stop, step
-RangeValue = Union[float, List[float]]
+RangeValue = float | list[float]
 
 # --- Strategy Configuration Models ---
 
@@ -66,7 +66,7 @@ class GridStrategyOptimizeConfig(BaseModel):
     # Parameters that can be optimized are defined as ranges
     upper_price: RangeValue
     lower_price: RangeValue
-    grid_count: Union[int, List[int]]  # Grid count must be integer
+    grid_count: int | list[int]  # Grid count must be integer
 
     total_investment: float
     initial_quantity: int = 0
@@ -105,7 +105,7 @@ class Transaction(BaseModel):
     trade_type: str
     price: float
     quantity: int
-    pnl: Optional[float] = None
+    pnl: float | None = None
 
 
 class ChartDataPoint(BaseModel):
@@ -137,9 +137,9 @@ class BacktestResult(BaseModel):
     win_rate: float
     trade_count: int
 
-    chart_data: List[ChartDataPoint]
-    kline_data: List[KLineDataPoint]
-    transaction_log: List[Transaction]
+    chart_data: list[ChartDataPoint]
+    kline_data: list[KLineDataPoint]
+    transaction_log: list[Transaction]
 
     strategy_config: GridStrategyConfig  # The exact config used for this run
     market_type: str
@@ -152,7 +152,7 @@ class OptimizationResultItem(BaseModel):
     A summary of a single run within a larger optimization task.
     """
 
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
     annualized_return_rate: float
     sharpe_ratio: float
     max_drawdown: float
@@ -165,5 +165,5 @@ class BacktestOptimizationResponse(BaseModel):
     The final response for a parameter optimization request.
     """
 
-    optimization_results: List[OptimizationResultItem]
+    optimization_results: list[OptimizationResultItem]
     best_result: OptimizationResultItem

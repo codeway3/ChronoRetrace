@@ -196,7 +196,7 @@ class TestDataDeduplicationService(unittest.TestCase):
 
         # 检查重复类型
         for record in duplicate_groups[0].records:
-            if record.index > 0:  # 第一条记录是原始记录
+            if record.index is not None and record.index > 0:  # 第一条记录是原始记录
                 self.assertEqual(record.duplicate_type, DuplicateType.EXACT)
 
     def test_find_duplicates_partial_match(self):
@@ -209,7 +209,7 @@ class TestDataDeduplicationService(unittest.TestCase):
         # 根据相似度阈值，可能找到或找不到重复
         if len(duplicate_groups) > 0:
             for record in duplicate_groups[0].records:
-                if record.index > 0:
+                if record.index is not None and record.index > 0:
                     self.assertEqual(record.duplicate_type, DuplicateType.PARTIAL)
 
     @patch("app.data.quality.deduplication_service.DailyStockMetrics")

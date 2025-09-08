@@ -12,10 +12,10 @@ from sqlalchemy.orm import sessionmaker
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from app.analytics.backtest import backtester
 from app.infrastructure.database.session import get_db
 from app.main import app
 from app.schemas.backtest import GridStrategyConfig
-from app.analytics.backtest import backtester
 
 # --- Test Database Setup ---
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"

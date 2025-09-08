@@ -1,15 +1,15 @@
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi_cache.decorator import cache
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database.session import get_db
-from app.data.quality.quality_manager import DataQualityConfig, DataQualityManager
 from app.data.quality.deduplication_service import DeduplicationStrategy
+from app.data.quality.quality_manager import DataQualityConfig, DataQualityManager
+from app.infrastructure.database.session import get_db
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 @router.post("/validate")
 async def validate_data(
-    data: List[Dict[str, Any]],
-    validation_rules: Optional[Dict[str, Dict[str, Any]]] = None,
+    data: list[dict[str, Any]],
+    validation_rules: dict[str, dict[str, Any]] | None = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -47,20 +47,20 @@ async def validate_data(
                     "errors": result.validation_report.errors,
                     "warnings": result.validation_report.warnings,
                 },
-                "processed_data": result.processed_data.to_dict("records")
+                "processed_data": result.processed_data.to_dict(orient="records")
                 if not result.processed_data.empty
                 else [],
             }
 
     except Exception as e:
         logger.error(f"Data validation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}") from e
 
 
 @router.post("/deduplicate")
 async def deduplicate_data(
-    data: List[Dict[str, Any]],
-    deduplication_fields: List[str],
+    data: list[dict[str, Any]],
+    deduplication_fields: list[str],
     strategy: str = Query(
         "KEEP_FIRST", enum=["KEEP_FIRST", "KEEP_LAST", "KEEP_HIGHEST_QUALITY"]
     ),
@@ -92,21 +92,21 @@ async def deduplicate_data(
                 }
                 if result.deduplication_report
                 else None,
-                "processed_data": result.processed_data.to_dict("records")
+                "processed_data": result.processed_data.to_dict(orient="records")
                 if not result.processed_data.empty
                 else [],
             }
 
     except Exception as e:
         logger.error(f"Data deduplication failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Deduplication failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Deduplication failed: {str(e)}") from e
 
 
 @router.post("/process")
 async def process_data(
-    data: List[Dict[str, Any]],
-    validation_rules: Optional[Dict[str, Dict[str, Any]]] = None,
-    deduplication_fields: Optional[List[str]] = None,
+    data: list[dict[str, Any]],
+    validation_rules: dict[str, dict[str, Any]] | None = None,
+    deduplication_fields: list[str] | None = None,
     strategy: str = Query(
         "KEEP_FIRST", enum=["KEEP_FIRST", "KEEP_LAST", "KEEP_HIGHEST_QUALITY"]
     ),
@@ -131,7 +131,7 @@ async def process_data(
             response = {
                 "status": "success",
                 "has_errors": result.has_errors,
-                "processed_data": result.processed_data.to_dict("records")
+                "processed_data": result.processed_data.to_dict(orient="records")
                 if not result.processed_data.empty
                 else [],
             }
@@ -159,7 +159,7 @@ async def process_data(
 
     except Exception as e:
         logger.error(f"Data processing failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}") from e
 
 
 @router.get("/health")
@@ -233,4 +233,4 @@ async def get_data_quality_metrics():
 
     except Exception as e:
         logger.error(f"Failed to get data quality metrics: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get metrics: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get metrics: {str(e)}") from e

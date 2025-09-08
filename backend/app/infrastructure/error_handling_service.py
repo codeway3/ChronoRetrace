@@ -4,7 +4,7 @@ import traceback
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -39,11 +39,11 @@ class ErrorContext:
     """错误上下文信息"""
 
     operation: str  # 操作名称
-    record_id: Optional[int] = None
-    table_name: Optional[str] = None
-    user_id: Optional[int] = None
-    request_id: Optional[str] = None
-    additional_data: Optional[Dict[str, Any]] = None
+    record_id: int | None = None
+    table_name: str | None = None
+    user_id: int | None = None
+    request_id: str | None = None
+    additional_data: dict[str, Any] | None = None
 
 
 @dataclass
@@ -56,9 +56,9 @@ class ErrorDetail:
     category: ErrorCategory
     context: ErrorContext
     timestamp: datetime
-    stack_trace: Optional[str] = None
-    suggested_action: Optional[str] = None
-    recovery_steps: Optional[List[str]] = None
+    stack_trace: str | None = None
+    suggested_action: str | None = None
+    recovery_steps: list[str] | None = None
 
 
 @dataclass
@@ -69,9 +69,9 @@ class ErrorResponse:
     error_code: str = ""
     error_message: str = ""
     user_message: str = ""  # 用户友好的错误信息
-    details: Optional[Dict[str, Any]] = None
-    timestamp: Optional[datetime] = None
-    request_id: Optional[str] = None
+    details: dict[str, Any] | None = None
+    timestamp: datetime | None = None
+    request_id: str | None = None
 
     def __post_init__(self):
         if self.timestamp is None:
@@ -87,7 +87,7 @@ class DataQualityError(Exception):
         error_code: str = "DQ_ERROR",
         severity: ErrorSeverity = ErrorSeverity.MEDIUM,
         category: ErrorCategory = ErrorCategory.VALIDATION,
-        context: Optional[ErrorContext] = None,
+        context: ErrorContext | None = None,
     ):
         super().__init__(message)
         self.message = message
@@ -130,7 +130,7 @@ class DeduplicationError(DataQualityError):
 class DatabaseError(DataQualityError):
     """数据库操作异常"""
 
-    def __init__(self, message: str, sql_error: Optional[Exception] = None, **kwargs):
+    def __init__(self, message: str, sql_error: Exception | None = None, **kwargs):
         super().__init__(
             message,
             error_code="DATABASE_ERROR",
@@ -231,7 +231,7 @@ class ErrorHandlingService:
         field_name: str,
         error_code: str,
         invalid_value: Any = None,
-        context: Optional[ErrorContext] = None,
+        context: ErrorContext | None = None,
     ) -> ErrorResponse:
         """处理数据校验错误
 
@@ -260,7 +260,7 @@ class ErrorHandlingService:
         self,
         sql_error: SQLAlchemyError,
         operation: str,
-        context: Optional[ErrorContext] = None,
+        context: ErrorContext | None = None,
     ) -> ErrorResponse:
         """处理数据库错误
 
@@ -354,7 +354,7 @@ class ErrorHandlingService:
         }
         return suggestions.get(error_code, "请检查输入数据并重试")
 
-    def _get_recovery_steps(self, error_code: str) -> List[str]:
+    def _get_recovery_steps(self, error_code: str) -> list[str]:
         """获取恢复步骤"""
         recovery_steps = {
             "VALIDATION_ERROR": [
@@ -466,7 +466,7 @@ class ErrorHandlingService:
 
     def create_success_response(
         self, data: Any = None, message: str = "操作成功"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """创建成功响应"""
         return {
             "success": True,

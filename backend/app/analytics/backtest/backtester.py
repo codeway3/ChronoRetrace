@@ -1,11 +1,11 @@
 import itertools
 import logging
-from typing import List
 
 import numpy as np
 import pandas as pd
 from sqlalchemy.orm import Session
 
+from app.data.managers import data_manager as data_fetcher
 from app.schemas.backtest import (
     BacktestOptimizationResponse,
     BacktestResult,
@@ -15,7 +15,6 @@ from app.schemas.backtest import (
     OptimizationResultItem,
     Transaction,
 )
-from app.data.managers import data_manager as data_fetcher
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +57,8 @@ def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult
     current_cost_basis = config.initial_quantity * config.initial_per_share_cost
 
     # Result accumulators
-    transaction_log: List[Transaction] = []
-    chart_data: List[ChartDataPoint] = []
+    transaction_log: list[Transaction] = []
+    chart_data: list[ChartDataPoint] = []
 
     # Metrics variables
     initial_cost_basis = current_cost_basis

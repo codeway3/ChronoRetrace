@@ -1,6 +1,5 @@
 import logging
 from datetime import date, datetime, timedelta
-from typing import Optional
 
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -66,7 +65,7 @@ class StockDataFetcher:
         stock_code: str,
         interval: str,
         market_type: str,
-        trade_date: Optional[date] = None,
+        trade_date: date | None = None,
     ):
         self.db = db
         self.stock_code = stock_code
@@ -171,7 +170,7 @@ class StockDataFetcher:
 
 
 def fetch_stock_data(
-    stock_code: str, interval: str, market_type: str, trade_date: Optional[date] = None
+    stock_code: str, interval: str, market_type: str, trade_date: date | None = None
 ):
     """
     Main entry point for fetching stock data.
@@ -297,7 +296,7 @@ async def _sync_us_stock_data(db: Session, symbol: str):
 
 def get_fundamental_data_from_db(
     db: Session, symbol: str
-) -> Optional[models.FundamentalData]:
+) -> models.FundamentalData | None:
     """
     从数据库中获取指定股票的基本面数据。
 
@@ -347,7 +346,7 @@ def get_annual_earnings_from_db(
     )
 
 
-def resolve_symbol(db: Session, symbol: str) -> Optional[str]:
+def resolve_symbol(db: Session, symbol: str) -> str | None:
     """
     Resolves a potentially incomplete stock symbol to its full ts_code.
     """

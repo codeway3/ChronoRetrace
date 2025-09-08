@@ -1,23 +1,22 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
 
 class FundamentalDataBase(BaseModel):
     symbol: str
-    market_cap: Optional[float] = None
-    pe_ratio: Optional[float] = None
-    dividend_yield: Optional[float] = None
-    eps: Optional[float] = None
-    beta: Optional[float] = None
-    gross_profit_margin: Optional[float] = None
-    net_profit_margin: Optional[float] = None
-    roe: Optional[float] = None
-    revenue_growth_rate: Optional[float] = None
-    net_profit_growth_rate: Optional[float] = None
-    debt_to_asset_ratio: Optional[float] = None
-    current_ratio: Optional[float] = None
+    market_cap: float | None = None
+    pe_ratio: float | None = None
+    dividend_yield: float | None = None
+    eps: float | None = None
+    beta: float | None = None
+    gross_profit_margin: float | None = None
+    net_profit_margin: float | None = None
+    roe: float | None = None
+    revenue_growth_rate: float | None = None
+    net_profit_growth_rate: float | None = None
+    debt_to_asset_ratio: float | None = None
+    current_ratio: float | None = None
 
 
 class FundamentalDataCreate(FundamentalDataBase):

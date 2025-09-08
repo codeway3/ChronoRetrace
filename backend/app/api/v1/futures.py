@@ -1,14 +1,14 @@
 import logging
 from datetime import datetime, timedelta
-from typing import List, Literal
+from typing import Literal
 
 import akshare as ak
 from fastapi import APIRouter, HTTPException, Query
 from fastapi_cache.decorator import cache
 from starlette.concurrency import run_in_threadpool
 
-from app.schemas.stock import StockDataBase
 from app.data.fetchers import futures_fetcher
+from app.schemas.stock import StockDataBase
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ async def get_futures_list():
     """
     try:
         futures_df = await run_in_threadpool(ak.futures_display_main_sina)
-        return dict(zip(futures_df["symbol"], futures_df["name"]))
+        return dict(zip(futures_df["symbol"], futures_df["name"], strict=False))
     except Exception as e:
         logger.error(
             f"Failed to fetch futures list from Akshare: {str(e)}", exc_info=True
@@ -30,7 +30,7 @@ async def get_futures_list():
         return {"ES=F": "E-mini S&P 500", "NQ=F": "E-mini NASDAQ 100"}
 
 
-@router.get("/{symbol}", response_model=List[StockDataBase])
+@router.get("/{symbol}", response_model=list[StockDataBase])
 @cache(expire=900)  # Cache for 15 minutes
 async def get_futures_data(
     symbol: str,
@@ -112,7 +112,7 @@ async def get_futures_data(
             detail=f"No data available for {symbol}. Tried: {attempted}",
         )
 
-    dict_records = df.to_dict("records")
+    dict_records = df.to_dict(orient="records")
     for record in dict_records:
         record["ts_code"] = symbol  # Always return the original symbol
         record["interval"] = interval

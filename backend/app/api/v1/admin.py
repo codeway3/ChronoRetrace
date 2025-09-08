@@ -4,8 +4,8 @@ from redis import asyncio as aioredis
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.infrastructure.database.session import get_db
 from app.data.managers import database_admin as db_admin
+from app.infrastructure.database.session import get_db
 
 router = APIRouter()
 
@@ -28,7 +28,7 @@ async def redis_health_check():
                 "message": "Redis connection failed.",
                 "error_details": str(e),
             },
-        )
+        ) from e
 
 
 @router.post("/clear-cache", status_code=200)
@@ -50,4 +50,4 @@ async def clear_cache(db: Session = Depends(get_db)):
         return db_result
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

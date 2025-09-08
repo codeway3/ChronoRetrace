@@ -50,8 +50,8 @@ def fetch_from_yfinance(
         progress=False,
     )
 
-    if df.empty:
-        logger.warning(f"yfinance returned empty DataFrame for {yf_ticker}")
+    if df is None or df.empty:
+        logger.warning(f"yfinance returned empty or None DataFrame for {yf_ticker}")
         return pd.DataFrame()
 
     logger.info(
@@ -66,7 +66,7 @@ def fetch_from_yfinance(
 
     # Handle MultiIndex columns that yfinance might return, especially when fetching single tickers
     # by taking the first level of the column index.
-    if isinstance(df.columns, pd.MultiIndex):
+    if hasattr(df, 'columns') and isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
 
     # Drop rows where 'Date' is NaN/NaT after it has been reset from the index
@@ -146,6 +146,10 @@ def fetch_from_yfinance(
 
     df = df[final_cols]
 
+    # Ensure we return a DataFrame, not a Series
+    if isinstance(df, pd.Series):
+        df = df.to_frame().T
+
     logger.info(f"Final DataFrame columns for {yf_ticker}: {df.columns.tolist()}")
     logger.debug(
         f"First 5 rows of final DataFrame for {yf_ticker}:\n{df.head().to_string()}"
@@ -215,7 +219,7 @@ def update_us_stock_list(db: Session):
         stmt = sqlite_insert(models.StockInfo).values(stocks_to_insert)
         stmt = stmt.on_conflict_do_update(
             index_elements=["ts_code", "market_type"],
-            set_=dict(name=stmt.excluded.name, last_updated=stmt.excluded.last_updated),
+            set_={"name": stmt.excluded.name, "last_updated": stmt.excluded.last_updated},
         )
         try:
             db.execute(stmt)

@@ -117,7 +117,13 @@ def fetch_futures_from_yfinance(
         if col not in df.columns:
             df[col] = None
 
-    return df[final_cols]
+    result = df[final_cols]
+
+    # Ensure we return a DataFrame, not a Series
+    if isinstance(result, pd.Series):
+        result = result.to_frame().T
+
+    return result
 
 
 def _is_china_futures_contract(symbol: str) -> bool:
@@ -208,9 +214,26 @@ def fetch_china_futures_from_akshare(
         except Exception:
             start_ts = pd.Timestamp.today() - pd.Timedelta(days=365)
             end_ts = pd.Timestamp.today()
+        # Handle potential NaT values
+        if start_ts is pd.NaT or (hasattr(start_ts, '__array__') and start_ts.isna().any()):
+            start_ts = pd.Timestamp.today() - pd.Timedelta(days=365)
+        if end_ts is pd.NaT or (hasattr(end_ts, '__array__') and end_ts.isna().any()):
+            end_ts = pd.Timestamp.today()
+
+        # Ensure timestamps are valid before arithmetic operations
+        if isinstance(start_ts, pd.Timestamp) and start_ts is not pd.NaT:
+            range_start = start_ts - pd.offsets.MonthBegin(1)
+        else:
+            range_start = pd.Timestamp.today() - pd.Timedelta(days=365) - pd.offsets.MonthBegin(1)
+
+        if isinstance(end_ts, pd.Timestamp) and end_ts is not pd.NaT:
+            range_end = end_ts + pd.offsets.MonthBegin(3)
+        else:
+            range_end = pd.Timestamp.today() + pd.offsets.MonthBegin(3)
+
         month_range = pd.date_range(
-            start_ts - pd.offsets.MonthBegin(1),
-            end_ts + pd.offsets.MonthBegin(3),
+            range_start,
+            range_end,
             freq="MS",
         )
         ym_codes = list(dict.fromkeys([dt.strftime("%y%m") for dt in month_range]))
@@ -302,4 +325,10 @@ def fetch_china_futures_from_akshare(
     for col in final_cols:
         if col not in df.columns:
             df[col] = None
-    return df[final_cols]
+    result = df[final_cols]
+
+    # Ensure we return a DataFrame, not a Series
+    if isinstance(result, pd.Series):
+        result = result.to_frame().T
+
+    return result

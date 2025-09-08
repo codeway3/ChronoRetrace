@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, cast
+from typing import Any, cast
 
 import pandas as pd
 import requests
@@ -6,7 +6,7 @@ import requests
 from ..managers.data_utils import calculate_ma
 
 
-def get_top_cryptos(limit: int = 100) -> List[Dict[str, Any]]:
+def get_top_cryptos(limit: int = 100) -> list[dict[str, Any]]:
     """
     Fetches the top cryptocurrencies by market capitalization from the CryptoCompare API.
     """
@@ -19,14 +19,14 @@ def get_top_cryptos(limit: int = 100) -> List[Dict[str, Any]]:
         data = response.json()
         if "Data" in data:
             result = data["Data"]
-            return cast(List[Dict[str, Any]], result)
+            return cast(list[dict[str, Any]], result)
         return []
     except requests.exceptions.RequestException as e:
         print(f"Error fetching crypto data: {e}")
         return []
 
 
-def aggregate_ohlcv(data: List[Dict[str, Any]], interval: str) -> List[Dict[str, Any]]:
+def aggregate_ohlcv(data: list[dict[str, Any]], interval: str) -> list[dict[str, Any]]:
     """
     Aggregates daily OHLCV data to a weekly or monthly interval.
     """
@@ -60,13 +60,13 @@ def aggregate_ohlcv(data: List[Dict[str, Any]], interval: str) -> List[Dict[str,
     agg_df.reset_index(inplace=True)
     agg_df["time"] = agg_df["time"].apply(lambda x: int(x.timestamp()))
 
-    result = cast(List[Dict[str, Any]], agg_df.to_dict("records"))
+    result = cast(list[dict[str, Any]], agg_df.to_dict(orient="records"))
     return result
 
 
 def get_crypto_ohlcv(
     symbol: str, interval: str = "daily", limit: int = 2000
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Fetches OHLCV data for a given cryptocurrency symbol and interval.
     """
@@ -88,7 +88,7 @@ def get_crypto_ohlcv(
             # Calculate MAs for daily data
             df = pd.DataFrame(daily_data)
             df = calculate_ma(df)
-            result = cast(List[Dict[str, Any]], df.to_dict("records"))
+            result = cast(list[dict[str, Any]], df.to_dict(orient="records"))
             return result
 
         return []

@@ -1,16 +1,16 @@
 import unittest
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
 from unittest.mock import Mock, patch
-from sqlalchemy.orm import Session
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.data.quality.validation_service import (
     DataValidationService,
-    ValidationRule,
-    ValidationResult,
     ValidationReport,
+    ValidationResult,
+    ValidationRule,
     ValidationSeverity,
 )
 
@@ -233,7 +233,7 @@ class TestDataValidationService(unittest.TestCase):
         self.assertIsInstance(report, ValidationReport)
         self.assertTrue(report.is_valid)
         self.assertGreater(report.quality_score, 0.8)  # 高质量分数
-        self.assertEqual(len(report.errors), 0)
+        self.assertEqual(len(report.errors or []), 0)
 
     def test_validate_stock_data_complete_invalid(self):
         """测试完整无效数据校验"""

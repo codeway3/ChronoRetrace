@@ -3,12 +3,13 @@ import gc
 import logging
 import multiprocessing as mp
 import time
+from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 import psutil
 from sqlalchemy.orm import Session, sessionmaker
@@ -59,7 +60,7 @@ class PerformanceMetrics:
     """性能指标数据类"""
 
     start_time: datetime
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
     total_records: int = 0
     processed_records: int = 0
     processing_rate: float = 0.0  # 记录/秒
@@ -116,13 +117,13 @@ class CacheManager:
 
     def __init__(self, max_size: int = 10000):
         self.max_size = max_size
-        self.cache: Dict[str, Any] = {}
-        self.access_times: Dict[str, datetime] = {}
+        self.cache: dict[str, Any] = {}
+        self.access_times: dict[str, datetime] = {}
         self.hit_count = 0
         self.miss_count = 0
         self.logger = logging.getLogger(__name__)
 
-    def get_cached_value(self, key: str) -> Optional[Any]:
+    def get_cached_value(self, key: str) -> Any | None:
         """获取缓存值"""
         if key in self.cache:
             self.access_times[key] = datetime.now()
@@ -199,7 +200,7 @@ def performance_monitor(func: Callable) -> Callable:
 class PerformanceOptimizationService:
     """性能优化服务类"""
 
-    def __init__(self, db_session: Session, config: Optional[PerformanceConfig] = None):
+    def __init__(self, db_session: Session, config: PerformanceConfig | None = None):
         self.db_session = db_session
         self.config = config or PerformanceConfig()
         self.logger = logging.getLogger(__name__)
@@ -219,8 +220,8 @@ class PerformanceOptimizationService:
 
     @performance_monitor
     def batch_validate_data(
-        self, data_list: List[Dict[str, Any]], market_type: str = "A_share"
-    ) -> List[ValidationReport]:
+        self, data_list: list[dict[str, Any]], market_type: str = "A_share"
+    ) -> list[ValidationReport]:
         """批量数据校验
 
         Args:
@@ -243,8 +244,8 @@ class PerformanceOptimizationService:
             return self._batch_validate(data_list, market_type)  # 默认批量处理
 
     def _sequential_validate(
-        self, data_list: List[Dict[str, Any]], market_type: str
-    ) -> List[ValidationReport]:
+        self, data_list: list[dict[str, Any]], market_type: str
+    ) -> list[ValidationReport]:
         """顺序校验"""
         validation_service = DataValidationService(self.db_session)
         reports = []
@@ -274,8 +275,8 @@ class PerformanceOptimizationService:
         return reports
 
     def _batch_validate(
-        self, data_list: List[Dict[str, Any]], market_type: str
-    ) -> List[ValidationReport]:
+        self, data_list: list[dict[str, Any]], market_type: str
+    ) -> list[ValidationReport]:
         """批量校验"""
         validation_service = DataValidationService(self.db_session)
         reports = []
@@ -311,8 +312,8 @@ class PerformanceOptimizationService:
         return reports
 
     def _parallel_validate(
-        self, data_list: List[Dict[str, Any]], market_type: str
-    ) -> List[ValidationReport]:
+        self, data_list: list[dict[str, Any]], market_type: str
+    ) -> list[ValidationReport]:
         """并行校验"""
         reports = []
 
@@ -346,8 +347,8 @@ class PerformanceOptimizationService:
         return reports
 
     def _validate_chunk(
-        self, chunk: List[Dict[str, Any]], market_type: str
-    ) -> List[ValidationReport]:
+        self, chunk: list[dict[str, Any]], market_type: str
+    ) -> list[ValidationReport]:
         """校验数据块"""
         # 为每个线程创建独立的数据库会话
         engine = self.db_session.bind
@@ -374,7 +375,7 @@ class PerformanceOptimizationService:
     def batch_deduplicate_data(
         self,
         table_name: str = "daily_stock_metrics",
-        date_range: Optional[tuple] = None,
+        date_range: tuple | None = None,
     ) -> DeduplicationReport:
         """批量去重处理
 
@@ -409,7 +410,7 @@ class PerformanceOptimizationService:
             return self._batch_deduplicate(dedup_service, duplicate_groups)
 
     def _batch_deduplicate(
-        self, dedup_service: DataDeduplicationService, duplicate_groups: List
+        self, dedup_service: DataDeduplicationService, duplicate_groups: list
     ) -> DeduplicationReport:
         """批量去重"""
         start_time = datetime.now()
@@ -446,7 +447,7 @@ class PerformanceOptimizationService:
         )
 
     def _parallel_deduplicate(
-        self, dedup_service: DataDeduplicationService, duplicate_groups: List
+        self, dedup_service: DataDeduplicationService, duplicate_groups: list
     ) -> DeduplicationReport:
         """并行去重"""
         start_time = datetime.now()
@@ -484,7 +485,7 @@ class PerformanceOptimizationService:
             processed_at=datetime.now(),
         )
 
-    def _deduplicate_chunk(self, chunk: List) -> int:
+    def _deduplicate_chunk(self, chunk: list) -> int:
         """去重数据块"""
         # 为每个线程创建独立的数据库会话
         engine = self.db_session.bind
@@ -498,8 +499,8 @@ class PerformanceOptimizationService:
             session.close()
 
     async def async_process_data(
-        self, data_list: List[Dict[str, Any]], operation_type: str = "validation"
-    ) -> List[Any]:
+        self, data_list: list[dict[str, Any]], operation_type: str = "validation"
+    ) -> list[Any]:
         """异步数据处理
 
         Args:
@@ -511,7 +512,7 @@ class PerformanceOptimizationService:
         """
         semaphore = asyncio.Semaphore(self.config.max_workers)
 
-        async def process_item(data: Dict[str, Any]) -> Any:
+        async def process_item(data: dict[str, Any]) -> Any:
             async with semaphore:
                 loop = asyncio.get_event_loop()
 
@@ -554,7 +555,7 @@ class PerformanceOptimizationService:
         except Exception as e:
             self.logger.error(f"数据库查询优化失败: {str(e)}")
 
-    def get_performance_report(self) -> Dict[str, Any]:
+    def get_performance_report(self) -> dict[str, Any]:
         """获取性能报告"""
         self.metrics.memory_usage_mb = self.memory_manager.check_memory_usage()
         self.metrics.cache_hit_rate = self.cache_manager.get_hit_rate()
@@ -585,7 +586,7 @@ class PerformanceOptimizationService:
             "recommendations": self._generate_optimization_recommendations(),
         }
 
-    def _generate_optimization_recommendations(self) -> List[str]:
+    def _generate_optimization_recommendations(self) -> list[str]:
         """生成优化建议"""
         recommendations = []
 

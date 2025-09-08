@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.analytics.backtest import backtester
 from app.infrastructure.database.session import get_db
 from app.schemas.backtest import (
     BacktestOptimizationResponse,
@@ -10,7 +11,6 @@ from app.schemas.backtest import (
     GridStrategyConfig,
     GridStrategyOptimizeConfig,
 )
-from app.analytics.backtest import backtester
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ def run_grid_backtest_api(config: GridStrategyConfig, db: Session = Depends(get_
         logger.error(
             f"ValueError during backtest for {config.stock_code}: {e}", exc_info=True
         )
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(
             f"An unexpected error occurred during backtest for {config.stock_code}: {e}",
@@ -42,7 +42,7 @@ def run_grid_backtest_api(config: GridStrategyConfig, db: Session = Depends(get_
         )
         raise HTTPException(
             status_code=500, detail="An internal error occurred during the backtest."
-        )
+        ) from e
 
 
 @router.post("/grid/optimize", response_model=BacktestOptimizationResponse)
@@ -66,7 +66,7 @@ def run_grid_optimization_api(
             f"ValueError during optimization for {config.stock_code}: {e}",
             exc_info=True,
         )
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(
             f"An unexpected error occurred during optimization for {config.stock_code}: {e}",
@@ -74,4 +74,4 @@ def run_grid_optimization_api(
         )
         raise HTTPException(
             status_code=500, detail="An internal error occurred during optimization."
-        )
+        ) from e

@@ -1,19 +1,19 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Any, List, Tuple
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi_cache.decorator import cache
 from starlette.concurrency import run_in_threadpool
 
-from app.schemas.stock import StockDataBase
 from app.data.fetchers import options_fetcher
+from app.schemas.stock import StockDataBase
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.get("/expirations/{underlying_symbol}", response_model=Tuple[str, ...])
+@router.get("/expirations/{underlying_symbol}", response_model=tuple[str, ...])
 @cache(expire=3600)
 async def get_option_expirations(underlying_symbol: str):
     try:
@@ -29,10 +29,10 @@ async def get_option_expirations(underlying_symbol: str):
         raise HTTPException(
             status_code=404,
             detail=f"Could not find expiration dates for symbol '{underlying_symbol}'.",
-        )
+        ) from e
 
 
-@router.get("/chain/{underlying_symbol}", response_model=List[Any])
+@router.get("/chain/{underlying_symbol}", response_model=list[Any])
 @cache(expire=600)
 async def get_option_chain_for_date(
     underlying_symbol: str, expiration_date: str = Query(...)
@@ -52,10 +52,10 @@ async def get_option_chain_for_date(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to fetch option chain for {underlying_symbol} on {expiration_date}.",
-        )
+        ) from e
 
 
-@router.get("/{symbol}", response_model=List[StockDataBase])
+@router.get("/{symbol}", response_model=list[StockDataBase])
 @cache(expire=900)
 async def get_options_data(
     symbol: str,
@@ -89,7 +89,7 @@ async def get_options_data(
         )
         if df.empty:
             return []
-        dict_records = df.to_dict("records")
+        dict_records = df.to_dict(orient="records")
         for record in dict_records:
             record["ts_code"] = symbol
             record["interval"] = interval
@@ -100,4 +100,4 @@ async def get_options_data(
         )
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch data for {symbol}: {str(e)}"
-        )
+        ) from e

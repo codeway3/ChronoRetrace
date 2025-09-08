@@ -1,5 +1,4 @@
 from datetime import date
-from typing import List
 
 from pydantic import BaseModel, ConfigDict
 
@@ -22,4 +21,4 @@ class CorporateActionInDB(CorporateActionBase):
 
 class CorporateActionResponse(BaseModel):
     symbol: str
-    actions: List[CorporateActionInDB]
+    actions: list[CorporateActionInDB]

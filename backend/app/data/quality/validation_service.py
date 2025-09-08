@@ -3,7 +3,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -43,7 +43,7 @@ class ValidationRule:
 
     field_name: str
     rule_type: str  # 'format', 'range', 'type', 'logic'
-    rule_config: Optional[Dict[str, Any]] = None
+    rule_config: dict[str, Any] | None = None
     severity: ValidationSeverity = ValidationSeverity.ERROR
     error_message: str = ""
     is_enabled: bool = True
@@ -57,8 +57,8 @@ class ValidationResult:
     field_name: str
     message: str
     severity: ValidationSeverity
-    suggested_value: Optional[Any] = None
-    error_code: Optional[str] = None
+    suggested_value: Any | None = None
+    error_code: str | None = None
 
 
 @dataclass
@@ -67,13 +67,13 @@ class ValidationReport:
 
     is_valid: bool
     quality_score: float  # 0.0 - 1.0
-    results: List[ValidationResult]
+    results: list[ValidationResult]
     execution_time: float
     validated_at: datetime
-    record_id: Optional[str] = None
-    validation_time: Optional[float] = None
-    errors: Optional[List[str]] = None
-    warnings: Optional[List[str]] = None
+    record_id: str | None = None
+    validation_time: float | None = None
+    errors: list[str] | None = None
+    warnings: list[str] | None = None
 
     def __post_init__(self):
         if self.errors is None:
@@ -121,7 +121,7 @@ class DataValidationService:
         }
 
     def validate_stock_data(
-        self, data: Optional[Dict[str, Any]], market_type: str = "A_share"
+        self, data: dict[str, Any] | None, market_type: str = "A_share"
     ) -> ValidationReport:
         """校验股票数据
 
@@ -133,7 +133,7 @@ class DataValidationService:
             ValidationReport: 校验报告
         """
         start_time = datetime.now()
-        results: List[ValidationResult] = []
+        results: list[ValidationResult] = []
 
         # 检查数据是否为None
         if data is None:
@@ -192,8 +192,8 @@ class DataValidationService:
         )
 
     def _validate_required_field(
-        self, data: Dict[str, Any], field_name: str
-    ) -> Optional[ValidationResult]:
+        self, data: dict[str, Any], field_name: str
+    ) -> ValidationResult | None:
         """校验必填字段"""
         if data is None or field_name not in data or data[field_name] is None:
             return ValidationResult(
@@ -256,7 +256,7 @@ class DataValidationService:
                     severity=ValidationSeverity.ERROR,
                     error_code="INVALID_DATE_FORMAT",
                 )
-        elif not isinstance(date_value, (date, datetime)):
+        elif not isinstance(date_value, date | datetime):
             return ValidationResult(
                 is_valid=False,
                 field_name="date",
@@ -342,9 +342,9 @@ class DataValidationService:
             severity=ValidationSeverity.INFO,
         )
 
-    def _validate_price_logic(self, data: Dict[str, Any]) -> List[ValidationResult]:
+    def _validate_price_logic(self, data: dict[str, Any]) -> list[ValidationResult]:
         """校验价格逻辑关系"""
-        results: List[ValidationResult] = []
+        results: list[ValidationResult] = []
 
         # 验证价格数据是否可以转换为浮点数
         try:
@@ -361,7 +361,7 @@ class DataValidationService:
 
         return results
 
-    def _validate_price_relationships(self, data: Dict[str, Any]) -> ValidationResult:
+    def _validate_price_relationships(self, data: dict[str, Any]) -> ValidationResult:
         """校验价格关系逻辑"""
         try:
             open_price = float(data.get("open", 0))
@@ -497,8 +497,8 @@ class DataValidationService:
         )
 
     def _calculate_quality_score(
-        self, results: List[ValidationResult]
-    ) -> Tuple[bool, float]:
+        self, results: list[ValidationResult]
+    ) -> tuple[bool, float]:
         """计算数据质量评分"""
         if not results:
             return True, 1.0
@@ -517,7 +517,7 @@ class DataValidationService:
 
         return is_valid, quality_score
 
-    def get_validation_rules(self, table_name: Optional[str] = None) -> List[ValidationRule]:
+    def get_validation_rules(self, table_name: str | None = None) -> list[ValidationRule]:
         """获取所有验证规则"""
         rules = []
 
@@ -580,8 +580,8 @@ class DataValidationService:
             self.db_session.rollback()
 
     def _format_validation_errors(
-        self, results: List[ValidationResult]
-    ) -> Optional[str]:
+        self, results: list[ValidationResult]
+    ) -> str | None:
         """格式化校验错误信息"""
         if not results:
             return None
@@ -594,8 +594,8 @@ class DataValidationService:
         return "; ".join(error_messages) if error_messages else None
 
     def batch_validate_data(
-        self, data_list: List[Dict[str, Any]], data_type: str = "stock_data"
-    ) -> List[ValidationReport]:
+        self, data_list: list[dict[str, Any]], data_type: str = "stock_data"
+    ) -> list[ValidationReport]:
         """批量校验数据"""
         reports = []
         for data in data_list:

@@ -68,7 +68,7 @@ def store_stock_data(db: Session, ts_code: str, interval: str, df: pd.DataFrame)
         )
         processed_df = df
 
-    records_to_insert = processed_df.to_dict("records")
+    records_to_insert = processed_df.to_dict(orient="records")
     for record in records_to_insert:
         record["ts_code"] = ts_code
         record["interval"] = interval
@@ -83,6 +83,8 @@ def store_stock_data(db: Session, ts_code: str, interval: str, df: pd.DataFrame)
 
     # Using SQLAlchemy's ORM bulk_insert_mappings for efficiency with upsert logic
     # This requires getting the dialect to choose the correct insert statement
+    if db.bind is None:
+        raise ValueError("Database session is not bound to an engine")
     dialect = db.bind.dialect.name
     stmt: Any
     if dialect == "sqlite":
@@ -156,7 +158,7 @@ def store_corporate_actions(db: Session, symbol: str, actions_data: list[dict]):
                 return 0
 
             # Convert back to list of dicts
-            processed_actions = quality_result.processed_data.to_dict("records")
+            processed_actions = quality_result.processed_data.to_dict(orient="records")
 
     except Exception as e:
         logger.error(
@@ -179,7 +181,7 @@ def store_corporate_actions(db: Session, symbol: str, actions_data: list[dict]):
         return 0
 
     stmt: Any
-    if db.bind.dialect.name == "sqlite":
+    if db.bind is not None and db.bind.dialect.name == "sqlite":
         sqlite_stmt = sqlite_insert(models.CorporateAction).values(actions_to_insert)
         stmt = sqlite_stmt.on_conflict_do_nothing(
             index_elements=["symbol", "ex_date", "action_type"]
@@ -235,7 +237,7 @@ def store_fundamental_data(db: Session, symbol: str, data: dict):
 
             # Use the validated data
             processed_data = (
-                quality_result.processed_data.iloc[0].to_dict()
+                quality_result.processed_data.iloc[0].to_dict()  # type: ignore[misc]
                 if not quality_result.processed_data.empty
                 else data
             )
@@ -255,7 +257,7 @@ def store_fundamental_data(db: Session, symbol: str, data: dict):
     }
 
     stmt: Any
-    if db.bind.dialect.name == "sqlite":
+    if db.bind is not None and db.bind.dialect.name == "sqlite":
         sqlite_stmt = sqlite_insert(models.FundamentalData).values(insert_values)
         stmt = sqlite_stmt.on_conflict_do_update(index_elements=["symbol"], set_=update_values)
     else:
@@ -315,7 +317,7 @@ def store_annual_earnings(db: Session, symbol: str, annual_earnings_data: list[d
                 return 0
 
             # Convert back to list of dicts
-            processed_earnings = quality_result.processed_data.to_dict("records")
+            processed_earnings = quality_result.processed_data.to_dict(orient="records")
 
     except Exception as e:
         logger.error(
@@ -335,23 +337,23 @@ def store_annual_earnings(db: Session, symbol: str, annual_earnings_data: list[d
         )
 
     stmt: Any
-    if db.bind.dialect.name == "sqlite":
+    if db.bind is not None and db.bind.dialect.name == "sqlite":
         sqlite_stmt = sqlite_insert(models.AnnualEarnings).values(earnings_to_insert)
         stmt = sqlite_stmt.on_conflict_do_update(
             index_elements=["symbol", "year"],
-            set_=dict(
-                net_profit=sqlite_stmt.excluded.net_profit,
-                last_updated=sqlite_stmt.excluded.last_updated,
-            ),
+            set_={
+                "net_profit": sqlite_stmt.excluded.net_profit,
+                "last_updated": sqlite_stmt.excluded.last_updated,
+            },
         )
     else:
         pg_stmt = pg_insert(models.AnnualEarnings).values(earnings_to_insert)
         stmt = pg_stmt.on_conflict_do_update(
             index_elements=["symbol", "year"],
-            set_=dict(
-                net_profit=pg_stmt.excluded.net_profit,
-                last_updated=pg_stmt.excluded.last_updated,
-            ),
+            set_={
+                "net_profit": pg_stmt.excluded.net_profit,
+                "last_updated": pg_stmt.excluded.last_updated,
+            },
         )
 
     result = db.execute(stmt)

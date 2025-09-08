@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
@@ -58,14 +58,14 @@ class LogEntry:
     level: LogLevel
     message: str
     timestamp: datetime
-    record_id: Optional[int] = None
-    table_name: Optional[str] = None
-    user_id: Optional[int] = None
-    session_id: Optional[str] = None
-    execution_time: Optional[float] = None
-    details: Optional[Dict[str, Any]] = None
-    error_details: Optional[str] = None
-    metrics: Optional[Dict[str, Union[int, float]]] = None
+    record_id: int | None = None
+    table_name: str | None = None
+    user_id: int | None = None
+    session_id: str | None = None
+    execution_time: float | None = None
+    details: dict[str, Any] | None = None
+    error_details: str | None = None
+    metrics: dict[str, int | float] | None = None
 
 
 @dataclass
@@ -82,8 +82,8 @@ class OperationMetrics:
     validation_errors: int = 0
     warnings: int = 0
     execution_time: float = 0.0
-    memory_usage: Optional[float] = None
-    cpu_usage: Optional[float] = None
+    memory_usage: float | None = None
+    cpu_usage: float | None = None
 
 
 @dataclass
@@ -93,11 +93,11 @@ class BatchOperationLog:
     batch_id: str
     operation_type: OperationType
     start_time: datetime
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
     status: LogStatus = LogStatus.STARTED
-    metrics: Optional[OperationMetrics] = None
-    sub_operations: Optional[List[str]] = None  # 子操作ID列表
-    error_summary: Optional[str] = None
+    metrics: OperationMetrics | None = None
+    sub_operations: list[str] | None = None  # 子操作ID列表
+    error_summary: str | None = None
 
     def __post_init__(self):
         if self.metrics is None:
@@ -109,12 +109,12 @@ class BatchOperationLog:
 class LoggingService:
     """日志记录服务类"""
 
-    def __init__(self, db_session: Session, log_file_path: Optional[str] = None):
+    def __init__(self, db_session: Session, log_file_path: str | None = None):
         self.db_session = db_session
         self.logger = logging.getLogger(__name__)
 
         # 当前活跃的操作记录
-        self.active_operations: Dict[str, BatchOperationLog] = {}
+        self.active_operations: dict[str, BatchOperationLog] = {}
 
         # 配置文件日志
         if log_file_path:
@@ -143,8 +143,8 @@ class LoggingService:
         self,
         operation_type: OperationType,
         description: str = "",
-        user_id: Optional[int] = None,
-        session_id: Optional[str] = None,
+        user_id: int | None = None,
+        session_id: str | None = None,
     ) -> str:
         """开始一个操作并返回操作ID
 
@@ -188,14 +188,14 @@ class LoggingService:
         status: LogStatus,
         level: LogLevel,
         message: str,
-        record_id: Optional[int] = None,
-        table_name: Optional[str] = None,
-        user_id: Optional[int] = None,
-        session_id: Optional[str] = None,
-        execution_time: Optional[float] = None,
-        details: Optional[Dict[str, Any]] = None,
-        error_details: Optional[str] = None,
-        metrics: Optional[Dict[str, Union[int, float]]] = None,
+        record_id: int | None = None,
+        table_name: str | None = None,
+        user_id: int | None = None,
+        session_id: str | None = None,
+        execution_time: float | None = None,
+        details: dict[str, Any] | None = None,
+        error_details: str | None = None,
+        metrics: dict[str, int | float] | None = None,
     ) -> None:
         """记录操作日志
 
@@ -248,7 +248,7 @@ class LoggingService:
         table_name: str,
         is_valid: bool,
         quality_score: float,
-        validation_errors: Optional[List[str]] = None,
+        validation_errors: list[str] | None = None,
         execution_time: float = 0.0,
     ) -> None:
         """记录数据校验结果
@@ -350,7 +350,7 @@ class LoggingService:
         operation_id: str,
         status: LogStatus = LogStatus.SUCCESS,
         final_message: str = "",
-        final_metrics: Optional[OperationMetrics] = None,
+        final_metrics: OperationMetrics | None = None,
     ) -> None:
         """结束操作
 
@@ -392,13 +392,13 @@ class LoggingService:
 
     def get_operation_logs(
         self,
-        operation_id: Optional[str] = None,
-        operation_type: Optional[OperationType] = None,
-        status: Optional[LogStatus] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        operation_id: str | None = None,
+        operation_type: OperationType | None = None,
+        status: LogStatus | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """查询操作日志
 
         Args:
@@ -454,8 +454,8 @@ class LoggingService:
         return result
 
     def get_operation_statistics(
-        self, operation_type: Optional[OperationType] = None, days: int = 7
-    ) -> Dict[str, Any]:
+        self, operation_type: OperationType | None = None, days: int = 7
+    ) -> dict[str, Any]:
         """获取操作统计信息
 
         Args:
@@ -604,7 +604,7 @@ class LoggingService:
         batch_log = self.active_operations[operation_id]
 
         # 更新指标
-        if log_entry.metrics:
+        if log_entry.metrics and batch_log.metrics:
             if "total_processed" in log_entry.metrics:
                 batch_log.metrics.total_processed += log_entry.metrics[
                     "total_processed"

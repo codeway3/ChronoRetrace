@@ -1,4 +1,3 @@
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -10,9 +9,9 @@ class ConstituentStock(BaseModel):
 
     stock_code: str
     stock_name: str
-    latest_price: Optional[float] = None
-    pct_change: Optional[float] = None
-    pe_ratio: Optional[float] = None
-    turnover_rate: Optional[float] = None
+    latest_price: float | None = None
+    pct_change: float | None = None
+    pe_ratio: float | None = None
+    turnover_rate: float | None = None
 
     model_config = ConfigDict(from_attributes=True)

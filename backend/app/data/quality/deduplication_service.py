@@ -4,12 +4,15 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database.models import DailyStockMetrics, DataQualityLog  # type: ignore
+from app.infrastructure.database.models import (  # type: ignore
+    DailyStockMetrics,
+    DataQualityLog,
+)
 
 
 class DeduplicationStrategy(Enum):
@@ -35,13 +38,13 @@ class DuplicateRecord:
 
     duplicate_type: DuplicateType
     similarity_score: float  # 0.0 - 1.0
-    record_id: Optional[int] = None
-    conflicting_fields: Optional[List[str]] = None
-    data_source: Optional[str] = None
+    record_id: int | None = None
+    conflicting_fields: list[str] | None = None
+    data_source: str | None = None
     quality_score: float = 0.0
-    created_at: Optional[datetime] = None
-    index: Optional[int] = None  # 记录在列表中的索引
-    data: Optional[Dict[str, Any]] = None  # 记录的实际数据
+    created_at: datetime | None = None
+    index: int | None = None  # 记录在列表中的索引
+    data: dict[str, Any] | None = None  # 记录的实际数据
 
 
 @dataclass
@@ -49,7 +52,7 @@ class DuplicateGroup:
     """重复组数据类"""
 
     primary_key: str  # 主键标识 (如: code_date)
-    records: List[DuplicateRecord]
+    records: list[DuplicateRecord]
     recommended_action: DeduplicationStrategy
     confidence: float  # 推荐置信度
 
@@ -61,10 +64,10 @@ class DeduplicationReport:
     total_processed: int
     duplicates_found: int
     duplicates_removed: int
-    duplicate_groups: List[DuplicateGroup]
+    duplicate_groups: list[DuplicateGroup]
     execution_time: float
     processed_at: datetime
-    deduplicated_data: Optional[List[Dict[str, Any]]] = None  # 去重后的数据，用于向后兼容
+    deduplicated_data: list[dict[str, Any]] | None = None  # 去重后的数据，用于向后兼容
 
 
 class DataDeduplicationService:
@@ -90,7 +93,7 @@ class DataDeduplicationService:
 
     def deduplicate_stock_data(
         self,
-        data_list: List[Dict[str, Any]],
+        data_list: list[dict[str, Any]],
         strategy: DeduplicationStrategy = DeduplicationStrategy.KEEP_HIGHEST_QUALITY,
     ) -> DeduplicationReport:
         """对股票数据进行去重处理
@@ -131,7 +134,7 @@ class DataDeduplicationService:
             processed_at=datetime.now(),
         )
 
-    def _generate_data_hash(self, data: Dict[str, Any]) -> str:
+    def _generate_data_hash(self, data: dict[str, Any]) -> str:
         """生成数据哈希值"""
         # 创建一个排序后的字符串表示
         sorted_items = sorted(data.items())
@@ -139,8 +142,8 @@ class DataDeduplicationService:
         return hashlib.md5(data_str.encode(), usedforsecurity=False).hexdigest()
 
     def _identify_duplicate_type(
-        self, data1: Dict[str, Any], data2: Dict[str, Any]
-    ) -> Optional[DuplicateType]:
+        self, data1: dict[str, Any], data2: dict[str, Any]
+    ) -> DuplicateType | None:
         """识别重复类型"""
         similarity = self._calculate_similarity(data1, data2)
 
@@ -154,7 +157,7 @@ class DataDeduplicationService:
             return None
 
     def remove_duplicates_from_list(
-        self, duplicate_groups: List[DuplicateGroup], strategy: DeduplicationStrategy
+        self, duplicate_groups: list[DuplicateGroup], strategy: DeduplicationStrategy
     ) -> int:
         """从列表中移除重复数据"""
         removed_count = 0
@@ -184,7 +187,7 @@ class DataDeduplicationService:
     def generate_deduplication_report(
         self,
         total_processed: int,
-        duplicate_groups: List[DuplicateGroup],
+        duplicate_groups: list[DuplicateGroup],
         removed_count: int,
         execution_time: float,
     ) -> DeduplicationReport:
@@ -201,14 +204,14 @@ class DataDeduplicationService:
         )
 
     def get_duplicate_statistics(
-        self, duplicate_groups: List[DuplicateGroup]
-    ) -> Dict[str, Any]:
+        self, duplicate_groups: list[DuplicateGroup]
+    ) -> dict[str, Any]:
         """获取重复统计信息"""
         total_groups = len(duplicate_groups)
         total_duplicates = sum(len(group.records) for group in duplicate_groups)
 
         # 统计重复类型分布
-        duplicate_types: Dict[str, int] = defaultdict(int)
+        duplicate_types: dict[str, int] = defaultdict(int)
         similarity_scores = []
 
         for group in duplicate_groups:
@@ -235,8 +238,8 @@ class DataDeduplicationService:
     def find_database_duplicates(
         self,
         table_name: str = "daily_stock_metrics",
-        date_range: Optional[Tuple[str, str]] = None,
-    ) -> List[DuplicateGroup]:
+        date_range: tuple[str, str] | None = None,
+    ) -> list[DuplicateGroup]:
         """查找数据库中的重复记录
 
         Args:
@@ -297,8 +300,8 @@ class DataDeduplicationService:
         return duplicate_groups
 
     def find_duplicates_in_list(
-        self, data_list: List[Dict[str, Any]], unique_fields: Optional[List[str]] = None
-    ) -> List[DuplicateGroup]:
+        self, data_list: list[dict[str, Any]], unique_fields: list[str] | None = None
+    ) -> list[DuplicateGroup]:
         """在数据列表中查找重复项
 
         Args:
@@ -372,9 +375,9 @@ class DataDeduplicationService:
 
     def batch_deduplicate_data(
         self,
-        data_list: List[Dict[str, Any]],
+        data_list: list[dict[str, Any]],
         strategy: DeduplicationStrategy = DeduplicationStrategy.KEEP_HIGHEST_QUALITY,
-        unique_fields: Optional[List[str]] = None,
+        unique_fields: list[str] | None = None,
     ) -> DeduplicationReport:
         """批量去重数据
 
@@ -460,7 +463,7 @@ class DataDeduplicationService:
 
     def remove_database_duplicates(
         self,
-        duplicate_groups: List[DuplicateGroup],
+        duplicate_groups: list[DuplicateGroup],
         strategy: DeduplicationStrategy = DeduplicationStrategy.KEEP_HIGHEST_QUALITY,
     ) -> int:
         """删除数据库中的重复记录
@@ -522,8 +525,8 @@ class DataDeduplicationService:
         return removed_count
 
     def _group_by_unique_key(
-        self, data_list: List[Dict[str, Any]]
-    ) -> Dict[str, List[Dict[str, Any]]]:
+        self, data_list: list[dict[str, Any]]
+    ) -> dict[str, list[dict[str, Any]]]:
         """按唯一键分组数据"""
         groups = defaultdict(list)
 
@@ -538,7 +541,7 @@ class DataDeduplicationService:
         return dict(groups)
 
     def _analyze_duplicate_group(
-        self, key: str, records: List[Dict[str, Any]]
+        self, key: str, records: list[dict[str, Any]]
     ) -> DuplicateGroup:
         """分析重复组"""
         duplicate_records = []
@@ -577,7 +580,7 @@ class DataDeduplicationService:
         )
 
     def _calculate_similarity(
-        self, record1: Dict[str, Any], record2: Dict[str, Any]
+        self, record1: dict[str, Any], record2: dict[str, Any]
     ) -> float:
         """计算两条记录的相似度"""
         if record1 == record2:
@@ -644,8 +647,8 @@ class DataDeduplicationService:
             return DuplicateType.PARTIAL  # 默认为部分重复
 
     def _find_conflicting_fields(
-        self, record1: Dict[str, Any], record2: Dict[str, Any]
-    ) -> List[str]:
+        self, record1: dict[str, Any], record2: dict[str, Any]
+    ) -> list[str]:
         """查找冲突字段"""
         conflicting_fields = []
 
@@ -657,7 +660,7 @@ class DataDeduplicationService:
         return conflicting_fields
 
     def _recommend_strategy(
-        self, records: List[DuplicateRecord]
+        self, records: list[DuplicateRecord]
     ) -> DeduplicationStrategy:
         """推荐去重策略"""
         # 如果所有记录都是完全重复，保留第一条
@@ -691,7 +694,7 @@ class DataDeduplicationService:
         return removed_count
 
     def _select_record_to_keep(
-        self, records: List[DuplicateRecord], strategy: DeduplicationStrategy
+        self, records: list[DuplicateRecord], strategy: DeduplicationStrategy
     ) -> DuplicateRecord:
         """选择要保留的记录"""
         if strategy == DeduplicationStrategy.KEEP_FIRST:
@@ -725,7 +728,7 @@ class DataDeduplicationService:
             self.logger.error(f"记录去重日志失败: {str(e)}")
 
     def generate_duplicate_hash(
-        self, data: Dict[str, Any], fields: Optional[List[str]] = None
+        self, data: dict[str, Any], fields: list[str] | None = None
     ) -> str:
         """生成数据哈希值用于快速重复检测
 

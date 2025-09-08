@@ -1,6 +1,5 @@
 import logging
 from datetime import date, datetime, timedelta
-from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
@@ -9,19 +8,19 @@ from fastapi_cache.decorator import cache
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+from app.data.managers import data_manager as data_fetcher
 from app.infrastructure.database.session import get_db
 from app.schemas.annual_earnings import AnnualEarningsInDB
 from app.schemas.corporate_action import CorporateActionResponse
 from app.schemas.fundamental import FundamentalDataInDB
 from app.schemas.stock import StockDataBase, StockInfo
-from app.data.managers import data_manager as data_fetcher
 
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
 
-@router.get("/list/all", response_model=List[StockInfo])
+@router.get("/list/all", response_model=list[StockInfo])
 @cache(expire=86400)  # Cache for 24 hours
 def get_all_stock_list(
     market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
@@ -44,7 +43,7 @@ def get_all_stock_list(
         )
         raise HTTPException(
             status_code=503, detail="An error occurred while fetching the stock list."
-        )
+        ) from e
 
 
 @router.post("/list/refresh", status_code=200)
@@ -74,7 +73,7 @@ async def refresh_stock_list(
         )
         raise HTTPException(
             status_code=500, detail="An error occurred during the refresh process."
-        )
+        ) from e
 
 
 def get_trade_date(offset: int = 0) -> str:
@@ -82,7 +81,7 @@ def get_trade_date(offset: int = 0) -> str:
     return (datetime.now() - timedelta(days=offset)).strftime("%Y%m%d")
 
 
-@router.get("/{stock_code}", response_model=List[StockDataBase])
+@router.get("/{stock_code}", response_model=list[StockDataBase])
 @cache(expire=900)  # Cache for 15 minutes
 async def get_stock_data(
     stock_code: str,
@@ -90,7 +89,7 @@ async def get_stock_data(
         "daily", enum=["minute", "5day", "daily", "weekly", "monthly"]
     ),
     market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
-    trade_date: Optional[date] = Query(
+    trade_date: date | None = Query(
         None, description="Date for 'minute' or '5day' interval, format YYYY-MM-DD"
     ),
 ):
@@ -121,7 +120,7 @@ async def get_stock_data(
         # Convert DataFrame to list of Pydantic models
         # This explicitly validates and includes the MA fields
         # Also, add ts_code and interval to each record for frontend consistency
-        dict_records = df.to_dict("records")
+        dict_records = df.to_dict(orient="records")
         for record in dict_records:
             record["ts_code"] = stock_code
             record["interval"] = interval
@@ -132,7 +131,7 @@ async def get_stock_data(
 
     except Exception as e:
         logger.error(f"Failed to fetch stock data: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch data: {str(e)}") from e
 
 
 @router.post("/{symbol}/sync", status_code=202)
@@ -210,7 +209,7 @@ def get_corporate_actions(
     return {"symbol": resolved_symbol, "actions": actions}
 
 
-@router.get("/{symbol}/annual-earnings", response_model=List[AnnualEarningsInDB])
+@router.get("/{symbol}/annual-earnings", response_model=list[AnnualEarningsInDB])
 async def get_annual_earnings(
     symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
 ):

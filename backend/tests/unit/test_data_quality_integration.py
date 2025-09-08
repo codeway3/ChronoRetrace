@@ -3,7 +3,7 @@ import os
 import tempfile
 import unittest
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import Mock, patch
 
 from sqlalchemy import create_engine
@@ -51,12 +51,13 @@ class TestDataQualityIntegration(unittest.TestCase):
     def tearDownClass(cls):
         """类级别的清理"""
         cls.engine.dispose()
-        os.unlink(cls.temp_db.name)
+        if hasattr(cls, 'temp_db') and cls.temp_db:
+            os.unlink(cls.temp_db.name)
 
     def setUp(self):
         """测试前置设置"""
         # 创建数据库会话
-        SessionLocal = sessionmaker(bind=self.engine)
+        SessionLocal = sessionmaker(bind=self.__class__.engine)
         self.session = SessionLocal()
 
         # 初始化服务
@@ -84,7 +85,7 @@ class TestDataQualityIntegration(unittest.TestCase):
         self.session.close()
         self.perf_service.cleanup_resources()
 
-    def _create_test_dataset(self) -> List[Dict[str, Any]]:
+    def _create_test_dataset(self) -> list[dict[str, Any]]:
         """创建测试数据集"""
         dataset = []
 

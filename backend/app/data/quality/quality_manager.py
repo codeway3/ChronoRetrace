@@ -2,16 +2,10 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
-from .deduplication_service import (
-    DataDeduplicationService,
-    DeduplicationReport,
-    DeduplicationStrategy,
-)
-from .validation_service import DataValidationService, ValidationReport
 from ...infrastructure.error_handling_service import ErrorHandlingService
 from ...infrastructure.logging_service import LoggingService, LogStatus, OperationType
 from ...infrastructure.performance.performance_optimization_service import (
@@ -19,6 +13,12 @@ from ...infrastructure.performance.performance_optimization_service import (
     PerformanceOptimizationService,
     ProcessingMode,
 )
+from .deduplication_service import (
+    DataDeduplicationService,
+    DeduplicationReport,
+    DeduplicationStrategy,
+)
+from .validation_service import DataValidationService, ValidationReport
 
 
 @dataclass
@@ -31,7 +31,7 @@ class DataQualityConfig:
     enable_logging: bool = True
 
     # 校验配置
-    validation_rules: Optional[Dict[str, Any]] = None
+    validation_rules: dict[str, Any] | None = None
 
     # 去重配置
     deduplication_strategy: DeduplicationStrategy = DeduplicationStrategy.KEEP_FIRST
@@ -60,17 +60,17 @@ class DataQualityResult:
     duplicates_removed: int
     processing_time: float
     quality_score: float
-    validation_reports: List[ValidationReport]
-    deduplication_report: Optional[DeduplicationReport]
-    error_messages: List[str]
-    warnings: List[str]
-    performance_metrics: Dict[str, Any]
+    validation_reports: list[ValidationReport]
+    deduplication_report: DeduplicationReport | None
+    error_messages: list[str]
+    warnings: list[str]
+    performance_metrics: dict[str, Any]
 
 
 class DataQualityManager:
     """数据质量管理器 - 统一的数据质量处理入口"""
 
-    def __init__(self, session: Session, config: Optional[DataQualityConfig] = None):
+    def __init__(self, session: Session, config: DataQualityConfig | None = None):
         """
         初始化数据质量管理器
 
@@ -122,7 +122,7 @@ class DataQualityManager:
         self.logger = logging.getLogger(__name__)
 
     def process_data(
-        self, data: List[Dict[str, Any]], data_type: str = "A_share"
+        self, data: list[dict[str, Any]], data_type: str = "A_share"
     ) -> DataQualityResult:
         """
         处理数据质量 - 主要入口方法
@@ -266,8 +266,8 @@ class DataQualityManager:
             return result
 
     def _validate_data(
-        self, data: List[Dict[str, Any]], data_type: str
-    ) -> Dict[str, Any]:
+        self, data: list[dict[str, Any]], data_type: str
+    ) -> dict[str, Any]:
         """执行数据校验"""
         try:
             if self.config.enable_performance_optimization:
@@ -299,7 +299,7 @@ class DataQualityManager:
             self.logger.error(f"数据校验失败: {str(e)}")
             raise
 
-    def _deduplicate_data(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _deduplicate_data(self, data: list[dict[str, Any]]) -> dict[str, Any]:
         """执行数据去重"""
         try:
             # 查找重复数据
@@ -341,7 +341,7 @@ class DataQualityManager:
             self.logger.error(f"数据去重失败: {str(e)}")
             raise
 
-    def _collect_performance_metrics(self, start_time: datetime) -> Dict[str, Any]:
+    def _collect_performance_metrics(self, start_time: datetime) -> dict[str, Any]:
         """收集性能指标"""
         try:
             if hasattr(self, "performance_service"):
@@ -358,8 +358,8 @@ class DataQualityManager:
             return {}
 
     def validate_only(
-        self, data: List[Dict[str, Any]], data_type: str = "A_share"
-    ) -> List[ValidationReport]:
+        self, data: list[dict[str, Any]], data_type: str = "A_share"
+    ) -> list[ValidationReport]:
         """
         仅执行数据校验
 
@@ -377,8 +377,8 @@ class DataQualityManager:
 
     def deduplicate_only(
         self,
-        data: List[Dict[str, Any]],
-        strategy: Optional[DeduplicationStrategy] = None,
+        data: list[dict[str, Any]],
+        strategy: DeduplicationStrategy | None = None,
     ) -> DeduplicationReport:
         """
         仅执行数据去重
@@ -396,7 +396,7 @@ class DataQualityManager:
         strategy = strategy or self.config.deduplication_strategy
         return self.deduplication_service.batch_deduplicate_data(data, strategy)
 
-    def get_quality_statistics(self) -> Dict[str, Any]:
+    def get_quality_statistics(self) -> dict[str, Any]:
         """
         获取数据质量统计信息
 
@@ -437,7 +437,7 @@ class DataQualityManager:
 
 # 便捷函数
 def create_data_quality_manager(
-    session: Session, config: Optional[DataQualityConfig] = None
+    session: Session, config: DataQualityConfig | None = None
 ) -> DataQualityManager:
     """
     创建数据质量管理器的便捷函数
@@ -453,7 +453,7 @@ def create_data_quality_manager(
 
 
 def quick_quality_check(
-    session: Session, data: List[Dict[str, Any]], data_type: str = "A_share"
+    session: Session, data: list[dict[str, Any]], data_type: str = "A_share"
 ) -> DataQualityResult:
     """
     快速数据质量检查的便捷函数

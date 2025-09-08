@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -7,7 +6,7 @@ from pydantic import BaseModel, ConfigDict
 class AnnualEarningsBase(BaseModel):
     symbol: str
     year: int
-    net_profit: Optional[float] = None
+    net_profit: float | None = None
 
 
 class AnnualEarningsCreate(AnnualEarningsBase):

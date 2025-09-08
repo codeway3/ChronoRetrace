@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 股票指标数据更新任务
 每天自动更新所有股票的技术指标和基本面数据，用于股票筛选器功能
@@ -8,13 +7,11 @@
 import asyncio
 import logging
 from datetime import date, timedelta
-from typing import Any, Dict, Optional
+from typing import Any
 
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database.models import DailyStockMetrics, StockInfo
-from app.infrastructure.database.session import SessionLocal
 from app.data.fetchers.stock_fetchers.a_share_fetcher import (
     _fetch_spot_data_batch,
     fetch_a_share_data_from_akshare,
@@ -23,11 +20,13 @@ from app.data.fetchers.stock_fetchers.us_stock_fetcher import (
     fetch_from_yfinance,
     fetch_us_fundamental_data_from_yfinance,
 )
+from app.infrastructure.database.models import DailyStockMetrics, StockInfo
+from app.infrastructure.database.session import SessionLocal
 
 logger = logging.getLogger(__name__)
 
 
-def calculate_technical_metrics(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
+def calculate_technical_metrics(df: pd.DataFrame) -> dict[str, Any] | None:
     """计算技术指标
 
     约定：
@@ -67,7 +66,7 @@ def calculate_technical_metrics(df: pd.DataFrame) -> Optional[Dict[str, Any]]:
         return None
 
 
-async def fetch_a_share_fundamentals(stock_code: str) -> Dict[str, Any]:
+async def fetch_a_share_fundamentals(stock_code: str) -> dict[str, Any]:
     """获取A股基本面数据"""
     try:
         # 使用 akshare 获取基本面数据

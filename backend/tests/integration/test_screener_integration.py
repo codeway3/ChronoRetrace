@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 筛选器功能的集成测试
 """
@@ -9,8 +8,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from app.schemas.stock import ScreenerCondition, StockScreenerRequest
 from app.analytics.screener.screener_service import screen_stocks
+from app.schemas.stock import ScreenerCondition, StockScreenerRequest
 
 
 class TestScreenerIntegration:

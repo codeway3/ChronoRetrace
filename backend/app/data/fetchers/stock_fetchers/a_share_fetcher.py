@@ -3,7 +3,6 @@ import threading
 import time
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
-from typing import Optional
 
 import akshare as ak
 import baostock as bs
@@ -348,9 +347,9 @@ def update_stock_list_from_akshare(db: Session):
             stmt = sqlite_insert(models.StockInfo).values(records)
             stmt = stmt.on_conflict_do_update(
                 index_elements=["ts_code", "market_type"],
-                set_=dict(
-                    name=stmt.excluded.name, last_updated=stmt.excluded.last_updated
-                ),
+                set_={
+                    "name": stmt.excluded.name, "last_updated": stmt.excluded.last_updated
+                },
             )
             db.execute(stmt)
             db.commit()
@@ -411,7 +410,7 @@ def fetch_corporate_actions_from_baostock(symbol: str) -> list[dict]:
 
 
 def fetch_a_share_data_from_akshare(
-    stock_code: str, interval: str, trade_date: Optional[date] = None
+    stock_code: str, interval: str, trade_date: date | None = None
 ) -> pd.DataFrame:
     """
     Fetches historical or intraday data for a specific A-share stock or ETF using AKShare,

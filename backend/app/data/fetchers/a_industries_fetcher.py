@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import akshare as ak
 import pandas as pd
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def _standardize_dataframe_columns(
-    df: pd.DataFrame, column_map: Dict[str, str]
+    df: pd.DataFrame, column_map: dict[str, str]
 ) -> pd.DataFrame:
     """Rename columns based on a mapping dictionary to standardize column names."""
     if df is None or df.empty:
@@ -63,7 +63,7 @@ def _normalize_hist_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def fetch_industry_list_em() -> List[Dict[str, str]]:
+def fetch_industry_list_em() -> list[dict[str, str]]:
     """Fetch industry list from Eastmoney."""
     max_retries = 3
     retry_delay = 2  # 初始延迟2秒
@@ -83,7 +83,7 @@ def fetch_industry_list_em() -> List[Dict[str, str]]:
                 )
                 return []
 
-            result = df[["industry_name", "industry_code"]].to_dict(orient="records")
+            result = df[["industry_name", "industry_code"]].to_dict(orient="records")  # type: ignore[misc]  # type: ignore[misc]  # type: ignore[misc]  # type: ignore[misc]
             return result  # type: ignore[no-any-return]
 
         except Exception as exc:
@@ -108,7 +108,7 @@ def fetch_industry_list_em() -> List[Dict[str, str]]:
     return []
 
 
-def fetch_industry_list_ths() -> List[Dict[str, str]]:
+def fetch_industry_list_ths() -> list[dict[str, str]]:
     """Fetch industry list from THS index endpoint."""
     try:
         logger.info("Fetching industry list from THS")
@@ -148,7 +148,7 @@ def fetch_industry_hist(industry_name: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def compute_period_return(hist_df: pd.DataFrame, days: int) -> Optional[float]:
+def compute_period_return(hist_df: pd.DataFrame, days: int) -> float | None:
     if hist_df is None or hist_df.empty or "close" not in hist_df.columns:
         return None
     df = hist_df.copy()
@@ -164,7 +164,7 @@ def compute_period_return(hist_df: pd.DataFrame, days: int) -> Optional[float]:
 @cache(expire=3600)
 def build_overview(
     window: str = "20D", provider: str = "em"
-) -> List[Dict[str, object]]:
+) -> list[dict[str, object]]:
     """Build overview metrics for industries.
 
     provider:
@@ -183,7 +183,7 @@ def build_overview(
 
     days_map = {"5D": 5, "20D": 20, "60D": 60}
     days = days_map.get(window.upper(), 20)
-    results: List[Dict[str, object]] = []
+    results: list[dict[str, object]] = []
 
     # 限制处理的行业数量，避免一次性请求过多
     max_industries = 50
@@ -226,7 +226,7 @@ def build_overview(
         period_return = compute_period_return(hist, days)
         sparkline_data = hist.tail(days)[["trade_date", "close"]].copy()
         sparkline_data["close"] = sparkline_data["close"].astype(float)
-        sparkline = sparkline_data.to_dict(orient="records")
+        sparkline = sparkline_data.to_dict(orient="records")  # type: ignore[misc]  # type: ignore[misc]  # type: ignore[misc]  # type: ignore[misc]
 
         results.append(
             {
@@ -244,7 +244,7 @@ def build_overview(
     return results
 
 
-def fetch_industry_constituents(industry_code: str) -> List[Dict[str, object]]:
+def fetch_industry_constituents(industry_code: str) -> list[dict[str, object]]:
     """Fetch the constituent stocks for a given industry from Eastmoney."""
     try:
         logger.info(f"Fetching constituents for industry code: {industry_code}")
@@ -278,7 +278,7 @@ def fetch_industry_constituents(industry_code: str) -> List[Dict[str, object]]:
         return []
 
 
-def build_industry_overview(window: str = "20D") -> Dict[str, Dict[str, Any]]:
+def build_industry_overview(window: str = "20D") -> dict[str, dict[str, Any]]:
     """Build a comprehensive overview of all industries with their constituents."""
     logger.info(f"Building comprehensive industry overview with window={window}")
 
