@@ -53,12 +53,18 @@ jobs:
           cd backend
           ruff check .
 
-      # 5. Wait for Redis to be ready
+      # 5. Install Redis CLI tools
+      - name: Install Redis CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y redis-tools
+
+      # 6. Wait for Redis to be ready
       - name: Wait for Redis
         run: |
           timeout 30 bash -c 'until redis-cli ping; do sleep 1; done'
 
-      # 6. Run pytest
+      # 7. Run pytest
       - name: Run pytest
         run: |
           cd backend
