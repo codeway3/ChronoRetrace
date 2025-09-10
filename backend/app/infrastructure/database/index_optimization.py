@@ -11,6 +11,7 @@ Date: 2024
 
 import logging
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
@@ -36,7 +37,7 @@ class DatabaseIndexOptimizer:
         self.engine = engine or get_db_engine()
         self.optimization_history: list[dict] = []
 
-    def analyze_query_patterns(self, session: Session) -> dict[str, any]:
+    def analyze_query_patterns(self, session: Session) -> dict[str, Any]:
         """
         分析查询模式，识别需要优化的查询
 
@@ -44,7 +45,7 @@ class DatabaseIndexOptimizer:
             Dict: 查询分析结果
         """
         try:
-            analysis_result = {
+            analysis_result: dict[str, Any] = {
                 "table_stats": {},
                 "query_patterns": [],
                 "recommendations": [],
@@ -112,7 +113,7 @@ class DatabaseIndexOptimizer:
         Returns:
             Dict[str, bool]: 索引创建结果
         """
-        results = {}
+        results: dict[str, bool] = {}
 
         # 定义需要创建的索引
         indexes_to_create = [
@@ -250,7 +251,7 @@ class DatabaseIndexOptimizer:
         except Exception:
             return False
 
-    def analyze_index_usage(self, session: Session) -> dict[str, any]:
+    def analyze_index_usage(self, session: Session) -> dict[str, Any]:
         """
         分析索引使用情况
 
@@ -258,7 +259,7 @@ class DatabaseIndexOptimizer:
             Dict: 索引使用分析结果
         """
         try:
-            analysis = {
+            analysis: dict[str, Any] = {
                 "existing_indexes": [],
                 "usage_stats": {},
                 "recommendations": [],
@@ -292,15 +293,18 @@ class DatabaseIndexOptimizer:
                         text(f"SELECT COUNT(*) FROM {table}")
                     ).scalar()
 
-                    analysis["usage_stats"][table] = {
-                        "record_count": count_result,
-                        "needs_optimization": count_result > 50000,
-                    }
+                    if count_result is not None:
+                        analysis["usage_stats"][table] = {
+                            "record_count": count_result,
+                            "needs_optimization": count_result > 50000,
+                        }
 
-                    if count_result > 100000:
-                        analysis["recommendations"].append(
-                            f"表 {table} 记录数较大({count_result})，建议考虑分区策略"
-                        )
+                        if count_result > 100000:
+                            analysis["recommendations"].append(
+                                f"表 {table} 记录数较大({count_result})，建议考虑分区策略"
+                            )
+
+
 
                 except Exception as e:
                     logger.warning(f"无法分析表 {table}: {e}")
@@ -311,7 +315,7 @@ class DatabaseIndexOptimizer:
             logger.error(f"索引使用分析失败: {e}")
             raise
 
-    def optimize_database(self, session: Session) -> dict[str, any]:
+    def optimize_database(self, session: Session) -> dict[str, Any]:
         """
         执行完整的数据库优化
 
@@ -420,7 +424,7 @@ class DatabaseIndexOptimizer:
 db_optimizer = DatabaseIndexOptimizer()
 
 
-def optimize_database_indexes() -> dict[str, any]:
+def optimize_database_indexes() -> dict[str, Any]:
     """
     执行数据库索引优化的便捷函数
 
@@ -431,7 +435,7 @@ def optimize_database_indexes() -> dict[str, any]:
         return db_optimizer.optimize_database(session)
 
 
-def get_database_optimization_status() -> dict[str, any]:
+def get_database_optimization_status() -> dict[str, Any]:
     """
     获取数据库优化状态
 

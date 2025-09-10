@@ -11,6 +11,7 @@ Date: 2024
 
 import logging
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -183,7 +184,7 @@ class DatabaseMigration:
         session.execute(text("DROP TABLE IF EXISTS cache_metadata"))
         session.commit()
 
-    def migrate_up(self, target_version: str | None = None) -> dict[str, any]:
+    def migrate_up(self, target_version: str | None = None) -> dict[str, Any]:
         """
         执行向上迁移
 
@@ -257,18 +258,18 @@ class DatabaseMigration:
                 logger.error(f"迁移过程失败: {e}")
                 raise
 
-    def get_migration_status(self) -> dict[str, any]:
+    def get_migration_status(self) -> dict[str, Any]:
         """
         获取迁移状态
 
         Returns:
             Dict: 迁移状态信息
         """
-        status = {
-            "available_migrations": [],
-            "applied_migrations": [],
-            "pending_migrations": [],
-        }
+        status: dict[str, Any] = {
+                    "available_migrations": [],
+                    "applied_migrations": [],
+                    "pending_migrations": [],
+                }
 
         with get_db_session() as session:
             try:
@@ -318,7 +319,7 @@ class DatabaseMigration:
 db_migration = DatabaseMigration()
 
 
-def run_database_migrations(target_version: str | None = None) -> dict[str, any]:
+def run_database_migrations(target_version: str | None = None) -> dict[str, Any]:
     """
     执行数据库迁移的便捷函数
 
@@ -331,7 +332,7 @@ def run_database_migrations(target_version: str | None = None) -> dict[str, any]
     return db_migration.migrate_up(target_version)
 
 
-def get_database_migration_status() -> dict[str, any]:
+def get_database_migration_status() -> dict[str, Any]:
     """
     获取数据库迁移状态的便捷函数
 
