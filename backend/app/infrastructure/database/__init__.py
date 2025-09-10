@@ -15,5 +15,5 @@ __all__ = [
     "StockData",
     "FundamentalData",
     "CorporateAction",
-    "AnnualEarnings"
+    "AnnualEarnings",
 ]

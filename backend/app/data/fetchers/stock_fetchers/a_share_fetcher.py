@@ -348,7 +348,8 @@ def update_stock_list_from_akshare(db: Session):
             stmt = stmt.on_conflict_do_update(
                 index_elements=["ts_code", "market_type"],
                 set_={
-                    "name": stmt.excluded.name, "last_updated": stmt.excluded.last_updated
+                    "name": stmt.excluded.name,
+                    "last_updated": stmt.excluded.last_updated,
                 },
             )
             db.execute(stmt)

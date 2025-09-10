@@ -259,10 +259,14 @@ def store_fundamental_data(db: Session, symbol: str, data: dict):
     stmt: Any
     if db.bind is not None and db.bind.dialect.name == "sqlite":
         sqlite_stmt = sqlite_insert(models.FundamentalData).values(insert_values)
-        stmt = sqlite_stmt.on_conflict_do_update(index_elements=["symbol"], set_=update_values)
+        stmt = sqlite_stmt.on_conflict_do_update(
+            index_elements=["symbol"], set_=update_values
+        )
     else:
         pg_stmt = pg_insert(models.FundamentalData).values(insert_values)
-        stmt = pg_stmt.on_conflict_do_update(index_elements=["symbol"], set_=update_values)
+        stmt = pg_stmt.on_conflict_do_update(
+            index_elements=["symbol"], set_=update_values
+        )
 
     try:
         result = db.execute(stmt)

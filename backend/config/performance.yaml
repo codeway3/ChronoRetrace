@@ -1,0 +1,284 @@
+# ChronoRetrace 性能优化配置文件
+# 本文件包含系统性能优化相关的配置参数
+
+# Redis 缓存配置
+redis:
+  # 连接配置
+  host: "localhost"
+  port: 6379
+  db: 0
+  password: null
+  
+  # 连接池配置
+  connection_pool:
+    max_connections: 50
+    retry_on_timeout: true
+    socket_timeout: 5
+    socket_connect_timeout: 5
+    socket_keepalive: true
+    socket_keepalive_options: {}
+    
+  # 缓存策略配置
+  cache_strategy:
+    # 默认TTL（秒）
+    default_ttl: 3600
+    
+    # 不同数据类型的TTL配置
+    ttl_config:
+      stock_info: 86400      # 股票基本信息：24小时
+      stock_data: 3600       # 股票数据：1小时
+      hot_stocks: 1800       # 热门股票：30分钟
+      market_summary: 300    # 市场摘要：5分钟
+      user_session: 7200     # 用户会话：2小时
+      
+    # 缓存键前缀
+    key_prefixes:
+      stock_info: "stock:info:"
+      stock_data: "stock:data:"
+      hot_stocks: "stocks:hot"
+      market_summary: "market:summary"
+      user_session: "user:session:"
+      
+    # 缓存预热配置
+    warming:
+      enabled: true
+      batch_size: 100
+      concurrent_workers: 5
+      retry_attempts: 3
+      retry_delay: 1
+      
+    # 缓存清理配置
+    cleanup:
+      enabled: true
+      schedule: "0 2 * * *"  # 每天凌晨2点
+      max_memory_usage: "1GB"
+      cleanup_threshold: 0.8
+
+# 数据库优化配置
+database:
+  # 连接池配置
+  connection_pool:
+    pool_size: 20
+    max_overflow: 30
+    pool_timeout: 30
+    pool_recycle: 3600
+    pool_pre_ping: true
+    
+  # 查询优化配置
+  query_optimization:
+    # 查询超时（秒）
+    query_timeout: 30
+    
+    # 批量操作配置
+    batch_size: 1000
+    
+    # 索引优化
+    indexes:
+      daily_stock_metrics:
+        - ["ts_code", "trade_date"]
+        - ["trade_date"]
+        - ["ts_code"]
+        - ["volume", "trade_date"]
+      stock_info:
+        - ["ts_code"]
+        - ["industry"]
+        - ["list_date"]
+      stock_data:
+        - ["ts_code", "timestamp"]
+        - ["timestamp"]
+        
+    # 分页配置
+    pagination:
+      default_page_size: 50
+      max_page_size: 1000
+      
+  # 读写分离配置
+  read_write_split:
+    enabled: false
+    read_replicas:
+      - "postgresql://user:pass@read1:5432/chronoretrace"
+      - "postgresql://user:pass@read2:5432/chronoretrace"
+    write_master: "postgresql://user:pass@master:5432/chronoretrace"
+
+# 性能监控配置
+monitoring:
+  # 监控开关
+  enabled: true
+  
+  # 指标收集配置
+  metrics:
+    # API性能指标
+    api_metrics:
+      enabled: true
+      sample_rate: 1.0
+      slow_query_threshold: 1.0  # 秒
+      
+    # 缓存性能指标
+    cache_metrics:
+      enabled: true
+      collection_interval: 60  # 秒
+      
+    # 系统性能指标
+    system_metrics:
+      enabled: true
+      collection_interval: 30  # 秒
+      metrics:
+        - "cpu_usage"
+        - "memory_usage"
+        - "disk_usage"
+        - "network_io"
+        
+  # 告警配置
+  alerts:
+    enabled: true
+    thresholds:
+      api_response_time: 2.0     # 秒
+      cache_hit_rate: 0.8        # 80%
+      error_rate: 0.05           # 5%
+      cpu_usage: 0.8             # 80%
+      memory_usage: 0.85         # 85%
+      
+  # 日志配置
+  logging:
+    level: "INFO"
+    format: "json"
+    file_rotation:
+      max_size: "100MB"
+      backup_count: 10
+      
+# 缓存预热配置
+cache_warming:
+  # 启动时预热
+  startup_warming:
+    enabled: true
+    timeout: 300  # 秒
+    
+  # 定时预热
+  scheduled_warming:
+    enabled: true
+    schedules:
+      - name: "hot_stocks"
+        cron: "0 */30 * * * *"  # 每30分钟
+        target: "hot_stocks"
+        
+      - name: "market_summary"
+        cron: "0 */5 * * * *"   # 每5分钟
+        target: "market_summary"
+        
+      - name: "stock_info"
+        cron: "0 0 1 * * *"     # 每天凌晨1点
+        target: "stock_info"
+        
+  # 增量更新配置
+  incremental_update:
+    enabled: true
+    batch_size: 50
+    update_interval: 300  # 秒
+    
+# API限流配置
+rate_limiting:
+  enabled: true
+  
+  # 全局限流
+  global:
+    requests_per_minute: 1000
+    requests_per_hour: 10000
+    
+  # 端点特定限流
+  endpoints:
+    "/api/v1/stocks/search":
+      requests_per_minute: 100
+      requests_per_hour: 1000
+      
+    "/api/v1/stocks/data":
+      requests_per_minute: 200
+      requests_per_hour: 2000
+      
+    "/api/v1/cache/warm":
+      requests_per_minute: 10
+      requests_per_hour: 100
+      
+  # 用户级别限流
+  user_limits:
+    free_tier:
+      requests_per_minute: 50
+      requests_per_hour: 500
+      
+    premium_tier:
+      requests_per_minute: 200
+      requests_per_hour: 2000
+      
+    enterprise_tier:
+      requests_per_minute: 1000
+      requests_per_hour: 10000
+
+# 异步任务配置
+async_tasks:
+  # Celery配置
+  celery:
+    broker_url: "redis://localhost:6379/1"
+    result_backend: "redis://localhost:6379/2"
+    
+    # 任务配置
+    task_routes:
+      "cache_warming.*": {"queue": "cache"}
+      "data_processing.*": {"queue": "processing"}
+      "notifications.*": {"queue": "notifications"}
+      
+    # 工作进程配置
+    worker_config:
+      concurrency: 4
+      max_tasks_per_child: 1000
+      task_time_limit: 300
+      task_soft_time_limit: 240
+      
+# 部署环境配置
+deployment:
+  # 环境类型
+  environment: "production"  # development, staging, production
+  
+  # 性能配置
+  performance:
+    # 进程配置
+    workers: 4
+    worker_class: "uvicorn.workers.UvicornWorker"
+    worker_connections: 1000
+    
+    # 内存配置
+    max_memory_per_worker: "512MB"
+    
+    # 超时配置
+    timeout: 30
+    keepalive: 2
+    
+  # 健康检查配置
+  health_check:
+    enabled: true
+    endpoint: "/health"
+    interval: 30
+    timeout: 5
+    
+  # 负载均衡配置
+  load_balancing:
+    strategy: "round_robin"  # round_robin, least_connections, ip_hash
+    health_check_interval: 10
+    
+# 安全配置
+security:
+  # CORS配置
+  cors:
+    allow_origins: ["*"]
+    allow_methods: ["GET", "POST", "PUT", "DELETE"]
+    allow_headers: ["*"]
+    
+  # 请求大小限制
+  request_limits:
+    max_request_size: "10MB"
+    max_json_size: "1MB"
+    
+  # 安全头配置
+  security_headers:
+    x_frame_options: "DENY"
+    x_content_type_options: "nosniff"
+    x_xss_protection: "1; mode=block"
+    strict_transport_security: "max-age=31536000; includeSubDomains"

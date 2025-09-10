@@ -109,11 +109,11 @@ def fetch_industry_list_em() -> list[dict[str, str]]:
 
 
 def fetch_industry_list_ths() -> list[dict[str, str]]:
-    """Fetch industry list from THS index endpoint."""
+    """Fetch industry list from THS name endpoint."""
     try:
         logger.info("Fetching industry list from THS")
-        raw = ak.stock_board_industry_index_ths()
-        column_map = {"指数名称": "industry_name", "指数代码": "industry_code"}
+        raw = ak.stock_board_industry_name_ths()
+        column_map = {"name": "industry_name", "code": "industry_code"}
         df = _standardize_dataframe_columns(raw, column_map)
 
         if "industry_name" not in df.columns or "industry_code" not in df.columns:
@@ -137,6 +137,25 @@ def fetch_industry_hist(industry_name: str) -> pd.DataFrame:
         logger.info(
             f"Fetching Eastmoney hist for industry: '{industry_name}' until {today}"
         )
+
+        # 先验证行业名称是否存在于akshare的行业列表中
+        try:
+            # 获取行业列表来验证行业名称是否存在
+            industry_list_df = ak.stock_board_industry_name_em()
+            if "板块名称" in industry_list_df.columns:
+                available_industries = industry_list_df["板块名称"].tolist()
+                if industry_name not in available_industries:
+                    logger.warning(
+                        f"Industry '{industry_name}' not found in akshare industry list. "
+                        f"Available industries count: {len(available_industries)}"
+                    )
+                    return pd.DataFrame()
+        except Exception as validation_exc:
+            logger.warning(
+                f"Could not validate industry name '{industry_name}': {validation_exc}. "
+                "Proceeding with fetch attempt."
+            )
+
         # Eastmoney hist fetcher uses the industry name as the symbol
         df = ak.stock_board_industry_hist_em(symbol=industry_name, end_date=today)
         return _normalize_hist_df(df)

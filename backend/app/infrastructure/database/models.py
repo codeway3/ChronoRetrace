@@ -1,6 +1,17 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    Index,
+    Integer,
+    String,
+    Text,
+    text,
+)
 from sqlalchemy.schema import UniqueConstraint
 
 from .session import Base
@@ -26,6 +37,10 @@ class StockData(Base):
     __table_args__ = (
         UniqueConstraint(
             "ts_code", "trade_date", "interval", name="_ts_code_trade_date_interval_uc"
+        ),
+        # 性能优化索引
+        Index(
+            "idx_stock_data_ts_code_date_interval", "ts_code", "trade_date", "interval"
         ),
     )
 
@@ -117,6 +132,21 @@ class DailyStockMetrics(Base):
 
     __table_args__ = (
         UniqueConstraint("code", "date", "market", name="_code_date_market_uc"),
+        # 性能优化索引
+        Index("idx_daily_metrics_code_date", "code", "date"),
+        Index("idx_daily_metrics_market_date", "market", "date"),
+        Index("idx_daily_metrics_updated_at", "updated_at"),
+        # 部分索引用于筛选查询
+        Index(
+            "idx_daily_metrics_pe_ratio_range",
+            "pe_ratio",
+            postgresql_where=text("pe_ratio IS NOT NULL AND pe_ratio > 0"),
+        ),
+        Index(
+            "idx_daily_metrics_market_cap_range",
+            "market_cap",
+            postgresql_where=text("market_cap IS NOT NULL AND market_cap > 0"),
+        ),
     )
 
 

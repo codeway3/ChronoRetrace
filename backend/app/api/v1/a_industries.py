@@ -33,12 +33,16 @@ async def get_industry_overview(
     """
     try:
         logger.info(f"Fetching industry overview: window={window}, provider={provider}")
-        data = cast(list[dict[str, object]], await fetcher.build_overview(window, provider))
+        data = cast(
+            list[dict[str, object]], await fetcher.build_overview(window, provider)
+        )
         logger.info(f"Industry overview fetched: count={len(data)}")
         return data
     except Exception as e:
         logger.error(f"Failed to fetch industry overview: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to fetch industry overview") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to fetch industry overview"
+        ) from e
 
 
 @router.get("/{industry_code}/stocks", response_model=list[ConstituentStock])

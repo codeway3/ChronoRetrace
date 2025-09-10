@@ -142,6 +142,7 @@ class DataQualityManager:
             # 记录开始日志
             if self.config.enable_logging:
                 from ...infrastructure.logging_service import LogLevel
+
                 self.logging_service.log_operation(
                     operation_id=str(uuid.uuid4()),
                     operation_type=OperationType.PIPELINE,
@@ -199,6 +200,7 @@ class DataQualityManager:
             # 记录成功日志
             if self.config.enable_logging:
                 from ...infrastructure.logging_service import LogLevel
+
                 self.logging_service.log_operation(
                     operation_id=str(uuid.uuid4()),
                     operation_type=OperationType.PIPELINE,
@@ -234,6 +236,7 @@ class DataQualityManager:
             # 记录错误日志
             if self.config.enable_logging:
                 from ...infrastructure.logging_service import LogLevel
+
                 self.logging_service.log_operation(
                     operation_id=str(uuid.uuid4()),
                     operation_type=OperationType.PIPELINE,

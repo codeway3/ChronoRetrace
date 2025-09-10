@@ -24,8 +24,7 @@ from app.infrastructure.database.session import SessionLocal
 
 # 配置日志
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -37,17 +36,17 @@ def calculate_technical_metrics(df: pd.DataFrame):
             return None
 
         # 计算移动平均线
-        df['ma5'] = df['close'].rolling(window=5).mean()
-        df['ma20'] = df['close'].rolling(window=20).mean()
+        df["ma5"] = df["close"].rolling(window=5).mean()
+        df["ma20"] = df["close"].rolling(window=20).mean()
 
         latest = df.iloc[-1]
-        close_price = float(latest['close']) if pd.notna(latest['close']) else None
-        volume_val = int(latest['vol']) if pd.notna(latest['vol']) else None
+        close_price = float(latest["close"]) if pd.notna(latest["close"]) else None
+        volume_val = int(latest["vol"]) if pd.notna(latest["vol"]) else None
 
         return {
             "close_price": close_price,
-            "ma5": float(latest['ma5']) if pd.notna(latest['ma5']) else None,
-            "ma20": float(latest['ma20']) if pd.notna(latest['ma20']) else None,
+            "ma5": float(latest["ma5"]) if pd.notna(latest["ma5"]) else None,
+            "ma20": float(latest["ma20"]) if pd.notna(latest["ma20"]) else None,
             "volume": volume_val,
         }
     except Exception as e:
@@ -60,7 +59,12 @@ async def update_a_share_metrics_safe(db: Session, max_stocks: int = 100) -> int
     logger.info(f"Starting A-share metrics update (max {max_stocks} stocks)")
 
     # 获取A股列表，限制数量
-    stocks = db.query(StockInfo).filter(StockInfo.market_type == 'A_share').limit(max_stocks).all()
+    stocks = (
+        db.query(StockInfo)
+        .filter(StockInfo.market_type == "A_share")
+        .limit(max_stocks)
+        .all()
+    )
     logger.info(f"Found {len(stocks)} A-share stocks to process")
 
     updated_count = 0
@@ -73,7 +77,9 @@ async def update_a_share_metrics_safe(db: Session, max_stocks: int = 100) -> int
         batch_data = await asyncio.to_thread(_fetch_spot_data_batch)
 
         if batch_data and isinstance(batch_data, dict):
-            logger.info(f"Batch fetch successful, got data for {len(batch_data)} instruments")
+            logger.info(
+                f"Batch fetch successful, got data for {len(batch_data)} instruments"
+            )
 
             for _i, stock in enumerate(stocks):
                 try:
@@ -85,19 +91,33 @@ async def update_a_share_metrics_safe(db: Session, max_stocks: int = 100) -> int
                                 "code": stock.ts_code,
                                 "market": "A_share",
                                 "date": date.today(),
-                                "close_price": float(row.get('close')) if pd.notna(row.get('close')) else None,
-                                "volume": int(row.get('vol')) if pd.notna(row.get('vol')) else None,
-                                "pe_ratio": float(row.get('pe_ratio')) if pd.notna(row.get('pe_ratio')) else None,
-                                "pb_ratio": float(row.get('pb_ratio')) if pd.notna(row.get('pb_ratio')) else None,
-                                "market_cap": int(row.get('market_cap')) if pd.notna(row.get('market_cap')) else None,
+                                "close_price": float(row.get("close"))
+                                if pd.notna(row.get("close"))
+                                else None,
+                                "volume": int(row.get("vol"))
+                                if pd.notna(row.get("vol"))
+                                else None,
+                                "pe_ratio": float(row.get("pe_ratio"))
+                                if pd.notna(row.get("pe_ratio"))
+                                else None,
+                                "pb_ratio": float(row.get("pb_ratio"))
+                                if pd.notna(row.get("pb_ratio"))
+                                else None,
+                                "market_cap": int(row.get("market_cap"))
+                                if pd.notna(row.get("market_cap"))
+                                else None,
                             }
 
                             # 更新数据库
-                            existing = db.query(DailyStockMetrics).filter(
-                                DailyStockMetrics.code == stock.ts_code,
-                                DailyStockMetrics.date == date.today(),
-                                DailyStockMetrics.market == "A_share"
-                            ).first()
+                            existing = (
+                                db.query(DailyStockMetrics)
+                                .filter(
+                                    DailyStockMetrics.code == stock.ts_code,
+                                    DailyStockMetrics.date == date.today(),
+                                    DailyStockMetrics.market == "A_share",
+                                )
+                                .first()
+                            )
 
                             if existing:
                                 for key, value in metrics_data.items():
@@ -112,7 +132,9 @@ async def update_a_share_metrics_safe(db: Session, max_stocks: int = 100) -> int
 
                             if updated_count % 50 == 0:
                                 db.commit()
-                                logger.info(f"Processed {updated_count}/{len(stocks)} stocks")
+                                logger.info(
+                                    f"Processed {updated_count}/{len(stocks)} stocks"
+                                )
                         else:
                             failed_count += 1
                             logger.warning(f"Empty data for {stock.ts_code}")
@@ -122,14 +144,18 @@ async def update_a_share_metrics_safe(db: Session, max_stocks: int = 100) -> int
 
                     # 检查连续失败
                     if failed_count >= max_failures:
-                        logger.warning(f"Too many consecutive failures ({failed_count}), stopping update")
+                        logger.warning(
+                            f"Too many consecutive failures ({failed_count}), stopping update"
+                        )
                         break
 
                 except Exception as e:
                     failed_count += 1
                     logger.error(f"Failed to process {stock.ts_code}: {e}")
                     if failed_count >= max_failures:
-                        logger.warning(f"Too many consecutive failures ({failed_count}), stopping update")
+                        logger.warning(
+                            f"Too many consecutive failures ({failed_count}), stopping update"
+                        )
                         break
         else:
             logger.warning("Batch fetch failed, falling back to individual fetch")
@@ -139,7 +165,7 @@ async def update_a_share_metrics_safe(db: Session, max_stocks: int = 100) -> int
                     df = await asyncio.to_thread(
                         fetch_a_share_data_from_akshare,
                         stock_code=stock.ts_code,
-                        interval='daily'
+                        interval="daily",
                     )
 
                     if df is None or df.empty:
@@ -154,15 +180,21 @@ async def update_a_share_metrics_safe(db: Session, max_stocks: int = 100) -> int
                         "code": stock.ts_code,
                         "market": "A_share",
                         "date": date.today(),
-                        "close_price": float(last['close']) if pd.notna(last['close']) else None,
-                        "volume": int(last['vol']) if pd.notna(last['vol']) else None,
+                        "close_price": float(last["close"])
+                        if pd.notna(last["close"])
+                        else None,
+                        "volume": int(last["vol"]) if pd.notna(last["vol"]) else None,
                     }
 
-                    existing = db.query(DailyStockMetrics).filter(
-                        DailyStockMetrics.code == stock.ts_code,
-                        DailyStockMetrics.date == date.today(),
-                        DailyStockMetrics.market == "A_share"
-                    ).first()
+                    existing = (
+                        db.query(DailyStockMetrics)
+                        .filter(
+                            DailyStockMetrics.code == stock.ts_code,
+                            DailyStockMetrics.date == date.today(),
+                            DailyStockMetrics.market == "A_share",
+                        )
+                        .first()
+                    )
 
                     if existing:
                         for key, value in metrics_data.items():
@@ -194,7 +226,9 @@ async def update_a_share_metrics_safe(db: Session, max_stocks: int = 100) -> int
 
     finally:
         db.commit()
-        logger.info(f"A-share update completed: {updated_count} stocks updated, {failed_count} failures")
+        logger.info(
+            f"A-share update completed: {updated_count} stocks updated, {failed_count} failures"
+        )
 
     return updated_count
 
@@ -203,7 +237,12 @@ async def update_us_stock_metrics_safe(db: Session, max_stocks: int = 50) -> int
     """安全地更新美股指标，限制处理数量"""
     logger.info(f"Starting US stock metrics update (max {max_stocks} stocks)")
 
-    stocks = db.query(StockInfo).filter(StockInfo.market_type == 'US_stock').limit(max_stocks).all()
+    stocks = (
+        db.query(StockInfo)
+        .filter(StockInfo.market_type == "US_stock")
+        .limit(max_stocks)
+        .all()
+    )
     logger.info(f"Found {len(stocks)} US stocks to process")
 
     updated_count = 0
@@ -218,9 +257,9 @@ async def update_us_stock_metrics_safe(db: Session, max_stocks: int = 50) -> int
             df = await asyncio.to_thread(
                 fetch_from_yfinance,
                 ts_code=stock.ts_code,
-                start_date=start_date.strftime('%Y-%m-%d'),
-                end_date=end_date.strftime('%Y-%m-%d'),
-                interval='daily'
+                start_date=start_date.strftime("%Y-%m-%d"),
+                end_date=end_date.strftime("%Y-%m-%d"),
+                interval="daily",
             )
 
             if df is None or df.empty:
@@ -231,8 +270,7 @@ async def update_us_stock_metrics_safe(db: Session, max_stocks: int = 50) -> int
                 continue
 
             fundamentals = await asyncio.to_thread(
-                fetch_us_fundamental_data_from_yfinance,
-                stock.ts_code
+                fetch_us_fundamental_data_from_yfinance, stock.ts_code
             )
 
             tech_metrics = calculate_technical_metrics(df)
@@ -245,17 +283,23 @@ async def update_us_stock_metrics_safe(db: Session, max_stocks: int = 50) -> int
                 "market": "US_stock",
                 "date": end_date,
                 **tech_metrics,
-                "pe_ratio": fundamentals.get('pe_ratio') if fundamentals else None,
-                "pb_ratio": fundamentals.get('pb_ratio') if fundamentals else None,
-                "market_cap": fundamentals.get('market_cap') if fundamentals else None,
-                "dividend_yield": fundamentals.get('dividend_yield') if fundamentals else None,
+                "pe_ratio": fundamentals.get("pe_ratio") if fundamentals else None,
+                "pb_ratio": fundamentals.get("pb_ratio") if fundamentals else None,
+                "market_cap": fundamentals.get("market_cap") if fundamentals else None,
+                "dividend_yield": fundamentals.get("dividend_yield")
+                if fundamentals
+                else None,
             }
 
-            existing = db.query(DailyStockMetrics).filter(
-                DailyStockMetrics.code == stock.ts_code,
-                DailyStockMetrics.date == end_date,
-                DailyStockMetrics.market == "US_stock"
-            ).first()
+            existing = (
+                db.query(DailyStockMetrics)
+                .filter(
+                    DailyStockMetrics.code == stock.ts_code,
+                    DailyStockMetrics.date == end_date,
+                    DailyStockMetrics.market == "US_stock",
+                )
+                .first()
+            )
 
             if existing:
                 for key, value in metrics_data.items():

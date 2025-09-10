@@ -14,17 +14,26 @@ from redis import asyncio as aioredis
 from app.api.v1 import a_industries as a_industries_v1
 from app.api.v1 import admin as admin_v1
 from app.api.v1 import backtest as backtest_v1
+from app.api.v1 import cache as cache_v1
+from app.api.v1 import cached_stocks as cached_stocks_v1
 from app.api.v1 import commodities as commodities_v1
 from app.api.v1 import crypto as crypto_v1
 from app.api.v1 import data_quality as data_quality_v1
 from app.api.v1 import futures as futures_v1
+from app.api.v1 import monitoring as monitoring_v1
 from app.api.v1 import options as options_v1
 from app.api.v1 import screener as screener_v1
 from app.api.v1 import stocks as stocks_v1
 from app.core.config import settings
 from app.data.fetchers import a_industries_fetcher
+from app.infrastructure.cache.cache_warming import cache_warming_service
 from app.infrastructure.database import models
 from app.infrastructure.database.session import SessionLocal, engine
+from app.infrastructure.monitoring import performance_monitor
+from app.infrastructure.monitoring.middleware import (
+    CacheMonitoringMiddleware,
+    PerformanceMonitoringMiddleware,
+)
 
 # Suppress the specific FutureWarning from baostock
 warnings.filterwarnings(
@@ -45,6 +54,8 @@ logging.getLogger("yfinance").setLevel(
 )  # Quieten yfinance's debug messages
 logging.getLogger("urllib3").setLevel(logging.INFO)  # Quieten urllib3's debug messages
 logging.getLogger("apscheduler").setLevel(logging.WARNING)
+# Enable debug logging for cache warming
+logging.getLogger("app.infrastructure.cache.cache_warming").setLevel(logging.DEBUG)
 # Ensure FastAPICache is initialized even in test/dev without Redis
 try:
     # This will raise AssertionError if not initialized yet
@@ -84,6 +95,8 @@ scheduler = AsyncIOScheduler()
 
 async def warm_up_cache():
     """Pre-warms the cache for A-share industry overview for all windows."""
+    print("Cache warm-up function called...")
+
     print(
         "Warming up A-share industry overview cache for all windows (5D, 20D, 60D)..."
     )
@@ -274,10 +287,22 @@ async def lifespan(app: FastAPI):
     # Run the warm-up immediately at startup
     await warm_up_cache()
 
+    # Run comprehensive cache warming
+    print("Starting comprehensive cache warming...")
+    warming_result = await cache_warming_service.warm_all_caches(force=True)
+    print(f"Cache warming completed: {warming_result.get('status', 'unknown')}")
+    print(f"Cache warming stats: {warming_result.get('stats', {})}")
+    print(f"Total keys warmed: {warming_result.get('stats', {}).get('stock_list', 0) + warming_result.get('stats', {}).get('hot_stocks_data', 0) + warming_result.get('stats', {}).get('market_metrics', 0) + warming_result.get('stats', {}).get('fundamental_data', 0)}")
+
+    # Initialize performance monitor
+    performance_monitor.start_monitoring()
+    print("Performance monitoring started.")
+
     print("Application startup complete.")
     yield
     # On shutdown
     print("Application shutdown.")
+    performance_monitor.stop_monitoring()
     scheduler.shutdown()
 
 
@@ -297,8 +322,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add monitoring middleware
+app.add_middleware(
+    PerformanceMonitoringMiddleware,
+    exclude_paths=["/health", "/metrics", "/docs", "/redoc", "/openapi.json"],
+)
+app.add_middleware(CacheMonitoringMiddleware)
+
 # Include API routers
 app.include_router(stocks_v1.router, prefix="/api/v1/stocks", tags=["stocks"])
+app.include_router(
+    cached_stocks_v1.router, prefix="/api/v1/cached-stocks", tags=["cached-stocks"]
+)
+app.include_router(monitoring_v1.router, prefix="/api/v1", tags=["monitoring"])
+app.include_router(cache_v1.router, prefix="/api/v1", tags=["cache"])
 app.include_router(admin_v1.router, prefix="/api/v1/admin", tags=["admin"])
 app.include_router(
     backtest_v1.router, prefix="/api/v1/backtest", tags=["backtest"]

@@ -54,7 +54,9 @@ async def validate_data(
 
     except Exception as e:
         logger.error(f"Data validation failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Validation failed: {str(e)}"
+        ) from e
 
 
 @router.post("/deduplicate")
@@ -99,7 +101,9 @@ async def deduplicate_data(
 
     except Exception as e:
         logger.error(f"Data deduplication failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Deduplication failed: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Deduplication failed: {str(e)}"
+        ) from e
 
 
 @router.post("/process")
@@ -159,7 +163,9 @@ async def process_data(
 
     except Exception as e:
         logger.error(f"Data processing failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Processing failed: {str(e)}"
+        ) from e
 
 
 @router.get("/health")
@@ -233,4 +239,6 @@ async def get_data_quality_metrics():
 
     except Exception as e:
         logger.error(f"Failed to get data quality metrics: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get metrics: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get metrics: {str(e)}"
+        ) from e

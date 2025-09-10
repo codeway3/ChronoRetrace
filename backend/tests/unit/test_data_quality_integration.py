@@ -51,7 +51,7 @@ class TestDataQualityIntegration(unittest.TestCase):
     def tearDownClass(cls):
         """类级别的清理"""
         cls.engine.dispose()
-        if hasattr(cls, 'temp_db') and cls.temp_db:
+        if hasattr(cls, "temp_db") and cls.temp_db:
             os.unlink(cls.temp_db.name)
 
     def setUp(self):
@@ -373,7 +373,9 @@ class TestDataQualityIntegration(unittest.TestCase):
             "average_quality_score": sum(r.quality_score for r in validation_reports)
             / len(validation_reports),
             "validation_errors": sum(len(r.errors or []) for r in validation_reports),
-            "validation_warnings": sum(len(r.warnings or []) for r in validation_reports),
+            "validation_warnings": sum(
+                len(r.warnings or []) for r in validation_reports
+            ),
         }
 
         # 验证指标

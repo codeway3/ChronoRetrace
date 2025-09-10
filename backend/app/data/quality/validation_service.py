@@ -517,7 +517,9 @@ class DataValidationService:
 
         return is_valid, quality_score
 
-    def get_validation_rules(self, table_name: str | None = None) -> list[ValidationRule]:
+    def get_validation_rules(
+        self, table_name: str | None = None
+    ) -> list[ValidationRule]:
         """获取所有验证规则"""
         rules = []
 
@@ -579,9 +581,7 @@ class DataValidationService:
             self.logger.error(f"记录校验日志失败: {str(e)}")
             self.db_session.rollback()
 
-    def _format_validation_errors(
-        self, results: list[ValidationResult]
-    ) -> str | None:
+    def _format_validation_errors(self, results: list[ValidationResult]) -> str | None:
         """格式化校验错误信息"""
         if not results:
             return None

@@ -66,7 +66,7 @@ def fetch_from_yfinance(
 
     # Handle MultiIndex columns that yfinance might return, especially when fetching single tickers
     # by taking the first level of the column index.
-    if hasattr(df, 'columns') and isinstance(df.columns, pd.MultiIndex):
+    if hasattr(df, "columns") and isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
 
     # Drop rows where 'Date' is NaN/NaT after it has been reset from the index
@@ -219,7 +219,10 @@ def update_us_stock_list(db: Session):
         stmt = sqlite_insert(models.StockInfo).values(stocks_to_insert)
         stmt = stmt.on_conflict_do_update(
             index_elements=["ts_code", "market_type"],
-            set_={"name": stmt.excluded.name, "last_updated": stmt.excluded.last_updated},
+            set_={
+                "name": stmt.excluded.name,
+                "last_updated": stmt.excluded.last_updated,
+            },
         )
         try:
             db.execute(stmt)

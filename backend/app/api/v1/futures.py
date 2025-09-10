@@ -34,7 +34,9 @@ async def get_futures_list():
 @cache(expire=900)  # Cache for 15 minutes
 async def get_futures_data(
     symbol: str,
-    interval: Literal["daily", "weekly", "monthly"] = Query("daily", enum=["daily", "weekly", "monthly"]),
+    interval: Literal["daily", "weekly", "monthly"] = Query(
+        "daily", enum=["daily", "weekly", "monthly"]
+    ),
 ):
     """
     Get historical data for a specific future using yfinance.

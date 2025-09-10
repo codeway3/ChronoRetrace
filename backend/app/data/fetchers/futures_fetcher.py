@@ -215,16 +215,20 @@ def fetch_china_futures_from_akshare(
             start_ts = pd.Timestamp.today() - pd.Timedelta(days=365)
             end_ts = pd.Timestamp.today()
         # Handle potential NaT values
-        if start_ts is pd.NaT or (hasattr(start_ts, '__array__') and start_ts.isna().any()):
+        if start_ts is pd.NaT or (
+            hasattr(start_ts, "__array__") and start_ts.isna().any()
+        ):
             start_ts = pd.Timestamp.today() - pd.Timedelta(days=365)
-        if end_ts is pd.NaT or (hasattr(end_ts, '__array__') and end_ts.isna().any()):
+        if end_ts is pd.NaT or (hasattr(end_ts, "__array__") and end_ts.isna().any()):
             end_ts = pd.Timestamp.today()
 
         # Ensure timestamps are valid before arithmetic operations
         if isinstance(start_ts, pd.Timestamp) and start_ts is not pd.NaT:
             range_start = start_ts - pd.offsets.MonthBegin(1)
         else:
-            range_start = pd.Timestamp.today() - pd.Timedelta(days=365) - pd.offsets.MonthBegin(1)
+            range_start = (
+                pd.Timestamp.today() - pd.Timedelta(days=365) - pd.offsets.MonthBegin(1)
+            )
 
         if isinstance(end_ts, pd.Timestamp) and end_ts is not pd.NaT:
             range_end = end_ts + pd.offsets.MonthBegin(3)

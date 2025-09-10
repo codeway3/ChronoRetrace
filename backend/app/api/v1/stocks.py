@@ -131,7 +131,9 @@ async def get_stock_data(
 
     except Exception as e:
         logger.error(f"Failed to fetch stock data: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch data: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch data: {str(e)}"
+        ) from e
 
 
 @router.post("/{symbol}/sync", status_code=202)

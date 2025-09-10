@@ -254,8 +254,9 @@ class DataDeduplicationService:
         if date_range:
             start_date_str, end_date_str = date_range
             from datetime import datetime
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
             query = query.filter(
                 and_(
                     DailyStockMetrics.date >= start_date,
@@ -754,4 +755,6 @@ class DataDeduplicationService:
                     hash_parts.append(f"{field}:{value}")
 
         hash_string = "|".join(hash_parts)
-        return hashlib.md5(hash_string.encode("utf-8"), usedforsecurity=False).hexdigest()
+        return hashlib.md5(
+            hash_string.encode("utf-8"), usedforsecurity=False
+        ).hexdigest()

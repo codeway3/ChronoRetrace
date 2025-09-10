@@ -20,5 +20,5 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
         reload_dirs=[str(backend_dir)],  # Only watch the backend directory
-        log_level="info"
+        log_level="info",
     )

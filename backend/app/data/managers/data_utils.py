@@ -54,5 +54,7 @@ if __name__ == "__main__":
     print(f"Expected last MA60: {expected_ma60_last}")
     print(f"Actual last MA60:   {actual_ma60_last}")
     if abs(expected_ma60_last - actual_ma60_last) >= 0.001:
-        raise ValueError(f"MA60 calculation error: expected {expected_ma60_last}, got {actual_ma60_last}")
+        raise ValueError(
+            f"MA60 calculation error: expected {expected_ma60_last}, got {actual_ma60_last}"
+        )
     print("\nTest successful!")

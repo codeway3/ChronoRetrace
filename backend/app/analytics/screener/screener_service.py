@@ -1,4 +1,3 @@
-
 from sqlalchemy import and_, func, literal
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute

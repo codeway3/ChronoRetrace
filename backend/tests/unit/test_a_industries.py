@@ -40,15 +40,13 @@ def test_overview_em_with_fallback(mock_list, mock_hist, mock_spot):
     assert item["sparkline"] and len(item["sparkline"]) > 0
 
 
-@patch("app.data.fetchers.a_industries_fetcher.ak.stock_board_industry_index_ths")
+@patch("app.data.fetchers.a_industries_fetcher.ak.stock_board_industry_name_ths")
 @patch("app.data.fetchers.a_industries_fetcher.ak.stock_board_industry_hist_em")
 def test_overview_ths_provider(mock_hist, mock_ths):
     mock_ths.return_value = pd.DataFrame(
         {
-            "指数名称": ["汽车整车"],
-            "指数代码": ["885432"],
-            "涨跌幅": [1.23],
-            "成交额": [2e10],
+            "name": ["汽车整车"],
+            "code": ["885432"],
         }
     )
     mock_hist.return_value = pd.DataFrame(
