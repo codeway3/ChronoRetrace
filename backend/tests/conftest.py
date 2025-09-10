@@ -6,7 +6,7 @@ pytest 配置文件
 
 import asyncio
 import os
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from sqlalchemy import create_engine

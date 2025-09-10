@@ -10,7 +10,6 @@ Date: 2024
 """
 
 import asyncio
-import os
 import time
 from datetime import datetime
 from unittest.mock import Mock, patch
@@ -397,7 +396,6 @@ class TestFullSystemIntegration:
         start_time = time.time()
 
         # 使用asyncio.gather执行异步缓存操作
-        import asyncio
 
         tasks = [cache_operation(i) for i in range(100)]
         results = await asyncio.gather(*tasks)
