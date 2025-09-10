@@ -17,6 +17,18 @@ jobs:
     name: Backend CI
     runs-on: ubuntu-latest
 
+    # Add Redis service for integration tests
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       # 1. Check out the repository code
       - name: Checkout code
@@ -41,11 +53,19 @@ jobs:
           cd backend
           ruff check .
 
-      # 5. Run pytest
+      # 5. Wait for Redis to be ready
+      - name: Wait for Redis
+        run: |
+          timeout 30 bash -c 'until redis-cli ping; do sleep 1; done'
+
+      # 6. Run pytest
       - name: Run pytest
         run: |
           cd backend
           python -m pytest
+        env:
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
 
   #---------------------------------
   # Frontend Job
