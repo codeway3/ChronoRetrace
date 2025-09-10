@@ -9,6 +9,8 @@ Author: ChronoRetrace Team
 Date: 2024
 """
 
+import asyncio
+import os
 import time
 from datetime import datetime
 from unittest.mock import Mock, patch
@@ -20,10 +22,31 @@ from app.infrastructure.cache.cache_warming import cache_warming_service
 from app.infrastructure.monitoring.performance_monitor import performance_monitor
 
 
+# 检查Redis是否可用的辅助函数
+async def is_redis_available():
+    """检查Redis是否可用"""
+    try:
+        result = await cache_service.redis_cache.health_check()
+        return result
+    except Exception:
+        return False
+
+
+# 如果Redis不可用则跳过集成测试的装饰器
+def skip_if_no_redis(func):
+    """如果Redis不可用则跳过测试"""
+    async def wrapper(*args, **kwargs):
+        if not await is_redis_available():
+            pytest.skip("Redis is not available, skipping integration test")
+        return await func(*args, **kwargs)
+    return wrapper
+
+
 class TestCacheServiceIntegration:
     """缓存服务集成测试类"""
 
     @pytest.mark.asyncio
+    @skip_if_no_redis
     async def test_cache_service_basic_operations(self):
         """测试缓存服务基本操作"""
         # 测试设置和获取缓存
@@ -62,6 +85,7 @@ class TestCacheServiceIntegration:
         # 这是正常的缓存行为，不需要强制要求为None
 
     @pytest.mark.asyncio
+    @skip_if_no_redis
     async def test_cache_expiration(self):
         """测试缓存过期功能"""
         test_key = "test:expiration:001"
@@ -85,6 +109,7 @@ class TestCacheServiceIntegration:
         assert redis_exists is False
 
     @pytest.mark.asyncio
+    @skip_if_no_redis
     async def test_cache_pattern_operations(self):
         """测试缓存模式操作"""
         # 设置多个相关缓存
@@ -146,6 +171,7 @@ class TestCacheWarmingIntegration:
             yield mock_session
 
     @pytest.mark.asyncio
+    @skip_if_no_redis
     async def test_stock_info_warming(self, mock_database_data):
         """测试股票信息预热"""
         # 执行预热
@@ -162,6 +188,7 @@ class TestCacheWarmingIntegration:
         assert a_share_data is not None or us_stock_data is not None
 
     @pytest.mark.asyncio
+    @skip_if_no_redis
     async def test_hot_stocks_warming(self, mock_database_data):
         """测试热门股票预热"""
         stats = {"stock_list": 0, "failed": 0}
@@ -184,6 +211,7 @@ class TestCacheWarmingIntegration:
         assert a_share_data is not None or us_stock_data is not None
 
     @pytest.mark.asyncio
+    @skip_if_no_redis
     async def test_incremental_update(self, mock_database_data):
         """测试增量更新"""
         stock_codes = ["000001.SZ", "000002.SZ"]
@@ -200,8 +228,9 @@ class TestCacheWarmingIntegration:
         assert result["updated_count"] >= 0
 
     @pytest.mark.asyncio
+    @skip_if_no_redis
     async def test_cache_warming_with_force_refresh(self, mock_database_data):
-        """测试强制刷新缓存预热"""
+        """测试缓存预热的强制刷新功能"""
         # 先设置一些旧的股票列表缓存
         old_data = {"name": "旧数据", "timestamp": datetime.now().isoformat()}
         await cache_service.set_stock_info("list_A_share", old_data, "A_share")
@@ -221,6 +250,7 @@ class TestPerformanceMonitoringIntegration:
     """性能监控集成测试类"""
 
     @pytest.mark.asyncio
+    @skip_if_no_redis
     async def test_cache_operations_monitoring(self):
         """测试缓存操作的性能监控"""
         # 重置统计信息
@@ -244,6 +274,7 @@ class TestPerformanceMonitoringIntegration:
         assert total_misses >= 1
 
     @pytest.mark.asyncio
+    @skip_if_no_redis
     async def test_api_performance_monitoring(self):
         """测试API性能监控"""
         # 重置统计信息
@@ -306,6 +337,7 @@ class TestFullSystemIntegration:
     """完整系统集成测试类"""
 
     @pytest.mark.asyncio
+    @skip_if_no_redis
     async def test_complete_cache_workflow(self):
         """测试完整的缓存工作流程"""
         # 1. 启动性能监控
@@ -342,6 +374,7 @@ class TestFullSystemIntegration:
             performance_monitor.stop_monitoring()
 
     @pytest.mark.asyncio
+    @skip_if_no_redis
     async def test_cache_performance_under_load(self):
         """测试负载下的缓存性能"""
         # 模拟高并发缓存操作
@@ -382,6 +415,7 @@ class TestFullSystemIntegration:
         print(f"100个并发缓存操作完成时间: {total_time:.2f}秒")
 
     @pytest.mark.asyncio
+    @skip_if_no_redis
     async def test_cache_consistency_after_updates(self):
         """测试更新后的缓存一致性"""
         stock_code = "000001.SZ"

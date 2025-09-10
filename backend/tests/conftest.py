@@ -5,7 +5,8 @@ pytest 配置文件
 """
 
 import asyncio
-from unittest.mock import Mock
+import os
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from sqlalchemy import create_engine
@@ -119,3 +120,38 @@ def sample_metrics_data():
         "ma20": 13.2,
         "volume": 50000000,
     }
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_redis_environment():
+    """设置Redis环境变量"""
+    # 如果在CI环境中，使用环境变量中的Redis配置
+    if os.getenv("CI") or os.getenv("GITHUB_ACTIONS"):
+        os.environ["REDIS_HOST"] = os.getenv("REDIS_HOST", "localhost")
+        os.environ["REDIS_PORT"] = os.getenv("REDIS_PORT", "6379")
+    else:
+        # 本地开发环境，使用默认配置
+        os.environ.setdefault("REDIS_HOST", "localhost")
+        os.environ.setdefault("REDIS_PORT", "6379")
+
+
+@pytest.fixture
+def mock_redis_manager():
+    """Mock Redis Manager for unit tests"""
+    mock_manager = AsyncMock()
+    mock_manager.set.return_value = True
+    mock_manager.get.return_value = None
+    mock_manager.delete.return_value = True
+    mock_manager.exists.return_value = False
+    mock_manager.health_check.return_value = True
+    return mock_manager
+
+
+@pytest.fixture
+def mock_cache_service():
+    """Mock Cache Service for unit tests"""
+    mock_service = AsyncMock()
+    mock_service.set_stock_info.return_value = True
+    mock_service.get_stock_info.return_value = None
+    mock_service.health_check.return_value = True
+    return mock_service
