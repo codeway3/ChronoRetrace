@@ -200,15 +200,8 @@ class TestCacheWarmingIntegration:
         assert stats["stock_list"] >= 0
 
         # 验证股票列表缓存是否已设置
-        a_share_key = cache_warming_service.key_manager.generate_key(
-            "stock_info", "list_A_share"
-        )
-        us_stock_key = cache_warming_service.key_manager.generate_key(
-            "stock_info", "list_US_stock"
-        )
-
-        a_share_data = await cache_service.get_stock_info(a_share_key)
-        us_stock_data = await cache_service.get_stock_info(us_stock_key)
+        a_share_data = await cache_service.get_stock_info("list_A_share", "A_share")
+        us_stock_data = await cache_service.get_stock_info("list_US_stock", "US_stock")
 
         # 至少应该有一个列表被缓存
         assert a_share_data is not None or us_stock_data is not None
