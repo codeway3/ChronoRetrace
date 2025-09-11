@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, message, Tooltip, Divider } from 'antd';
+import { Layout, Menu, Button, message, Tooltip, Divider, Dropdown, Avatar, Space } from 'antd';
 import {
   LineChartOutlined,
   DollarOutlined,
@@ -10,9 +10,13 @@ import {
   MenuUnfoldOutlined,
   ExperimentOutlined,
   FilterOutlined,
+  UserOutlined,
+  LogoutOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { clearCache } from '../api/stockApi';
+import { useAuth } from '../contexts/AuthContext';
 import './MainLayout.css';
 
 const { Header, Content, Sider } = Layout;
@@ -22,6 +26,7 @@ const MainLayout = ({ children }) => {
   const location = useLocation();
   const [selectedKeys, setSelectedKeys] = useState(['1']);
   const [collapsed, setCollapsed] = useState(false);
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const path = location.pathname;
@@ -55,6 +60,17 @@ const MainLayout = ({ children }) => {
     } catch (error) {
       message.error('Failed to clear cache.');
       console.error('Failed to clear cache:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      message.success('退出登录成功');
+      navigate('/login');
+    } catch (error) {
+      message.error('退出登录失败');
+      console.error('Logout error:', error);
     }
   };
 
@@ -169,7 +185,50 @@ const MainLayout = ({ children }) => {
       </Sider>
       <Layout className="content-layout" style={{ marginLeft: siderWidth }}>
         <Header className="main-header">
-          <h2 style={{ margin: 0 }}>金融回归测试工具</h2>
+          <div className="header-content" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
+            <h2 style={{ margin: 0 }}>金融回归测试工具</h2>
+            <Space>
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: 'profile',
+                      icon: <UserOutlined />,
+                      label: '个人资料',
+                      onClick: () => navigate('/profile')
+                    },
+                    {
+                      key: 'settings',
+                      icon: <SettingOutlined />,
+                      label: '设置'
+                    },
+                    {
+                      type: 'divider'
+                    },
+                    {
+                      key: 'logout',
+                      icon: <LogoutOutlined />,
+                      label: '退出登录',
+                      onClick: handleLogout
+                    }
+                  ]
+                }}
+                placement="bottomRight"
+                trigger={['click']}
+              >
+                <Button type="text" className="user-menu-trigger">
+                  <Space>
+                    <Avatar
+                      size="small"
+                      src={user?.avatar_url}
+                      icon={<UserOutlined />}
+                    />
+                    <span className="username">{user?.full_name || user?.username}</span>
+                  </Space>
+                </Button>
+              </Dropdown>
+            </Space>
+          </div>
         </Header>
         <Content className="main-content">
           <div className="main-content-inner">{children}</div>

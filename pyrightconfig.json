@@ -15,7 +15,7 @@
     "pythonPlatform": "Darwin",
     "executionEnvironments": [
         {
-            "root": "./backend",
+            "root": ".",
             "pythonVersion": "3.10",
             "extraPaths": ["./backend"]
         }

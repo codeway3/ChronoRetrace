@@ -1,0 +1,18 @@
+[MASTER]
+init-hook='import sys; sys.path.append("/Users/apple/code/ChronoRetrace/backend")'
+
+[MESSAGES CONTROL]
+disable=missing-module-docstring,missing-class-docstring,missing-function-docstring,too-few-public-methods,import-error
+
+[FORMAT]
+max-line-length=88
+
+[BASIC]
+good-names=i,j,k,ex,Run,_,db,id
+
+[DESIGN]
+max-args=10
+max-locals=20
+max-returns=6
+max-branches=15
+max-statements=50

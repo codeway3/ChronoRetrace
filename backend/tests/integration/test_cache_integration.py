@@ -33,11 +33,15 @@ async def is_redis_available():
 
 # 如果Redis不可用则跳过集成测试的装饰器
 def skip_if_no_redis(func):
-    """如果Redis不可用则跳过测试"""
+    """如果Redis不可用则跳过测试的装饰器"""
+    import functools
+
+    @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         if not await is_redis_available():
             pytest.skip("Redis is not available, skipping integration test")
         return await func(*args, **kwargs)
+
     return wrapper
 
 

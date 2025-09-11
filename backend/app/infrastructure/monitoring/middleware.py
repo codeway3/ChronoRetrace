@@ -87,7 +87,8 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         try:
             # 执行请求
             response = await call_next(request)
-            status_code = response.status_code
+            # 确保response不为None并获取status_code
+            status_code = response.status_code if response else 500
             success = 200 <= status_code < 400
 
             # 计算响应时间

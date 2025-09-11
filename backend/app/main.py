@@ -2,17 +2,19 @@ import asyncio
 import logging
 import warnings
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_cache import FastAPICache
-from fastapi_cache.backends.inmemory import InMemoryBackend
 from fastapi_cache.backends.redis import RedisBackend
 from redis import asyncio as aioredis
 
 from app.api.v1 import a_industries as a_industries_v1
 from app.api.v1 import admin as admin_v1
+from app.api.v1 import auth as auth_v1
 from app.api.v1 import backtest as backtest_v1
 from app.api.v1 import cache as cache_v1
 from app.api.v1 import cached_stocks as cached_stocks_v1
@@ -24,10 +26,16 @@ from app.api.v1 import monitoring as monitoring_v1
 from app.api.v1 import options as options_v1
 from app.api.v1 import screener as screener_v1
 from app.api.v1 import stocks as stocks_v1
+from app.api.v1 import users as users_v1
+from app.api.v1 import watchlist as watchlist_v1
 from app.core.config import settings
+from app.core.middleware import setup_middleware
+
+# Logger is already configured above with logging.basicConfig
 from app.data.fetchers import a_industries_fetcher
 from app.infrastructure.cache.cache_warming import cache_warming_service
 from app.infrastructure.database import models
+from app.infrastructure.database.init_db import initialize_database
 from app.infrastructure.database.session import SessionLocal, engine
 from app.infrastructure.monitoring import performance_monitor
 from app.infrastructure.monitoring.middleware import (
@@ -49,6 +57,7 @@ warnings.filterwarnings("ignore", category=UserWarning, message="Certain functio
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+logger = logging.getLogger(__name__)
 logging.getLogger("yfinance").setLevel(
     logging.WARNING
 )  # Quieten yfinance's debug messages
@@ -56,13 +65,7 @@ logging.getLogger("urllib3").setLevel(logging.INFO)  # Quieten urllib3's debug m
 logging.getLogger("apscheduler").setLevel(logging.WARNING)
 # Enable debug logging for cache warming
 logging.getLogger("app.infrastructure.cache.cache_warming").setLevel(logging.DEBUG)
-# Ensure FastAPICache is initialized even in test/dev without Redis
-try:
-    # This will raise AssertionError if not initialized yet
-    FastAPICache.get_backend()
-except Exception:
-    # Use in-memory backend as a safe default; lifespan will override with Redis later
-    FastAPICache.init(InMemoryBackend(), prefix="fastapi-cache")
+# FastAPICache will be initialized in lifespan function with Redis backend
 
 
 def create_db_and_tables():
@@ -92,10 +95,49 @@ def create_db_and_tables():
 
 scheduler = AsyncIOScheduler()
 
+# Redis键名用于存储上次行业数据预热时间
+INDUSTRY_WARMING_TIME_KEY = "industry_warming:last_time"
+INDUSTRY_WARMING_TIME_FILE = Path("cache_warming_time.txt")
+
 
 async def warm_up_cache():
     """Pre-warms the cache for A-share industry overview for all windows."""
+    print("=== WARM_UP_CACHE FUNCTION CALLED ===")
     print("Cache warm-up function called...")
+
+    # 从Redis获取上次预热时间
+    try:
+        print("Attempting to get Redis backend...")
+        backend = FastAPICache.get_backend()
+        print(f"Redis backend obtained: {backend}")
+
+        print(f"Attempting to get last warming time with key: {INDUSTRY_WARMING_TIME_KEY}")
+        last_warming_str = await backend.get(INDUSTRY_WARMING_TIME_KEY)
+        print(f"Retrieved last warming time from Redis: {last_warming_str}")
+
+        if last_warming_str:
+            print("Found previous warming time, parsing...")
+            last_warming_time = datetime.fromisoformat(last_warming_str.decode('utf-8'))
+            time_since_last_warming = datetime.now() - last_warming_time
+            print(f"Last warming time: {last_warming_time}")
+            print(f"Time since last warming: {time_since_last_warming}")
+            print(f"12 hour threshold: {timedelta(hours=12)}")
+
+            if time_since_last_warming < timedelta(hours=12):
+                remaining_time = timedelta(hours=12) - time_since_last_warming
+                print(f"距离上次行业数据预热不足12小时，跳过预热。剩余等待时间: {remaining_time}")
+                print("=== RETURNING EARLY DUE TO TIME CONSTRAINT ===")
+                return
+            else:
+                print("距离上次预热已超过12小时，开始新的预热")
+        else:
+            print("未找到上次预热时间记录，开始首次预热")
+    except Exception as e:
+        print(f"获取上次预热时间失败，继续执行预热: {e}")
+        import traceback
+        traceback.print_exc()
+
+    print("=== PROCEEDING WITH CACHE WARMING ===")
 
     print(
         "Warming up A-share industry overview cache for all windows (5D, 20D, 60D)..."
@@ -192,7 +234,7 @@ async def warm_up_cache():
                         )
                         sparkline_data = hist.tail(days)[["trade_date", "close"]].copy()
                         sparkline_data["close"] = sparkline_data["close"].astype(float)
-                        sparkline = sparkline_data.to_dict(orient="records")  # type: ignore[misc]
+                        sparkline = sparkline_data.to_dict(orient="records")
 
                         results.append(
                             {
@@ -233,6 +275,16 @@ async def warm_up_cache():
         print(
             "A-share industry overview cache is warmed up successfully for all windows."
         )
+
+        # 保存预热时间到Redis
+        try:
+            backend = FastAPICache.get_backend()
+            current_time = datetime.now()
+            await backend.set(INDUSTRY_WARMING_TIME_KEY, current_time.isoformat().encode('utf-8'))
+            print(f"行业数据预热完成，下次预热时间: {current_time + timedelta(hours=12)}")
+        except Exception as e:
+            print(f"保存预热时间失败: {e}")
+
     except Exception as e:
         print(f"An error occurred during cache warm-up: {e}")
 
@@ -240,7 +292,20 @@ async def warm_up_cache():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # On startup
-    print("Application startup...")
+    logger.info("正在启动应用...")
+
+    # 初始化数据库
+    try:
+        success = initialize_database()
+        if success:
+            logger.info("✅ 数据库初始化成功")
+        else:
+            logger.error("❌ 数据库初始化失败")
+            raise Exception("数据库初始化失败")
+    except Exception as e:
+        logger.error(f"启动时数据库初始化出错: {e}")
+        raise
+
     create_db_and_tables()
 
     # Initialize FastAPI-Cache with Redis backend
@@ -284,8 +349,14 @@ async def lifespan(app: FastAPI):
     )
 
     scheduler.start()
-    # Run the warm-up immediately at startup
-    await warm_up_cache()
+    # 同步运行预热（会检查时间间隔限制）
+    try:
+        # 使用 asyncio.create_task 创建任务但不等待，使其在后台运行
+        asyncio.create_task(warm_up_cache())
+        print("行业数据预热任务已启动（后台运行）")
+    except Exception as e:
+        print(f"启动预热任务出错: {e}")
+        # 继续启动，不因预热失败而中断整个应用
 
     # Run comprehensive cache warming
     print("Starting comprehensive cache warming...")
@@ -298,12 +369,13 @@ async def lifespan(app: FastAPI):
     performance_monitor.start_monitoring()
     print("Performance monitoring started.")
 
-    print("Application startup complete.")
+    logger.info("✅ 应用启动完成")
     yield
     # On shutdown
-    print("Application shutdown.")
+    logger.info("正在关闭应用...")
     performance_monitor.stop_monitoring()
     scheduler.shutdown()
+    logger.info("✅ 应用已关闭")
 
 
 app = FastAPI(
@@ -316,10 +388,10 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Allows the React dev server
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+    allow_methods=settings.CORS_ALLOW_METHODS.split(","),
+    allow_headers=settings.CORS_ALLOW_HEADERS.split(",") if settings.CORS_ALLOW_HEADERS != "*" else ["*"],
 )
 
 # Add monitoring middleware
@@ -329,7 +401,15 @@ app.add_middleware(
 )
 app.add_middleware(CacheMonitoringMiddleware)
 
+# 设置中间件
+setup_middleware(app)
+
+# 数据库初始化已迁移到lifespan函数中
+
 # Include API routers
+app.include_router(auth_v1.router, prefix="/api/v1", tags=["auth"])
+app.include_router(users_v1.router, prefix="/api/v1", tags=["users"])
+app.include_router(watchlist_v1.router, prefix="/api/v1/watchlist", tags=["watchlist"])
 app.include_router(stocks_v1.router, prefix="/api/v1/stocks", tags=["stocks"])
 app.include_router(
     cached_stocks_v1.router, prefix="/api/v1/cached-stocks", tags=["cached-stocks"]

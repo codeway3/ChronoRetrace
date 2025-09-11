@@ -44,14 +44,25 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+          cd backend
+          pip install -r requirements-dev.txt
           pip list
 
-      # 4. Lint with Ruff
+      # 4. Code Quality Checks
       - name: Lint with Ruff
         run: |
           cd backend
-          ruff check .
+          python -m ruff check .
+      
+      - name: Security scan with Bandit
+        run: |
+          cd backend
+          python -m bandit -r app/ -f json -o bandit-report.json || true
+      
+      - name: Check dependencies with Safety
+        run: |
+          cd backend
+          python -m safety check --json --output safety-report.json || true
 
       # 5. Install Redis CLI tools
       - name: Install Redis CLI
@@ -64,14 +75,34 @@ jobs:
         run: |
           timeout 30 bash -c 'until redis-cli ping; do sleep 1; done'
 
-      # 7. Run pytest
-      - name: Run pytest
+      # 7. Run pytest with coverage
+      - name: Run pytest with coverage
         run: |
           cd backend
-          python -m pytest
+          python -m pytest --cov=app --cov-report=xml --cov-report=term-missing -v
         env:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
+          DATABASE_URL: sqlite:///./test.db
+          SECRET_KEY: test-secret-key-for-ci
+          ENVIRONMENT: test
+      
+      # 8. Upload coverage reports
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+      
+      # 9. Upload security reports
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            backend/bandit-report.json
+            backend/safety-report.json
 
   #---------------------------------
   # Frontend Job

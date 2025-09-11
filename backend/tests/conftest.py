@@ -6,7 +6,8 @@ pytest 配置文件
 
 import asyncio
 import os
-from unittest.mock import AsyncMock, Mock
+import sys
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 from sqlalchemy import create_engine
@@ -15,12 +16,18 @@ from sqlalchemy.pool import StaticPool
 
 from app.infrastructure.database.models import Base
 
+# import akshare as ak  # Removed to avoid initialization issues in tests
+# Mock akshare module completely to avoid initialization issues
+sys.modules['akshare'] = MagicMock()
+
 
 def pytest_configure(config):
     """
     注册自定义标记，避免警告
     """
     config.addinivalue_line("markers", "asyncio: mark test as an asyncio coroutine")
+
+    # akshare初始化已通过mock处理，无需实际调用
 
 
 def pytest_pyfunc_call(pyfuncitem):
@@ -155,3 +162,33 @@ def mock_cache_service():
     mock_service.get_stock_info.return_value = None
     mock_service.health_check.return_value = True
     return mock_service
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_fastapi_cache():
+    """Initialize FastAPICache for all tests"""
+    try:
+        from fastapi_cache import FastAPICache
+        from fastapi_cache.backends.inmemory import InMemoryBackend
+        if not hasattr(FastAPICache, '_prefix') or FastAPICache._prefix is None:
+            FastAPICache.init(InMemoryBackend(), prefix="test-cache")
+    except Exception:
+        pass
+
+
+@pytest.fixture(autouse=True)
+def clear_cache_between_tests():
+    """Clear cache between individual tests"""
+    try:
+        import asyncio
+
+        from fastapi_cache import FastAPICache
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If we're already in an async context, create a task
+            asyncio.create_task(FastAPICache.clear())
+        else:
+            # If not in async context, run the clear operation
+            loop.run_until_complete(FastAPICache.clear())
+    except Exception:
+        pass

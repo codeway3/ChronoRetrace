@@ -472,6 +472,35 @@ class RedisCacheManager:
             logger.error(f"Redis ping failed: {e}")
             return False
 
+    async def health_check(self) -> bool:
+        """Redis健康检查
+
+        Returns:
+            健康检查结果
+        """
+        try:
+            # 测试基本连接
+            if not self.ping():
+                return False
+
+            # 测试基本操作
+            test_key = "health_check_test"
+            test_value = "test"
+
+            # 设置测试值
+            await self.set(test_key, test_value, ttl=10)
+
+            # 获取测试值
+            retrieved_value = await self.get(test_key)
+
+            # 删除测试值
+            self.delete(test_key)
+
+            return retrieved_value == test_value
+        except Exception as e:
+            logger.error(f"Redis health check failed: {e}")
+            return False
+
     def get_info(self, section: str = "memory") -> Mapping[str, Any]:
         """获取Redis信息
 

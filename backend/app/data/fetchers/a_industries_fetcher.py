@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Hashable, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -63,7 +64,7 @@ def _normalize_hist_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def fetch_industry_list_em() -> list[dict[str, str]]:
+def fetch_industry_list_em() -> Sequence[dict[Hashable, Any]]:
     """Fetch industry list from Eastmoney."""
     max_retries = 3
     retry_delay = 2  # 初始延迟2秒
@@ -83,8 +84,8 @@ def fetch_industry_list_em() -> list[dict[str, str]]:
                 )
                 return []
 
-            result = df[["industry_name", "industry_code"]].to_dict(orient="records")  # type: ignore[misc]  # type: ignore[misc]  # type: ignore[misc]  # type: ignore[misc]
-            return result  # type: ignore[no-any-return]
+            result = df[["industry_name", "industry_code"]].to_dict(orient="records")
+            return result
 
         except Exception as exc:
             logger.warning(
@@ -108,7 +109,7 @@ def fetch_industry_list_em() -> list[dict[str, str]]:
     return []
 
 
-def fetch_industry_list_ths() -> list[dict[str, str]]:
+def fetch_industry_list_ths() -> Sequence[dict[Hashable, Any]]:
     """Fetch industry list from THS name endpoint."""
     try:
         logger.info("Fetching industry list from THS")
@@ -123,7 +124,7 @@ def fetch_industry_list_ths() -> list[dict[str, str]]:
             return []
 
         result = df[["industry_name", "industry_code"]].to_dict(orient="records")
-        return result  # type: ignore[no-any-return]
+        return result
 
     except Exception as exc:
         logger.error(f"Failed to fetch THS industry list: {exc}", exc_info=True)
@@ -245,7 +246,7 @@ def build_overview(
         period_return = compute_period_return(hist, days)
         sparkline_data = hist.tail(days)[["trade_date", "close"]].copy()
         sparkline_data["close"] = sparkline_data["close"].astype(float)
-        sparkline = sparkline_data.to_dict(orient="records")  # type: ignore[misc]  # type: ignore[misc]  # type: ignore[misc]  # type: ignore[misc]
+        sparkline = sparkline_data.to_dict(orient="records")
 
         results.append(
             {
@@ -263,7 +264,7 @@ def build_overview(
     return results
 
 
-def fetch_industry_constituents(industry_code: str) -> list[dict[str, object]]:
+def fetch_industry_constituents(industry_code: str) -> Sequence[dict[Hashable, Any]]:
     """Fetch the constituent stocks for a given industry from Eastmoney."""
     try:
         logger.info(f"Fetching constituents for industry code: {industry_code}")
@@ -287,7 +288,7 @@ def fetch_industry_constituents(industry_code: str) -> list[dict[str, object]]:
             return []
 
         result = df.to_dict(orient="records")
-        return result  # type: ignore[no-any-return]
+        return result
 
     except Exception as exc:
         logger.error(

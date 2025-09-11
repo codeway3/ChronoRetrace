@@ -59,7 +59,7 @@ def test_clear_cache_database_error(mock_redis_clear, mock_db_clear):
     data = response.json()
 
     # Verify error message
-    assert "Database connection failed" in data["detail"]
+    assert "Database connection failed" in data["detail"]["error_details"]
 
     # Verify database function was called but Redis was not
     mock_db_clear.assert_called_once()
@@ -87,7 +87,7 @@ def test_clear_cache_redis_error(mock_redis_clear, mock_db_clear):
     data = response.json()
 
     # Verify error message
-    assert "Redis connection failed" in data["detail"]
+    assert "Redis connection failed" in data["detail"]["error_details"]
 
     # Verify both functions were called
     mock_db_clear.assert_called_once()
