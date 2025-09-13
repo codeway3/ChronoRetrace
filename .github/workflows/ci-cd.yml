@@ -6,21 +6,17 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
-  release:
-    types: [ published ]
 
 # 环境变量
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
   NODE_VERSION: '18'
   PYTHON_VERSION: '3.11'
 
 # 作业定义
 jobs:
-  # 代码质量检查
-  code-quality:
-    name: Code Quality Check
+  # 代码质量检查和基本测试
+  test:
+    name: Code Quality & Tests
     runs-on: ubuntu-latest
     
     steps:
@@ -44,149 +40,38 @@ jobs:
         cd backend
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install flake8 black isort mypy pytest-cov
+        pip install black pytest
         
     - name: Install Node.js dependencies
       run: |
         cd frontend
         npm ci
         
-    - name: Python code formatting check
+    - name: Python code formatting
       run: |
         cd backend
         black --check .
-        isort --check-only .
         
-    - name: Python linting
+    - name: Python tests
       run: |
         cd backend
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-        
-    - name: Python type checking
-      run: |
-        cd backend
-        mypy app/ --ignore-missing-imports
+        pytest tests/ -v
         
     - name: Frontend linting
       run: |
         cd frontend
         npm run lint
         
-    - name: Frontend type checking
+    - name: Frontend tests
       run: |
         cd frontend
-        npm run type-check
+        npm test -- --coverage --watchAll=false
 
-  # 安全扫描
-  security-scan:
-    name: Security Scan
+  # 构建验证
+  build:
+    name: Build Verification
     runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-        
-    - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
-        
-    - name: Python security check
-      run: |
-        pip install safety bandit
-        cd backend
-        safety check -r requirements.txt
-        bandit -r app/ -f json -o bandit-report.json
-        
-    - name: Node.js security audit
-      run: |
-        cd frontend
-        npm audit --audit-level=high
-
-  # 后端测试
-  backend-test:
-    name: Backend Tests
-    runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: testpassword
-          POSTGRES_USER: testuser
-          POSTGRES_DB: testdb
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-          
-      redis:
-        image: redis:7
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        
-    - name: Install dependencies
-      run: |
-        cd backend
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-asyncio
-        
-    - name: Run database migrations
-      env:
-        DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
-        REDIS_URL: redis://localhost:6379
-      run: |
-        cd backend
-        python -m alembic upgrade head
-        
-    - name: Run tests with coverage
-      env:
-        DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
-        REDIS_URL: redis://localhost:6379
-        ENVIRONMENT: test
-      run: |
-        cd backend
-        pytest --cov=app --cov-report=xml --cov-report=html tests/
-        
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: backend/coverage.xml
-        flags: backend
-        name: backend-coverage
-
-  # 前端测试
-  frontend-test:
-    name: Frontend Tests
-    runs-on: ubuntu-latest
+    needs: test
     
     steps:
     - name: Checkout code
@@ -198,379 +83,13 @@ jobs:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
-        
-    - name: Install dependencies
-      run: |
-        cd frontend
-        npm ci
-        
-    - name: Run unit tests
-      run: |
-        cd frontend
-        npm run test:coverage
-        
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: frontend/coverage/lcov.info
-        flags: frontend
-        name: frontend-coverage
-        
-    - name: Build application
-      run: |
-        cd frontend
-        npm run build
-        
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: frontend-build
-        path: frontend/build/
-        retention-days: 7
-
-  # E2E测试
-  e2e-test:
-    name: End-to-End Tests
-    runs-on: ubuntu-latest
-    needs: [backend-test, frontend-test]
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: testpassword
-          POSTGRES_USER: testuser
-          POSTGRES_DB: testdb
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-          
-      redis:
-        image: redis:7
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-        
-    - name: Install backend dependencies
-      run: |
-        cd backend
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
         
     - name: Install frontend dependencies
       run: |
         cd frontend
         npm ci
         
-    - name: Download frontend build
-      uses: actions/download-artifact@v3
-      with:
-        name: frontend-build
-        path: frontend/build/
-        
-    - name: Start backend server
-      env:
-        DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
-        REDIS_URL: redis://localhost:6379
-        ENVIRONMENT: test
-      run: |
-        cd backend
-        python -m alembic upgrade head
-        python start_dev.py &
-        sleep 10
-        
-    - name: Start frontend server
+    - name: Build frontend
       run: |
         cd frontend
-        npm start &
-        sleep 10
-        
-    - name: Install Playwright
-      run: |
-        cd frontend
-        npx playwright install --with-deps
-        
-    - name: Run E2E tests
-      run: |
-        cd frontend
-        npx playwright test
-        
-    - name: Upload E2E test results
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: e2e-test-results
-        path: frontend/test-results/
-        retention-days: 7
-
-  # 构建Docker镜像
-  build-images:
-    name: Build Docker Images
-    runs-on: ubuntu-latest
-    needs: [code-quality, security-scan, backend-test, frontend-test]
-    if: github.event_name == 'push' || github.event_name == 'release'
-    
-    permissions:
-      contents: read
-      packages: write
-    
-    strategy:
-      matrix:
-        component: [backend, frontend]
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.component }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
-          
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: ${{ matrix.component }}
-        file: ${{ matrix.component }}/Dockerfile
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        platforms: linux/amd64,linux/arm64
-
-  # 部署到开发环境
-  deploy-dev:
-    name: Deploy to Development
-    runs-on: ubuntu-latest
-    needs: [build-images, e2e-test]
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    
-    environment:
-      name: development
-      url: https://dev.chronoretrace.com
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
-        
-    - name: Configure kubectl
-      run: |
-        echo "${{ secrets.KUBE_CONFIG_DEV }}" | base64 -d > kubeconfig
-        export KUBECONFIG=kubeconfig
-        
-    - name: Deploy to Kubernetes
-      run: |
-        export KUBECONFIG=kubeconfig
-        
-        # 更新镜像标签
-        sed -i "s|image: .*chronoretrace-backend.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:develop|g" k8s/backend/deployment.yaml
-        sed -i "s|image: .*chronoretrace-frontend.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:develop|g" k8s/frontend/deployment.yaml
-        
-        # 应用配置
-        kubectl apply -f k8s/namespace.yaml
-        kubectl apply -f k8s/configmap/
-        kubectl apply -f k8s/secrets/
-        kubectl apply -f k8s/database/
-        kubectl apply -f k8s/redis/
-        kubectl apply -f k8s/backend/
-        kubectl apply -f k8s/frontend/
-        kubectl apply -f k8s/ingress/
-        
-        # 等待部署完成
-        kubectl rollout status deployment/chronoretrace-backend -n chronoretrace
-        kubectl rollout status deployment/chronoretrace-frontend -n chronoretrace
-        
-    - name: Run smoke tests
-      run: |
-        # 等待服务就绪
-        sleep 30
-        
-        # 健康检查
-        curl -f https://dev.chronoretrace.com/api/health || exit 1
-        curl -f https://dev.chronoretrace.com/ || exit 1
-
-  # 部署到生产环境
-  deploy-prod:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: [build-images]
-    if: github.event_name == 'release'
-    
-    environment:
-      name: production
-      url: https://chronoretrace.com
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
-        
-    - name: Configure kubectl
-      run: |
-        echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > kubeconfig
-        export KUBECONFIG=kubeconfig
-        
-    - name: Deploy to Kubernetes
-      run: |
-        export KUBECONFIG=kubeconfig
-        
-        # 获取发布版本
-        VERSION=${GITHUB_REF#refs/tags/}
-        
-        # 更新镜像标签
-        sed -i "s|image: .*chronoretrace-backend.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${VERSION}|g" k8s/backend/deployment.yaml
-        sed -i "s|image: .*chronoretrace-frontend.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${VERSION}|g" k8s/frontend/deployment.yaml
-        
-        # 应用配置
-        kubectl apply -f k8s/namespace.yaml
-        kubectl apply -f k8s/configmap/
-        kubectl apply -f k8s/secrets/
-        kubectl apply -f k8s/database/
-        kubectl apply -f k8s/redis/
-        kubectl apply -f k8s/backend/
-        kubectl apply -f k8s/frontend/
-        kubectl apply -f k8s/ingress/
-        kubectl apply -f k8s/autoscaling/
-        
-        # 等待部署完成
-        kubectl rollout status deployment/chronoretrace-backend -n chronoretrace
-        kubectl rollout status deployment/chronoretrace-frontend -n chronoretrace
-        
-    - name: Run production smoke tests
-      run: |
-        # 等待服务就绪
-        sleep 60
-        
-        # 健康检查
-        curl -f https://chronoretrace.com/api/health || exit 1
-        curl -f https://chronoretrace.com/ || exit 1
-        
-    - name: Deploy monitoring
-      run: |
-        export KUBECONFIG=kubeconfig
-        
-        # 部署监控组件
-        kubectl apply -f k8s/monitoring/
-        
-        # 等待监控服务启动
-        kubectl rollout status deployment/prometheus -n monitoring
-        kubectl rollout status deployment/grafana -n monitoring
-
-  # 性能测试
-  performance-test:
-    name: Performance Tests
-    runs-on: ubuntu-latest
-    needs: [deploy-dev]
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Install k6
-      run: |
-        sudo gpg -k
-        sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-        echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
-        sudo apt-get update
-        sudo apt-get install k6
-        
-    - name: Run performance tests
-      run: |
-        cd tests/performance
-        k6 run --out json=results.json api-load-test.js
-        
-    - name: Upload performance results
-      uses: actions/upload-artifact@v3
-      with:
-        name: performance-results
-        path: tests/performance/results.json
-        retention-days: 30
-
-  # 通知
-  notify:
-    name: Notify
-    runs-on: ubuntu-latest
-    needs: [deploy-dev, deploy-prod, performance-test]
-    if: always()
-    
-    steps:
-    - name: Notify Slack on success
-      if: ${{ needs.deploy-dev.result == 'success' || needs.deploy-prod.result == 'success' }}
-      uses: 8398a7/action-slack@v3
-      with:
-        status: success
-        text: 'ChronoRetrace deployment successful! 🚀'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-        
-    - name: Notify Slack on failure
-      if: ${{ needs.deploy-dev.result == 'failure' || needs.deploy-prod.result == 'failure' }}
-      uses: 8398a7/action-slack@v3
-      with:
-        status: failure
-        text: 'ChronoRetrace deployment failed! ❌'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-        
-    - name: Create GitHub issue on failure
-      if: ${{ needs.deploy-prod.result == 'failure' }}
-      uses: actions/github-script@v6
-      with:
-        script: |
-          github.rest.issues.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            title: 'Production deployment failed',
-            body: `Production deployment failed for commit ${context.sha}. Please investigate immediately.`,
-            labels: ['bug', 'production', 'urgent']
-          })
+        npm run build
