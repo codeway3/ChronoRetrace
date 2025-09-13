@@ -55,7 +55,7 @@ jobs:
     - name: Python tests
       run: |
         cd backend
-        pytest tests/ -v
+        PYTHONPATH=. pytest tests/ -v
         
     - name: Frontend linting
       run: |
