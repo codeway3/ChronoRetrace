@@ -524,7 +524,8 @@ class TestDataQualityIntegration(unittest.TestCase):
             details=pipeline_summary,
         )
 
-        return pipeline_summary
+        # 不返回值，测试方法应该只进行断言
+        # pipeline_summary 已经通过日志记录
 
 
 if __name__ == "__main__":

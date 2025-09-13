@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Form,
@@ -14,7 +14,6 @@ import {
   Col,
   Typography,
   message,
-  Modal,
   Tabs
 } from 'antd';
 import {
@@ -42,14 +41,23 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [preferencesLoading, setPreferencesLoading] = useState(false);
-  const [preferences, setPreferences] = useState({});
   const [avatarUrl, setAvatarUrl] = useState('');
   const { user, updateProfile, changePassword } = useAuth();
 
   // 加载用户偏好设置
+  const loadPreferences = useCallback(async () => {
+    try {
+      const response = await authApi.getPreferences();
+      const prefs = response.data;
+      preferencesForm.setFieldsValue(prefs);
+    } catch (error) {
+      console.error('Failed to load preferences:', error);
+    }
+  }, [preferencesForm]);
+
   useEffect(() => {
     loadPreferences();
-  }, []);
+  }, [loadPreferences]);
 
   // 设置表单初始值
   useEffect(() => {
@@ -68,17 +76,7 @@ const ProfilePage = () => {
     }
   }, [user, profileForm]);
 
-  // 加载用户偏好设置
-  const loadPreferences = async () => {
-    try {
-      const response = await authApi.getPreferences();
-      const prefs = response.data;
-      setPreferences(prefs);
-      preferencesForm.setFieldsValue(prefs);
-    } catch (error) {
-      console.error('Failed to load preferences:', error);
-    }
-  };
+
 
   // 更新用户资料
   const handleUpdateProfile = async (values) => {
@@ -118,8 +116,7 @@ const ProfilePage = () => {
   const handleUpdatePreferences = async (values) => {
     setPreferencesLoading(true);
     try {
-      const response = await authApi.updatePreferences(values);
-      setPreferences(response.data);
+      await authApi.updatePreferences(values);
       message.success('偏好设置更新成功！');
     } catch (error) {
       const errorMessage = error.response?.data?.detail || '更新失败，请稍后重试';
