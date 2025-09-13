@@ -40,7 +40,7 @@ jobs:
         cd backend
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install black pytest
+        pip install -r requirements-dev.txt
         
     - name: Install Node.js dependencies
       run: |

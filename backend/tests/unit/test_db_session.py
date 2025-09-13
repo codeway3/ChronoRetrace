@@ -26,8 +26,8 @@ def test_engine_configuration():
     """Test that engine is properly configured."""
     assert engine is not None
     assert hasattr(engine, "url")
-    # Check that it's configured for SQLite
-    assert "sqlite" in str(engine.url).lower()
+    # Check that it's configured for PostgreSQL
+    assert "postgresql" in str(engine.url).lower()
 
 
 @patch("app.infrastructure.database.session.SessionLocal")
