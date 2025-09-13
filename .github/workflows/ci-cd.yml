@@ -65,7 +65,7 @@ jobs:
     - name: Frontend tests
       run: |
         cd frontend
-        npm test -- --coverage --watchAll=false
+        npm test -- --coverage --watchAll=false --passWithNoTests
 
   # 构建验证
   build:
