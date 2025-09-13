@@ -108,9 +108,13 @@ async def get_system_health():
 
         # 分析问题
         issues = []
-        if system_metrics.memory_usage_mb > 1000:  # 1GB
+        memory_usage_mb = system_metrics.get("memory_available_mb", 0)
+        cpu_usage_percent = system_metrics.get("cpu_percent", 0)
+        
+        # 计算内存使用量（从可用内存推算）
+        if memory_usage_mb < 500:  # 可用内存少于500MB
             issues.append("内存使用量过高")
-        if system_metrics.cpu_usage_percent > 80:
+        if cpu_usage_percent > 80:
             issues.append("CPU使用率过高")
         if cache_status == "unhealthy":
             issues.append("缓存服务不可用")
@@ -123,12 +127,16 @@ async def get_system_health():
         else:
             status = "healthy"
 
+        # 计算运行时间（简化实现）
+        import time
+        uptime_seconds = time.time() - system_metrics.get("start_time", time.time())
+        
         return SystemHealthResponse(
             status=status,
             timestamp=datetime.now(),
-            uptime_seconds=system_metrics.uptime_seconds,
-            memory_usage_mb=system_metrics.memory_usage_mb,
-            cpu_usage_percent=system_metrics.cpu_usage_percent,
+            uptime_seconds=uptime_seconds,
+            memory_usage_mb=max(0, 2048 - memory_usage_mb),  # 假设总内存2GB
+            cpu_usage_percent=cpu_usage_percent,
             cache_status=cache_status,
             database_status=database_status,
             issues=issues,

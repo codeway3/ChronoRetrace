@@ -195,8 +195,11 @@ async def data_quality_health(db: Session = Depends(get_db)):
                 "performance_optimization": "operational",
             },
             "test_result": {
-                "processed_records": len(result.processed_data),
-                "has_errors": result.has_errors,
+                "processed_records": result.total_records,
+                "valid_records": result.valid_records,
+                "invalid_records": result.invalid_records,
+                "has_errors": len(result.error_messages) > 0,
+                "quality_score": result.quality_score,
             },
         }
 

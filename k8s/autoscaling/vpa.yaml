@@ -1,0 +1,251 @@
+# ChronoRetrace 垂直Pod自动扩缩器配置
+# Vertical Pod Autoscaler (VPA) 配置
+
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: chronoretrace-backend-vpa
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: backend
+    tier: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: chronoretrace-backend
+  
+  # VPA更新策略
+  updatePolicy:
+    updateMode: "Auto"  # 自动更新Pod资源
+    # updateMode: "Off"     # 仅提供建议，不自动更新
+    # updateMode: "Initial" # 仅在Pod创建时设置资源
+  
+  # 资源策略
+  resourcePolicy:
+    containerPolicies:
+    - containerName: chronoretrace-backend
+      # 资源范围限制
+      minAllowed:
+        cpu: 100m
+        memory: 128Mi
+      maxAllowed:
+        cpu: 2000m
+        memory: 4Gi
+      # 控制哪些资源由VPA管理
+      controlledResources: ["cpu", "memory"]
+      # 控制VPA如何计算资源建议
+      controlledValues: RequestsAndLimits
+    
+    - containerName: chronoretrace-sidecar
+      minAllowed:
+        cpu: 50m
+        memory: 64Mi
+      maxAllowed:
+        cpu: 500m
+        memory: 512Mi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsOnly
+
+---
+# 前端应用VPA配置
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: chronoretrace-frontend-vpa
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: frontend
+    tier: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: chronoretrace-frontend
+  
+  updatePolicy:
+    updateMode: "Auto"
+  
+  resourcePolicy:
+    containerPolicies:
+    - containerName: chronoretrace-frontend
+      minAllowed:
+        cpu: 50m
+        memory: 64Mi
+      maxAllowed:
+        cpu: 1000m
+        memory: 2Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+
+---
+# PostgreSQL VPA配置
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: chronoretrace-postgres-vpa
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: postgres
+    tier: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: StatefulSet
+    name: chronoretrace-postgres
+  
+  updatePolicy:
+    updateMode: "Initial"  # 数据库使用Initial模式更安全
+  
+  resourcePolicy:
+    containerPolicies:
+    - containerName: postgres
+      minAllowed:
+        cpu: 200m
+        memory: 512Mi
+      maxAllowed:
+        cpu: 4000m
+        memory: 8Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+
+---
+# Redis VPA配置
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: chronoretrace-redis-vpa
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: redis
+    tier: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: chronoretrace-redis
+  
+  updatePolicy:
+    updateMode: "Auto"
+  
+  resourcePolicy:
+    containerPolicies:
+    - containerName: redis
+      minAllowed:
+        cpu: 100m
+        memory: 128Mi
+      maxAllowed:
+        cpu: 1000m
+        memory: 2Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+
+---
+# 工作节点VPA配置
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: chronoretrace-worker-vpa
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: worker
+    tier: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: chronoretrace-worker
+  
+  updatePolicy:
+    updateMode: "Auto"
+  
+  resourcePolicy:
+    containerPolicies:
+    - containerName: chronoretrace-worker
+      minAllowed:
+        cpu: 100m
+        memory: 256Mi
+      maxAllowed:
+        cpu: 2000m
+        memory: 4Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+
+---
+# Nginx负载均衡器VPA配置
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: chronoretrace-nginx-vpa
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: nginx
+    tier: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: chronoretrace-nginx
+  
+  updatePolicy:
+    updateMode: "Auto"
+  
+  resourcePolicy:
+    containerPolicies:
+    - containerName: nginx
+      minAllowed:
+        cpu: 50m
+        memory: 64Mi
+      maxAllowed:
+        cpu: 500m
+        memory: 512Mi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+
+---
+# 监控组件VPA配置
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: chronoretrace-monitoring-vpa
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: monitoring
+    tier: autoscaling
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: chronoretrace-monitoring
+  
+  updatePolicy:
+    updateMode: "Initial"  # 监控组件使用Initial模式
+  
+  resourcePolicy:
+    containerPolicies:
+    - containerName: prometheus
+      minAllowed:
+        cpu: 100m
+        memory: 256Mi
+      maxAllowed:
+        cpu: 1000m
+        memory: 2Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits
+    
+    - containerName: grafana
+      minAllowed:
+        cpu: 50m
+        memory: 128Mi
+      maxAllowed:
+        cpu: 500m
+        memory: 1Gi
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits

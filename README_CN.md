@@ -37,6 +37,44 @@
 -   **CI/CD流水线**：自动化测试、代码检查和安全检查。
 -   **代码质量**：使用Ruff、Bandit和Safety检查强制执行代码标准。
 
+## 🚀 快速开始
+
+### 一键部署（推荐）
+
+```bash
+# 克隆仓库
+git clone https://github.com/codeway3/ChronoRetrace.git
+cd ChronoRetrace
+
+# 运行部署脚本
+./quick-deploy.sh
+```
+
+**就这么简单！** 脚本将会：
+- ✅ 自动检测您的系统环境
+- ✅ 自动安装所有依赖
+- ✅ 配置数据库和缓存
+- ✅ 启动前端和后端服务
+
+**访问应用程序：**
+- 🌐 前端：http://localhost:3000
+- 🔧 后端API：http://localhost:8000
+- 👤 管理面板：http://localhost:8000/admin
+
+**默认凭据：** `admin` / `admin123`
+
+### 支持的系统
+- ✅ macOS 10.15+
+- ✅ Ubuntu 18.04+
+- ✅ 自动检测Docker环境
+
+### 需要帮助？
+- 📖 [快速部署指南](DEPLOY.md)
+- 📚 [详细文档](docs/deployment.md)
+- 🐛 [故障排除](docs/deployment.md#故障排除)
+
+---
+
 ## 🛠️ 技术栈
 
 | 领域      | 技术                                                                                             |
@@ -57,10 +95,18 @@
 
 ### 前置要求
 
--   **Python**：3.10或更新版本。
--   **Node.js**：20.0或更新版本。
--   **Redis**：6.0或更新版本（用于缓存和会话管理）。
--   **（可选）Tushare API令牌**：某些数据获取器可能需要来自[Tushare](https://tushare.pro/)的API令牌。如果需要，请注册并将令牌放在后端的`.env`文件中。
+#### 系统要求
+-   **操作系统**：Ubuntu 18.04+、macOS 10.15+ 或 Windows 10+（使用WSL）
+-   **内存**：最少4GB RAM（生产环境建议8GB）
+-   **存储**：至少2GB可用磁盘空间
+-   **网络**：用于数据获取和包安装的互联网连接
+
+#### 软件依赖
+-   **Python**：3.10或更新版本
+-   **Node.js**：20.0或更新版本
+-   **Redis**：6.0或更新版本（用于缓存和会话管理）
+-   **（可选）PostgreSQL**：12+版本用于生产部署
+-   **（可选）Tushare API令牌**：某些数据获取器可能需要来自[Tushare](https://tushare.pro/)的API令牌。如果需要，请注册并将令牌放在后端的`.env`文件中
 
 #### 安装Redis
 
@@ -163,7 +209,7 @@ PORT=3001 npm start
 ChronoRetrace/
 ├── .github/                    # GitHub Actions工作流
 │   └── workflows/
-│       └── ci.yml              # CI/CD流水线配置
+│       └── ci-cd.yml           # CI/CD流水线配置
 ├── backend/                    # FastAPI后端
 │   ├── app/
 │   │   ├── analytics/          # 分析服务模块
@@ -254,6 +300,26 @@ ChronoRetrace/
 - **限流**：自动请求节流以确保公平使用
 - **缓存**：通过Redis缓存优化响应时间
 
+## 🚀 部署
+
+### 快速部署
+使用提供的脚本进行一键部署：
+```bash
+./quick-deploy.sh
+```
+
+### Docker部署
+```bash
+# 开发环境
+docker-compose up -d
+
+# 生产环境
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### Kubernetes部署
+生产环境Kubernetes部署请参考我们的[Kubernetes指南](docs/deployment/kubernetes-deployment.md)。
+
 ## 🔧 开发
 
 ### 代码质量
@@ -275,6 +341,63 @@ make security
 - **指标端点**：`/metrics`用于系统性能数据
 - **健康检查**：`/health`用于服务状态
 - **Redis监控**：缓存命中率和性能统计
+
+## 🔍 故障排除
+
+### 常见问题
+
+**后端无法启动：**
+- 检查Redis是否运行：`redis-cli ping`
+- 验证Python版本：`python --version`（应为3.11+）
+- 检查数据库初始化：`python -c "from app.infrastructure.database.init_db import init_database; init_database()"`
+
+**前端构建错误：**
+- 清除npm缓存：`npm cache clean --force`
+- 删除node_modules：`rm -rf node_modules && npm install`
+- 检查Node.js版本：`node --version`（应为18+）
+
+**数据库连接问题：**
+- 验证`.env`文件中的数据库设置
+- 检查PostgreSQL是否运行（生产环境）
+- 确保SQLite文件权限（开发环境）
+
+**性能问题：**
+- 在`/metrics`监控Redis缓存命中率
+- 检查系统资源（CPU、内存）
+- 查看`logs/`目录中的应用日志
+
+更详细的故障排除请参考我们的[运维指南](docs/deployment/operations-guide.md)。
+
+## ❓ 常见问题
+
+**问：我可以将此项目用于商业用途吗？**
+答：可以，本项目采用MIT许可证，允许商业使用。
+
+**问：如何添加新的数据源？**
+答：查看`backend/app/data/fetchers/`目录中的示例，按照相同模式创建您自己的数据获取器。
+
+**问：有演示版本吗？**
+答：您可以使用快速部署脚本或Docker在本地运行应用程序以获得完整的演示体验。
+
+**问：如何贡献新功能？**
+答：请阅读我们的[贡献指南](CONTRIBUTING.md)并提交包含您建议更改的拉取请求。
+
+## 📈 更新日志
+
+### 版本 2.0.0（最新）
+- ✨ 增强的性能监控和缓存
+- 🔒 通过JWT认证改进安全性
+- 📊 高级分析和回测功能
+- 🐳 Docker和Kubernetes部署支持
+- 🎨 现代化响应式React UI设计
+
+### 版本 1.0.0
+- 🚀 具有基本股票分析功能的初始版本
+- 📱 带有基本图表的React前端
+- 🔧 使用SQLite数据库的FastAPI后端
+- 📊 基本股票数据获取和显示
+
+详细更新日志请参见[CHANGELOG.md](CHANGELOG.md)。
 
 ## 🤝 贡献
 

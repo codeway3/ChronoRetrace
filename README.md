@@ -38,6 +38,44 @@
 -   **CI/CD Pipeline**: Automated testing, linting, and security checks.
 -   **Code Quality**: Enforced code standards with Ruff, Bandit, and Safety checks.
 
+## 🚀 Quick Start
+
+### One-Click Deployment (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/codeway3/ChronoRetrace.git
+cd ChronoRetrace
+
+# Run the deployment script
+./quick-deploy.sh
+```
+
+**That's it!** The script will:
+- ✅ Detect your system environment
+- ✅ Install all dependencies automatically
+- ✅ Configure database and cache
+- ✅ Start both frontend and backend services
+
+**Access the application:**
+- 🌐 Frontend: http://localhost:3000
+- 🔧 Backend API: http://localhost:8000
+- 👤 Admin Panel: http://localhost:8000/admin
+
+**Default credentials:** `admin` / `admin123`
+
+### Supported Systems
+- ✅ macOS 10.15+
+- ✅ Ubuntu 18.04+
+- ✅ Automatic Docker detection
+
+### Need Help?
+- 📖 [Quick Deploy Guide](DEPLOY.md)
+- 📚 [Detailed Documentation](docs/deployment.md)
+- 🐛 [Troubleshooting](docs/deployment.md#故障排除)
+
+---
+
 ## 🛠️ Technology Stack
 
 | Area      | Technology                                                                                             |
@@ -56,12 +94,20 @@
 
 Follow these instructions to set up and run the project on your local machine.
 
-### Prerequisites
+### 📋 Prerequisites
 
--   **Python**: Version 3.10 or newer.
--   **Node.js**: Version 20.0 or newer.
--   **Redis**: Version 6.0 or newer (for caching and session management).
--   **(Optional) Tushare API Token**: Some data fetchers may require an API token from [Tushare](https://tushare.pro/). If needed, register and place your token in the backend's `.env` file.
+### System Requirements
+-   **Operating System**: Ubuntu 18.04+, macOS 10.15+, or Windows 10+ (with WSL)
+-   **Memory**: Minimum 4GB RAM (8GB recommended for production)
+-   **Storage**: At least 2GB free disk space
+-   **Network**: Internet connection for data fetching and package installation
+
+### Software Dependencies
+-   **Python**: Version 3.11 or newer
+-   **Node.js**: Version 18 or newer (for the frontend)
+-   **Redis**: Version 6.0 or newer (for caching and session management)
+-   **(Optional) PostgreSQL**: Version 12+ for production deployment
+-   **(Optional) Tushare API Token**: Some data fetchers may require an API token from [Tushare](https://tushare.pro/). If needed, register and place your token in the backend's `.env` file
 
 #### Installing Redis
 
@@ -164,7 +210,7 @@ The application should automatically open in your browser at `http://localhost:3
 ChronoRetrace/
 ├── .github/                    # GitHub Actions Workflows
 │   └── workflows/
-│       └── ci.yml              # CI/CD pipeline configuration
+│       └── ci-cd.yml           # CI/CD pipeline configuration
 ├── backend/                    # FastAPI Backend
 │   ├── app/
 │   │   ├── analytics/          # Analytics service modules
@@ -255,6 +301,26 @@ ChronoRetrace/
 - **Rate Limiting**: Automatic request throttling for fair usage
 - **Caching**: Optimized response times with Redis caching
 
+## 🚀 Deployment
+
+### Quick Deploy
+Use the provided script for one-click deployment:
+```bash
+./quick-deploy.sh
+```
+
+### Docker Deployment
+```bash
+# Development environment
+docker-compose up -d
+
+# Production environment
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### Kubernetes Deployment
+For production Kubernetes deployment, see our [Kubernetes Guide](docs/deployment/kubernetes-deployment.md).
+
 ## 🔧 Development
 
 ### Code Quality
@@ -276,6 +342,63 @@ make security
 - **Metrics Endpoint**: `/metrics` for system performance data
 - **Health Check**: `/health` for service status
 - **Redis Monitoring**: Cache hit rates and performance stats
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+**Backend won't start:**
+- Check if Redis is running: `redis-cli ping`
+- Verify Python version: `python --version` (should be 3.11+)
+- Check database initialization: `python -c "from app.infrastructure.database.init_db import init_database; init_database()"`
+
+**Frontend build errors:**
+- Clear npm cache: `npm cache clean --force`
+- Delete node_modules: `rm -rf node_modules && npm install`
+- Check Node.js version: `node --version` (should be 18+)
+
+**Database connection issues:**
+- Verify database settings in `.env` file
+- Check if PostgreSQL is running (for production)
+- Ensure SQLite file permissions (for development)
+
+**Performance issues:**
+- Monitor Redis cache hit rates at `/metrics`
+- Check system resources (CPU, memory)
+- Review application logs in `logs/` directory
+
+For more detailed troubleshooting, see our [Operations Guide](docs/deployment/operations-guide.md).
+
+## ❓ FAQ
+
+**Q: Can I use this for commercial purposes?**
+A: Yes, this project is licensed under MIT License, which allows commercial use.
+
+**Q: How do I add new data sources?**
+A: Check the `backend/app/data/fetchers/` directory for examples and create your own data fetcher following the same pattern.
+
+**Q: Is there a demo available?**
+A: You can run the application locally using the quick-deploy script or Docker for a full demo experience.
+
+**Q: How do I contribute new features?**
+A: Please read our [Contributing Guidelines](CONTRIBUTING.md) and submit a pull request with your proposed changes.
+
+## 📈 Changelog
+
+### Version 2.0.0 (Latest)
+- ✨ Enhanced performance monitoring and caching
+- 🔒 Improved security with JWT authentication
+- 📊 Advanced analytics and backtesting features
+- 🐳 Docker and Kubernetes deployment support
+- 🎨 Modern React UI with responsive design
+
+### Version 1.0.0
+- 🚀 Initial release with basic stock analysis features
+- 📱 React frontend with basic charting
+- 🔧 FastAPI backend with SQLite database
+- 📊 Basic stock data fetching and display
+
+For detailed changelog, see [CHANGELOG.md](CHANGELOG.md).
 
 ## 🤝 Contributing
 

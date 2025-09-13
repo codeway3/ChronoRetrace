@@ -1,0 +1,308 @@
+# ============================================================================
+# ChronoRetrace Redis Cache Deployment
+# High-performance Redis cache with persistence
+# ============================================================================
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: cache
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: cache
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP
+      name: redis
+  selector:
+    app: chronoretrace
+    component: cache
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: cache
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chronoretrace
+      component: cache
+  template:
+    metadata:
+      labels:
+        app: chronoretrace
+        component: cache
+    spec:
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+        runAsNonRoot: true
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 6379
+              name: redis
+          command:
+            - redis-server
+            - /etc/redis/redis.conf
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: chronoretrace-secrets
+                  key: REDIS_PASSWORD
+          volumeMounts:
+            - name: redis-storage
+              mountPath: /data
+            - name: redis-config
+              mountPath: /etc/redis
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - --no-auth-warning
+                - -a
+                - $(REDIS_PASSWORD)
+                - ping
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - redis-cli
+                - --no-auth-warning
+                - -a
+                - $(REDIS_PASSWORD)
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+      volumes:
+        - name: redis-storage
+          persistentVolumeClaim:
+            claimName: redis-pvc
+        - name: redis-config
+          configMap:
+            name: redis-config
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: cache
+data:
+  redis.conf: |
+    # Redis Configuration for ChronoRetrace
+    
+    # Network
+    bind 0.0.0.0
+    port 6379
+    tcp-backlog 511
+    timeout 0
+    tcp-keepalive 300
+    
+    # General
+    daemonize no
+    supervised no
+    pidfile /var/run/redis_6379.pid
+    loglevel notice
+    logfile ""
+    databases 16
+    
+    # Security
+    requirepass ${REDIS_PASSWORD}
+    
+    # Memory Management
+    maxmemory 512mb
+    maxmemory-policy allkeys-lru
+    maxmemory-samples 5
+    
+    # Persistence
+    save 900 1
+    save 300 10
+    save 60 10000
+    stop-writes-on-bgsave-error yes
+    rdbcompression yes
+    rdbchecksum yes
+    dbfilename dump.rdb
+    dir /data
+    
+    # AOF (Append Only File)
+    appendonly yes
+    appendfilename "appendonly.aof"
+    appendfsync everysec
+    no-appendfsync-on-rewrite no
+    auto-aof-rewrite-percentage 100
+    auto-aof-rewrite-min-size 64mb
+    aof-load-truncated yes
+    aof-use-rdb-preamble yes
+    
+    # Slow Log
+    slowlog-log-slower-than 10000
+    slowlog-max-len 128
+    
+    # Latency Monitoring
+    latency-monitor-threshold 100
+    
+    # Event Notification
+    notify-keyspace-events ""
+    
+    # Advanced Config
+    hash-max-ziplist-entries 512
+    hash-max-ziplist-value 64
+    list-max-ziplist-size -2
+    list-compress-depth 0
+    set-max-intset-entries 512
+    zset-max-ziplist-entries 128
+    zset-max-ziplist-value 64
+    hll-sparse-max-bytes 3000
+    stream-node-max-bytes 4096
+    stream-node-max-entries 100
+    activerehashing yes
+    client-output-buffer-limit normal 0 0 0
+    client-output-buffer-limit replica 256mb 64mb 60
+    client-output-buffer-limit pubsub 32mb 8mb 60
+    hz 10
+    dynamic-hz yes
+    aof-rewrite-incremental-fsync yes
+    rdb-save-incremental-fsync yes
+
+---
+# Redis Sentinel for High Availability (Optional)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-sentinel
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: redis-sentinel
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chronoretrace
+      component: redis-sentinel
+  template:
+    metadata:
+      labels:
+        app: chronoretrace
+        component: redis-sentinel
+    spec:
+      containers:
+        - name: redis-sentinel
+          image: redis:7-alpine
+          command:
+            - redis-sentinel
+            - /etc/redis-sentinel/sentinel.conf
+          ports:
+            - containerPort: 26379
+              name: sentinel
+          volumeMounts:
+            - name: sentinel-config
+              mountPath: /etc/redis-sentinel
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+      volumes:
+        - name: sentinel-config
+          configMap:
+            name: redis-sentinel-config
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-sentinel-config
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: redis-sentinel
+data:
+  sentinel.conf: |
+    # Redis Sentinel Configuration
+    port 26379
+    dir /tmp
+    
+    # Monitor the master Redis instance
+    sentinel monitor chronoretrace-master redis 6379 2
+    sentinel auth-pass chronoretrace-master ${REDIS_PASSWORD}
+    
+    # Timeouts and thresholds
+    sentinel down-after-milliseconds chronoretrace-master 5000
+    sentinel parallel-syncs chronoretrace-master 1
+    sentinel failover-timeout chronoretrace-master 10000
+    
+    # Logging
+    logfile ""
+    loglevel notice
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-sentinel
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: redis-sentinel
+spec:
+  type: ClusterIP
+  ports:
+    - port: 26379
+      targetPort: 26379
+      protocol: TCP
+      name: sentinel
+  selector:
+    app: chronoretrace
+    component: redis-sentinel

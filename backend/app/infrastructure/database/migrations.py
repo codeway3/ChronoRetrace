@@ -17,7 +17,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .index_optimization import DatabaseIndexOptimizer
-from .session import get_db_session
+from .session import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class DatabaseMigration:
                     version VARCHAR(10) PRIMARY KEY,
                     name VARCHAR(100) NOT NULL,
                     description TEXT,
-                    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     execution_time_ms INTEGER
                 )
             """)
@@ -151,26 +151,29 @@ class DatabaseMigration:
         """
         logger.info("执行迁移002: 添加缓存元数据表")
 
+        # 创建表
         session.execute(
             text("""
             CREATE TABLE IF NOT EXISTS cache_metadata (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 cache_key VARCHAR(255) NOT NULL UNIQUE,
                 cache_type VARCHAR(50) NOT NULL,
                 data_source VARCHAR(100),
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                expires_at DATETIME,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP,
                 hit_count INTEGER DEFAULT 0,
-                last_accessed DATETIME,
-                data_size_bytes INTEGER DEFAULT 0,
-                INDEX idx_cache_key (cache_key),
-                INDEX idx_cache_type (cache_type),
-                INDEX idx_expires_at (expires_at),
-                INDEX idx_last_accessed (last_accessed)
+                last_accessed TIMESTAMP,
+                data_size_bytes INTEGER DEFAULT 0
             )
         """)
         )
+        
+        # 分别创建索引
+        session.execute(text("CREATE INDEX IF NOT EXISTS idx_cache_key ON cache_metadata (cache_key)"))
+        session.execute(text("CREATE INDEX IF NOT EXISTS idx_cache_type ON cache_metadata (cache_type)"))
+        session.execute(text("CREATE INDEX IF NOT EXISTS idx_expires_at ON cache_metadata (expires_at)"))
+        session.execute(text("CREATE INDEX IF NOT EXISTS idx_last_accessed ON cache_metadata (last_accessed)"))
 
         session.commit()
         logger.info("缓存元数据表创建完成")
@@ -201,62 +204,64 @@ class DatabaseMigration:
             "total_execution_time_ms": 0,
         }
 
-        with get_db_session() as session:
-            try:
-                # 确保迁移表存在
-                self._ensure_migration_table(session)
+        db = next(get_db())
+        try:
+            # 确保迁移表存在
+            self._ensure_migration_table(db)
+
+            # 执行迁移
+            for migration in self.migrations:
+                # 检查是否需要执行此迁移
+                if target_version and migration["version"] > target_version:
+                    break
+
+                if self._is_migration_applied(db, migration["version"]):
+                    logger.info(f"迁移 {migration['version']} 已应用，跳过")
+                    continue
 
                 # 执行迁移
-                for migration in self.migrations:
-                    # 检查是否需要执行此迁移
-                    if target_version and migration["version"] > target_version:
-                        break
+                start_time = datetime.utcnow()
+                try:
+                    migration["up"](db)
+                    end_time = datetime.utcnow()
+                    execution_time_ms = int(
+                        (end_time - start_time).total_seconds() * 1000
+                    )
 
-                    if self._is_migration_applied(session, migration["version"]):
-                        logger.info(f"迁移 {migration['version']} 已应用，跳过")
-                        continue
+                    # 记录迁移
+                    self._record_migration(db, migration, execution_time_ms)
 
-                    # 执行迁移
-                    start_time = datetime.utcnow()
-                    try:
-                        migration["up"](session)
-                        end_time = datetime.utcnow()
-                        execution_time_ms = int(
-                            (end_time - start_time).total_seconds() * 1000
-                        )
+                    migration_result["applied_migrations"].append(
+                        {
+                            "version": migration["version"],
+                            "name": migration["name"],
+                            "execution_time_ms": execution_time_ms,
+                        }
+                    )
+                    migration_result["total_execution_time_ms"] += execution_time_ms
 
-                        # 记录迁移
-                        self._record_migration(session, migration, execution_time_ms)
+                    logger.info(
+                        f"迁移 {migration['version']} 执行成功，耗时 {execution_time_ms}ms"
+                    )
 
-                        migration_result["applied_migrations"].append(
-                            {
-                                "version": migration["version"],
-                                "name": migration["name"],
-                                "execution_time_ms": execution_time_ms,
-                            }
-                        )
-                        migration_result["total_execution_time_ms"] += execution_time_ms
+                except Exception as e:
+                    error_msg = f"迁移 {migration['version']} 执行失败: {e}"
+                    migration_result["errors"].append(error_msg)
+                    logger.error(error_msg)
+                    raise
 
-                        logger.info(
-                            f"迁移 {migration['version']} 执行成功，耗时 {execution_time_ms}ms"
-                        )
+            migration_result["end_time"] = datetime.utcnow()
+            migration_result["success"] = len(migration_result["errors"]) == 0
 
-                    except Exception as e:
-                        error_msg = f"迁移 {migration['version']} 执行失败: {e}"
-                        migration_result["errors"].append(error_msg)
-                        logger.error(error_msg)
-                        raise
+            return migration_result
 
-                migration_result["end_time"] = datetime.utcnow()
-                migration_result["success"] = len(migration_result["errors"]) == 0
-
-                return migration_result
-
-            except Exception as e:
-                migration_result["errors"].append(str(e))
-                migration_result["success"] = False
-                logger.error(f"迁移过程失败: {e}")
-                raise
+        except Exception as e:
+            migration_result["errors"].append(str(e))
+            migration_result["success"] = False
+            logger.error(f"迁移过程失败: {e}")
+            raise
+        finally:
+            db.close()
 
     def get_migration_status(self) -> dict[str, Any]:
         """
@@ -271,27 +276,36 @@ class DatabaseMigration:
                     "pending_migrations": [],
                 }
 
-        with get_db_session() as session:
-            try:
-                self._ensure_migration_table(session)
+        db = next(get_db())
+        try:
+            self._ensure_migration_table(db)
 
-                # 获取已应用的迁移
-                applied_result = session.execute(
-                    text(
-                        "SELECT version, name, applied_at FROM schema_migrations ORDER BY version"
-                    )
-                ).fetchall()
+            # 获取已应用的迁移
+            applied_result = db.execute(
+                text(
+                    "SELECT version, name, applied_at FROM schema_migrations ORDER BY version"
+                )
+            ).fetchall()
 
-                applied_versions = set()
-                for row in applied_result:
-                    status["applied_migrations"].append(
-                        {"version": row[0], "name": row[1], "applied_at": row[2]}
-                    )
-                    applied_versions.add(row[0])
+            applied_versions = set()
+            for row in applied_result:
+                status["applied_migrations"].append(
+                    {"version": row[0], "name": row[1], "applied_at": row[2]}
+                )
+                applied_versions.add(row[0])
 
-                # 分析可用和待执行的迁移
-                for migration in self.migrations:
-                    status["available_migrations"].append(
+            # 分析可用和待执行的迁移
+            for migration in self.migrations:
+                status["available_migrations"].append(
+                    {
+                        "version": migration["version"],
+                        "name": migration["name"],
+                        "description": migration["description"],
+                    }
+                )
+
+                if migration["version"] not in applied_versions:
+                    status["pending_migrations"].append(
                         {
                             "version": migration["version"],
                             "name": migration["name"],
@@ -299,20 +313,13 @@ class DatabaseMigration:
                         }
                     )
 
-                    if migration["version"] not in applied_versions:
-                        status["pending_migrations"].append(
-                            {
-                                "version": migration["version"],
-                                "name": migration["name"],
-                                "description": migration["description"],
-                            }
-                        )
+            return status
 
-                return status
-
-            except Exception as e:
-                logger.error(f"获取迁移状态失败: {e}")
-                return {"error": str(e)}
+        except Exception as e:
+            logger.error(f"获取迁移状态失败: {e}")
+            return {"error": str(e)}
+        finally:
+            db.close()
 
 
 # 全局迁移管理器实例

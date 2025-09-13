@@ -12,7 +12,11 @@ load_dotenv(dotenv_path=dotenv_path)
 
 class Settings(BaseSettings):
     # Database Configuration
-    DATABASE_URL: str = "sqlite:///./chronoretrace.db"
+    DATABASE_URL: str = "postgresql://chronoretrace:password@localhost:5432/chronoretrace"
+    DATABASE_POOL_SIZE: int = 10
+    DATABASE_MAX_OVERFLOW: int = 20
+    DATABASE_POOL_TIMEOUT: int = 30
+    DATABASE_POOL_RECYCLE: int = 3600
 
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379/0"

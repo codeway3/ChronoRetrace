@@ -25,7 +25,7 @@ env/
 pip-wheel-metadata/
 
 # 后端数据库和运行时文件
-*chrono_retrace.db
+*.db
 backend/app.main:app
 backend/uvicorn
 

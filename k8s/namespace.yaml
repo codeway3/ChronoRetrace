@@ -1,0 +1,57 @@
+# ============================================================================
+# ChronoRetrace Kubernetes Namespace
+# Isolates all ChronoRetrace resources
+# ============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chronoretrace
+  labels:
+    app: chronoretrace
+    environment: production
+    version: v1.0.0
+  annotations:
+    description: "ChronoRetrace Financial Analysis Platform"
+    contact: "admin@chronoretrace.com"
+    created-by: "ChronoRetrace DevOps Team"
+---
+# Resource Quota for the namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: chronoretrace-quota
+  namespace: chronoretrace
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "10"
+    services: "10"
+    secrets: "20"
+    configmaps: "20"
+---
+# Limit Range for pods
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: chronoretrace-limits
+  namespace: chronoretrace
+spec:
+  limits:
+  - default:
+      cpu: 500m
+      memory: 512Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    type: Container
+  - max:
+      cpu: "2"
+      memory: 2Gi
+    min:
+      cpu: 50m
+      memory: 64Mi
+    type: Container

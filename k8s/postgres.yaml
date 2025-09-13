@@ -1,0 +1,283 @@
+# ============================================================================
+# ChronoRetrace PostgreSQL Database Deployment
+# Production-ready PostgreSQL with persistent storage
+# ============================================================================
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: database
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: fast-ssd  # Adjust based on your cluster's storage classes
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: database
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgres
+  selector:
+    app: chronoretrace
+    component: database
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: database
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chronoretrace
+      component: database
+  template:
+    metadata:
+      labels:
+        app: chronoretrace
+        component: database
+    spec:
+      securityContext:
+        fsGroup: 999
+        runAsUser: 999
+        runAsNonRoot: true
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              value: chronoretrace
+            - name: POSTGRES_USER
+              value: chronoretrace
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: chronoretrace-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_INITDB_ARGS
+              value: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+            - name: postgres-config
+              mountPath: /etc/postgresql/postgresql.conf
+              subPath: postgresql.conf
+            - name: postgres-init
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U chronoretrace -d chronoretrace -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U chronoretrace -d chronoretrace -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+        - name: postgres-config
+          configMap:
+            name: postgres-config
+        - name: postgres-init
+          configMap:
+            name: postgres-init-scripts
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: database
+data:
+  postgresql.conf: |
+    # PostgreSQL Configuration for ChronoRetrace
+    
+    # Connection Settings
+    listen_addresses = '*'
+    port = 5432
+    max_connections = 200
+    
+    # Memory Settings
+    shared_buffers = 256MB
+    effective_cache_size = 1GB
+    work_mem = 4MB
+    maintenance_work_mem = 64MB
+    
+    # WAL Settings
+    wal_level = replica
+    max_wal_size = 1GB
+    min_wal_size = 80MB
+    checkpoint_completion_target = 0.9
+    
+    # Query Planner
+    random_page_cost = 1.1
+    effective_io_concurrency = 200
+    
+    # Logging
+    log_destination = 'stderr'
+    logging_collector = on
+    log_directory = 'log'
+    log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+    log_rotation_age = 1d
+    log_rotation_size = 100MB
+    log_min_duration_statement = 1000
+    log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+    log_statement = 'ddl'
+    
+    # Performance
+    shared_preload_libraries = 'pg_stat_statements'
+    track_activity_query_size = 2048
+    track_functions = all
+    
+    # Security
+    ssl = off  # Handled by Kubernetes TLS
+    password_encryption = scram-sha-256
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: database
+data:
+  01-init-extensions.sql: |
+    -- Initialize PostgreSQL extensions for ChronoRetrace
+    
+    -- Create extensions
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
+    CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+    CREATE EXTENSION IF NOT EXISTS "btree_gin";
+    
+    -- Create indexes for better performance
+    -- These will be created by Alembic migrations, but we ensure extensions are available
+    
+  02-init-user.sql: |
+    -- Additional user setup if needed
+    -- Grant necessary permissions
+    GRANT ALL PRIVILEGES ON DATABASE chronoretrace TO chronoretrace;
+    
+    -- Create read-only user for monitoring
+    CREATE USER chronoretrace_readonly WITH PASSWORD 'readonly_password';
+    GRANT CONNECT ON DATABASE chronoretrace TO chronoretrace_readonly;
+    GRANT USAGE ON SCHEMA public TO chronoretrace_readonly;
+    GRANT SELECT ON ALL TABLES IN SCHEMA public TO chronoretrace_readonly;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO chronoretrace_readonly;
+
+---
+# PostgreSQL Backup CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: backup
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: postgres-backup
+              image: postgres:15-alpine
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  BACKUP_FILE="/backup/chronoretrace-$(date +%Y%m%d-%H%M%S).sql"
+                  pg_dump -h postgres -U chronoretrace -d chronoretrace > $BACKUP_FILE
+                  gzip $BACKUP_FILE
+                  # Keep only last 7 days of backups
+                  find /backup -name "*.sql.gz" -mtime +7 -delete
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: chronoretrace-secrets
+                      key: POSTGRES_PASSWORD
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: postgres-backup-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backup-pvc
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: backup
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard

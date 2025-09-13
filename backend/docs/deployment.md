@@ -171,7 +171,7 @@ requirepass your_redis_password
 #### 1. 克隆代码
 
 ```bash
-git clone https://github.com/your-org/ChronoRetrace.git
+git clone https://github.com/codeway3/ChronoRetrace.git
 cd ChronoRetrace/backend
 ```
 

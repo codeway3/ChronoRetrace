@@ -19,7 +19,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .models import DailyStockMetrics
-from .session import get_db_engine, get_db_session
+from .session import engine, get_db
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class DatabaseIndexOptimizer:
 
     def __init__(self, engine: Engine | None = None):
         """初始化索引优化器"""
-        self.engine = engine or get_db_engine()
+        self.engine = engine or engine
         self.optimization_history: list[dict] = []
 
     def analyze_query_patterns(self, session: Session) -> dict[str, Any]:
@@ -431,8 +431,11 @@ def optimize_database_indexes() -> dict[str, Any]:
     Returns:
         Dict: 优化结果报告
     """
-    with get_db_session() as session:
-        return db_optimizer.optimize_database(session)
+    db = next(get_db())
+    try:
+        return db_optimizer.optimize_database(db)
+    finally:
+        db.close()
 
 
 def get_database_optimization_status() -> dict[str, Any]:
@@ -442,13 +445,16 @@ def get_database_optimization_status() -> dict[str, Any]:
     Returns:
         Dict: 优化状态信息
     """
-    with get_db_session() as session:
+    db = next(get_db())
+    try:
         return {
-            "query_analysis": db_optimizer.analyze_query_patterns(session),
-            "index_usage": db_optimizer.analyze_index_usage(session),
-            "recommendations": db_optimizer.get_optimization_recommendations(session),
+            "query_analysis": db_optimizer.analyze_query_patterns(db),
+            "index_usage": db_optimizer.analyze_index_usage(db),
+            "recommendations": db_optimizer.get_optimization_recommendations(db),
             "optimization_history": db_optimizer.optimization_history,
         }
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":

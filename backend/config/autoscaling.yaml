@@ -1,0 +1,336 @@
+# ChronoRetrace 自动扩缩容策略配置
+# 用于动态调整应用实例数量和资源分配
+
+# 应用扩缩容配置
+application_scaling:
+  # 后端API服务扩缩容
+  backend_api:
+    min_instances: 2
+    max_instances: 10
+    target_cpu_utilization: 70
+    target_memory_utilization: 80
+    scale_up_cooldown: 300  # 5分钟
+    scale_down_cooldown: 600  # 10分钟
+    
+    # 扩缩容指标
+    metrics:
+      - type: cpu
+        target: 70
+        weight: 0.6
+      - type: memory
+        target: 80
+        weight: 0.3
+      - type: custom
+        name: requests_per_second
+        target: 100
+        weight: 0.1
+    
+    # 扩缩容行为
+    behavior:
+      scale_up:
+        stabilization_window: 60
+        policies:
+          - type: percent
+            value: 100
+            period: 60
+          - type: pods
+            value: 2
+            period: 60
+      scale_down:
+        stabilization_window: 300
+        policies:
+          - type: percent
+            value: 50
+            period: 60
+          - type: pods
+            value: 1
+            period: 60
+  
+  # 前端服务扩缩容
+  frontend:
+    min_instances: 2
+    max_instances: 6
+    target_cpu_utilization: 60
+    target_memory_utilization: 70
+    scale_up_cooldown: 180
+    scale_down_cooldown: 300
+    
+    metrics:
+      - type: cpu
+        target: 60
+        weight: 0.7
+      - type: memory
+        target: 70
+        weight: 0.3
+  
+  # 工作节点扩缩容
+  worker_nodes:
+    min_instances: 1
+    max_instances: 5
+    target_cpu_utilization: 80
+    target_memory_utilization: 85
+    scale_up_cooldown: 600
+    scale_down_cooldown: 1200
+    
+    metrics:
+      - type: cpu
+        target: 80
+        weight: 0.5
+      - type: memory
+        target: 85
+        weight: 0.4
+      - type: custom
+        name: queue_length
+        target: 50
+        weight: 0.1
+
+# 数据库扩缩容配置
+database_scaling:
+  # PostgreSQL读副本扩缩容
+  postgres_replicas:
+    min_instances: 1
+    max_instances: 3
+    target_cpu_utilization: 75
+    target_memory_utilization: 80
+    scale_up_cooldown: 900  # 15分钟
+    scale_down_cooldown: 1800  # 30分钟
+    
+    # 数据库特定指标
+    metrics:
+      - type: cpu
+        target: 75
+        weight: 0.4
+      - type: memory
+        target: 80
+        weight: 0.3
+      - type: custom
+        name: active_connections
+        target: 80
+        weight: 0.2
+      - type: custom
+        name: replication_lag
+        target: 1000  # 毫秒
+        weight: 0.1
+  
+  # Redis集群扩缩容
+  redis_cluster:
+    min_instances: 3
+    max_instances: 6
+    target_cpu_utilization: 70
+    target_memory_utilization: 85
+    scale_up_cooldown: 600
+    scale_down_cooldown: 1200
+    
+    metrics:
+      - type: memory
+        target: 85
+        weight: 0.6
+      - type: cpu
+        target: 70
+        weight: 0.3
+      - type: custom
+        name: connected_clients
+        target: 1000
+        weight: 0.1
+
+# 负载均衡器扩缩容
+load_balancer_scaling:
+  # Nginx负载均衡器
+  nginx:
+    min_instances: 2
+    max_instances: 4
+    target_cpu_utilization: 60
+    target_memory_utilization: 70
+    scale_up_cooldown: 300
+    scale_down_cooldown: 600
+    
+    metrics:
+      - type: cpu
+        target: 60
+        weight: 0.5
+      - type: memory
+        target: 70
+        weight: 0.3
+      - type: custom
+        name: active_connections
+        target: 1000
+        weight: 0.2
+  
+  # HAProxy负载均衡器
+  haproxy:
+    min_instances: 2
+    max_instances: 3
+    target_cpu_utilization: 65
+    target_memory_utilization: 75
+    scale_up_cooldown: 300
+    scale_down_cooldown: 600
+
+# 自定义指标配置
+custom_metrics:
+  # API请求速率
+  requests_per_second:
+    query: 'rate(http_requests_total[5m])'
+    threshold: 100
+    scale_factor: 1.5
+  
+  # 队列长度
+  queue_length:
+    query: 'rabbitmq_queue_messages'
+    threshold: 50
+    scale_factor: 2.0
+  
+  # 数据库连接数
+  active_connections:
+    query: 'pg_stat_activity_count'
+    threshold: 80
+    scale_factor: 1.2
+  
+  # 复制延迟
+  replication_lag:
+    query: 'pg_replication_lag_seconds'
+    threshold: 1.0
+    scale_factor: 1.8
+  
+  # Redis连接数
+  connected_clients:
+    query: 'redis_connected_clients'
+    threshold: 1000
+    scale_factor: 1.3
+  
+  # 响应时间
+  response_time:
+    query: 'histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))'
+    threshold: 0.5
+    scale_factor: 1.5
+  
+  # 错误率
+  error_rate:
+    query: 'rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m])'
+    threshold: 0.05
+    scale_factor: 2.0
+
+# 预测性扩缩容
+predictive_scaling:
+  enabled: true
+  
+  # 时间模式
+  time_patterns:
+    # 工作日高峰期
+    weekday_peak:
+      schedule: "0 9-17 * * 1-5"  # 工作日9-17点
+      scale_factor: 1.5
+      min_instances_override:
+        backend_api: 4
+        frontend: 3
+    
+    # 周末低谷期
+    weekend_low:
+      schedule: "0 0-8,18-23 * * 6,0"  # 周末非高峰期
+      scale_factor: 0.7
+      max_instances_override:
+        backend_api: 6
+        frontend: 4
+    
+    # 夜间维护期
+    night_maintenance:
+      schedule: "0 2-4 * * *"  # 每天2-4点
+      scale_factor: 0.5
+      min_instances_override:
+        backend_api: 1
+        frontend: 1
+  
+  # 历史数据分析
+  historical_analysis:
+    enabled: true
+    lookback_days: 30
+    confidence_threshold: 0.8
+    
+    # 季节性模式
+    seasonal_patterns:
+      - name: "monthly_end"
+        pattern: "last 3 days of month"
+        scale_factor: 1.3
+      - name: "quarter_end"
+        pattern: "last week of quarter"
+        scale_factor: 1.8
+
+# 扩缩容限制和安全措施
+safety_limits:
+  # 全局限制
+  global:
+    max_total_instances: 50
+    max_scale_up_rate: 5  # 每分钟最多扩容5个实例
+    max_scale_down_rate: 3  # 每分钟最多缩容3个实例
+    emergency_brake_threshold: 0.95  # CPU/内存使用率超过95%时紧急制动
+  
+  # 成本控制
+  cost_control:
+    max_hourly_cost: 100  # 美元
+    cost_alert_threshold: 80
+    auto_scale_down_on_cost_limit: true
+  
+  # 性能保护
+  performance_protection:
+    min_response_time_sla: 2.0  # 秒
+    max_error_rate_sla: 0.01  # 1%
+    circuit_breaker_threshold: 0.1  # 10%错误率时触发熔断
+
+# 监控和告警
+monitoring:
+  # 扩缩容事件记录
+  event_logging:
+    enabled: true
+    log_level: info
+    include_metrics: true
+  
+  # 告警配置
+  alerts:
+    # 扩缩容失败告警
+    scaling_failure:
+      enabled: true
+      severity: critical
+      channels: ["slack", "email"]
+    
+    # 资源不足告警
+    resource_exhaustion:
+      enabled: true
+      severity: warning
+      threshold: 0.9
+      channels: ["slack"]
+    
+    # 成本超限告警
+    cost_limit_exceeded:
+      enabled: true
+      severity: warning
+      channels: ["email"]
+  
+  # 仪表板
+  dashboard:
+    enabled: true
+    refresh_interval: 30
+    metrics_retention: 30  # 天
+
+# 集成配置
+integrations:
+  # Kubernetes HPA
+  kubernetes_hpa:
+    enabled: true
+    api_version: "autoscaling/v2"
+    
+  # Prometheus监控
+  prometheus:
+    enabled: true
+    scrape_interval: 30
+    metrics_endpoint: "/metrics"
+  
+  # Grafana可视化
+  grafana:
+    enabled: true
+    dashboard_id: "chronoretrace-autoscaling"
+  
+  # 云提供商集成
+  cloud_provider:
+    type: "aws"  # aws, gcp, azure
+    auto_scaling_groups: true
+    spot_instances: true
+    reserved_instances_preference: 0.7

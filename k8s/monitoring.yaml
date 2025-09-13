@@ -1,0 +1,680 @@
+# ============================================================================
+# ChronoRetrace Monitoring Stack
+# Prometheus, Grafana, and monitoring components
+# ============================================================================
+
+# Prometheus Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chronoretrace
+      component: prometheus
+  template:
+    metadata:
+      labels:
+        app: chronoretrace
+        component: prometheus
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      serviceAccountName: prometheus
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.45.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9090
+              name: web
+          args:
+            - '--config.file=/etc/prometheus/prometheus.yml'
+            - '--storage.tsdb.path=/prometheus/'
+            - '--web.console.libraries=/etc/prometheus/console_libraries'
+            - '--web.console.templates=/etc/prometheus/consoles'
+            - '--storage.tsdb.retention.time=30d'
+            - '--storage.tsdb.retention.size=10GB'
+            - '--web.enable-lifecycle'
+            - '--web.enable-admin-api'
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+            - name: prometheus-storage
+              mountPath: /prometheus
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: prometheus-config
+        - name: prometheus-storage
+          persistentVolumeClaim:
+            claimName: prometheus-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: prometheus
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: web
+  selector:
+    app: chronoretrace
+    component: prometheus
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-pvc
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: prometheus
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: fast-ssd
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: prometheus
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+  labels:
+    app: chronoretrace
+    component: prometheus
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+  - apiGroups:
+      - extensions
+    resources:
+      - ingresses
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+  labels:
+    app: chronoretrace
+    component: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: chronoretrace
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'chronoretrace-prod'
+        environment: 'production'
+    
+    rule_files:
+      - "alert_rules.yml"
+    
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - alertmanager:9093
+    
+    scrape_configs:
+      # Prometheus itself
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+      
+      # Kubernetes API Server
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: default;kubernetes;https
+      
+      # Kubernetes Nodes
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics
+      
+      # ChronoRetrace Backend
+      - job_name: 'chronoretrace-backend'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - chronoretrace
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: backend
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: http
+        metrics_path: /metrics
+      
+      # ChronoRetrace Frontend (Nginx)
+      - job_name: 'chronoretrace-frontend'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - chronoretrace
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: frontend
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: http
+        metrics_path: /metrics
+      
+      # Nginx Load Balancer
+      - job_name: 'chronoretrace-nginx'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - chronoretrace
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: nginx
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: metrics
+        metrics_path: /metrics
+      
+      # PostgreSQL
+      - job_name: 'chronoretrace-postgres'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - chronoretrace
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: postgres
+        metrics_path: /metrics
+      
+      # Redis
+      - job_name: 'chronoretrace-redis'
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - chronoretrace
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: redis
+        metrics_path: /metrics
+      
+      # Kubernetes Pods
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+  
+  alert_rules.yml: |
+    groups:
+      - name: chronoretrace.rules
+        rules:
+          # High CPU Usage
+          - alert: HighCPUUsage
+            expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High CPU usage detected"
+              description: "CPU usage is above 80% for more than 5 minutes on {{ $labels.instance }}"
+          
+          # High Memory Usage
+          - alert: HighMemoryUsage
+            expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage detected"
+              description: "Memory usage is above 85% for more than 5 minutes on {{ $labels.instance }}"
+          
+          # Backend Service Down
+          - alert: BackendServiceDown
+            expr: up{job="chronoretrace-backend"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Backend service is down"
+              description: "ChronoRetrace backend service has been down for more than 1 minute"
+          
+          # High Response Time
+          - alert: HighResponseTime
+            expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High response time detected"
+              description: "95th percentile response time is above 2 seconds for more than 5 minutes"
+          
+          # Database Connection Issues
+          - alert: DatabaseConnectionIssues
+            expr: rate(database_connection_errors_total[5m]) > 0.1
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Database connection issues detected"
+              description: "Database connection error rate is above 0.1 per second"
+
+---
+# Grafana Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chronoretrace
+      component: grafana
+  template:
+    metadata:
+      labels:
+        app: chronoretrace
+        component: grafana
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: web
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: chronoretrace-secrets
+                  key: GRAFANA_ADMIN_PASSWORD
+            - name: GF_SECURITY_ADMIN_USER
+              value: "admin"
+            - name: GF_INSTALL_PLUGINS
+              value: "grafana-piechart-panel,grafana-worldmap-panel"
+          volumeMounts:
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+            - name: grafana-config
+              mountPath: /etc/grafana
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: grafana-storage
+          persistentVolumeClaim:
+            claimName: grafana-pvc
+        - name: grafana-config
+          configMap:
+            name: grafana-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: grafana
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: web
+  selector:
+    app: chronoretrace
+    component: grafana
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-pvc
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: grafana
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: grafana
+data:
+  grafana.ini: |
+    [analytics]
+    check_for_updates = true
+    
+    [grafana_net]
+    url = https://grafana.net
+    
+    [log]
+    mode = console
+    
+    [paths]
+    data = /var/lib/grafana/
+    logs = /var/log/grafana
+    plugins = /var/lib/grafana/plugins
+    provisioning = /etc/grafana/provisioning
+    
+    [server]
+    protocol = http
+    http_port = 3000
+    domain = grafana.chronoretrace.com
+    enforce_domain = false
+    root_url = https://grafana.chronoretrace.com
+    
+    [security]
+    admin_user = admin
+    cookie_secure = true
+    cookie_samesite = strict
+    
+    [users]
+    allow_sign_up = false
+    allow_org_create = false
+    auto_assign_org = true
+    auto_assign_org_role = Viewer
+    
+    [auth.anonymous]
+    enabled = false
+    
+    [auth.basic]
+    enabled = true
+    
+    [smtp]
+    enabled = true
+    host = smtp.gmail.com:587
+    user = notifications@chronoretrace.com
+    password = ${SMTP_PASSWORD}
+    from_address = notifications@chronoretrace.com
+    from_name = ChronoRetrace Monitoring
+    
+    [alerting]
+    enabled = true
+    execute_alerts = true
+    
+    [metrics]
+    enabled = true
+    interval_seconds = 10
+    
+    [feature_toggles]
+    enable = ngalert
+
+---
+# AlertManager Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chronoretrace
+      component: alertmanager
+  template:
+    metadata:
+      labels:
+        app: chronoretrace
+        component: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.25.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9093
+              name: web
+          args:
+            - '--config.file=/etc/alertmanager/alertmanager.yml'
+            - '--storage.path=/alertmanager'
+            - '--web.external-url=https://alerts.chronoretrace.com'
+          volumeMounts:
+            - name: alertmanager-config
+              mountPath: /etc/alertmanager
+            - name: alertmanager-storage
+              mountPath: /alertmanager
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: alertmanager-config
+          configMap:
+            name: alertmanager-config
+        - name: alertmanager-storage
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: alertmanager
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9093
+      targetPort: 9093
+      protocol: TCP
+      name: web
+  selector:
+    app: chronoretrace
+    component: alertmanager
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: chronoretrace
+  labels:
+    app: chronoretrace
+    component: alertmanager
+data:
+  alertmanager.yml: |
+    global:
+      smtp_smarthost: 'smtp.gmail.com:587'
+      smtp_from: 'alerts@chronoretrace.com'
+      smtp_auth_username: 'alerts@chronoretrace.com'
+      smtp_auth_password: '${SMTP_PASSWORD}'
+    
+    route:
+      group_by: ['alertname']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'web.hook'
+    
+    receivers:
+      - name: 'web.hook'
+        email_configs:
+          - to: 'admin@chronoretrace.com'
+            subject: 'ChronoRetrace Alert: {{ .GroupLabels.alertname }}'
+            body: |
+              {{ range .Alerts }}
+              Alert: {{ .Annotations.summary }}
+              Description: {{ .Annotations.description }}
+              {{ end }}
+    
+    inhibit_rules:
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'dev', 'instance']

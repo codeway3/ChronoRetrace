@@ -22,6 +22,7 @@ from app.api.v1 import commodities as commodities_v1
 from app.api.v1 import crypto as crypto_v1
 from app.api.v1 import data_quality as data_quality_v1
 from app.api.v1 import futures as futures_v1
+from app.api.v1 import health as health_v1
 from app.api.v1 import monitoring as monitoring_v1
 from app.api.v1 import options as options_v1
 from app.api.v1 import screener as screener_v1
@@ -433,6 +434,7 @@ app.include_router(screener_v1.router, prefix="/api/v1", tags=["screener"])
 app.include_router(
     data_quality_v1.router, prefix="/api/v1/data-quality", tags=["data-quality"]
 )
+app.include_router(health_v1.router, prefix="/api/v1/health", tags=["health"])
 
 
 @app.get("/")

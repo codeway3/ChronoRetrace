@@ -39,18 +39,22 @@ class DatabaseInitializer:
             # 从URL中提取数据库名
             db_name = self.database_url.split('/')[-1].split('?')[0]
 
-            # 创建不包含数据库名的连接URL
-            base_url = '/'.join(self.database_url.split('/')[:-1])
-            base_engine = create_engine(base_url)
+            # 对于PostgreSQL，创建连接到postgres数据库的URL
+            if 'postgresql' in self.database_url:
+                base_url = self.database_url.rsplit('/', 1)[0] + '/postgres'
+                base_engine = create_engine(base_url)
 
-            with base_engine.connect() as conn:
-                result = conn.execute(text(
-                    f"SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '{db_name}'"
-                ))
-                exists = result.fetchone() is not None
+                with base_engine.connect() as conn:
+                    result = conn.execute(text(
+                        f"SELECT 1 FROM pg_database WHERE datname = '{db_name}'"
+                    ))
+                    exists = result.fetchone() is not None
 
-            base_engine.dispose()
-            return exists
+                base_engine.dispose()
+                return exists
+            else:
+                # SQLite等其他数据库，假设存在
+                return True
 
         except Exception as e:
             logger.warning(f"检查数据库存在性时出错: {e}")
@@ -66,18 +70,23 @@ class DatabaseInitializer:
             # 从URL中提取数据库名
             db_name = self.database_url.split('/')[-1].split('?')[0]
 
-            # 创建不包含数据库名的连接URL
-            base_url = '/'.join(self.database_url.split('/')[:-1])
-            base_engine = create_engine(base_url)
+            if 'postgresql' in self.database_url:
+                # PostgreSQL数据库创建
+                base_url = self.database_url.rsplit('/', 1)[0] + '/postgres'
+                base_engine = create_engine(base_url)
 
-            with base_engine.connect() as conn:
-                # 注意：这里需要使用autocommit模式来执行CREATE DATABASE
-                conn.execute(text(f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
-                conn.commit()
+                with base_engine.connect() as conn:
+                    # PostgreSQL需要autocommit模式来执行CREATE DATABASE
+                    conn.execute(text("COMMIT"))
+                    conn.execute(text(f'CREATE DATABASE "{db_name}"'))
 
-            base_engine.dispose()
-            logger.info(f"✅ 数据库 {db_name} 创建成功")
-            return True
+                base_engine.dispose()
+                logger.info(f"✅ 数据库 {db_name} 创建成功")
+                return True
+            else:
+                # SQLite等其他数据库，通常不需要显式创建
+                logger.info("SQLite数据库将在首次连接时自动创建")
+                return True
 
         except Exception as e:
             logger.error(f"❌ 创建数据库失败: {e}")
@@ -125,11 +134,18 @@ class DatabaseInitializer:
         try:
             with self.engine.connect() as conn:
                 for table in required_tables:
-                    # SQLite使用sqlite_master表查询表信息
-                    result = conn.execute(text(
-                        f"SELECT COUNT(*) FROM sqlite_master "
-                        f"WHERE type='table' AND name='{table}'"
-                    ))
+                    if 'postgresql' in self.database_url:
+                        # PostgreSQL使用information_schema查询表信息
+                        result = conn.execute(text(
+                            f"SELECT COUNT(*) FROM information_schema.tables "
+                            f"WHERE table_name = '{table}' AND table_schema = 'public'"
+                        ))
+                    else:
+                        # SQLite使用sqlite_master表查询表信息
+                        result = conn.execute(text(
+                            f"SELECT COUNT(*) FROM sqlite_master "
+                            f"WHERE type='table' AND name='{table}'"
+                        ))
 
                     if result.scalar() == 0:
                         logger.error(f"❌ 关键表 {table} 不存在")
@@ -186,19 +202,29 @@ class DatabaseInitializer:
         """获取数据库信息"""
         try:
             with self.engine.connect() as conn:
-                # 获取数据库版本
-                version_result = conn.execute(text("SELECT VERSION()"))
-                db_version = version_result.scalar()
+                if 'postgresql' in self.database_url:
+                    # PostgreSQL查询
+                    version_result = conn.execute(text("SELECT version()"))
+                    db_version = version_result.scalar()
 
-                # 获取数据库名
-                db_name_result = conn.execute(text("SELECT DATABASE()"))
-                db_name = db_name_result.scalar()
+                    db_name_result = conn.execute(text("SELECT current_database()"))
+                    db_name = db_name_result.scalar()
 
-                # 获取表数量
-                table_count_result = conn.execute(text(
-                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()"
-                ))
-                table_count = table_count_result.scalar()
+                    table_count_result = conn.execute(text(
+                        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
+                    ))
+                    table_count = table_count_result.scalar()
+                else:
+                    # SQLite查询
+                    version_result = conn.execute(text("SELECT sqlite_version()"))
+                    db_version = f"SQLite {version_result.scalar()}"
+
+                    db_name = self.database_url.split('/')[-1].split('?')[0]
+
+                    table_count_result = conn.execute(text(
+                        "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
+                    ))
+                    table_count = table_count_result.scalar()
 
                 # 获取迁移状态
                 migration_status = self.migration_manager.get_migration_status()
