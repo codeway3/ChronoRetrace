@@ -1,6 +1,6 @@
 # ChronoRetrace
 
-[![CI/CD Pipeline](https://github.com/codeway3/ChronoRetrace/actions/workflows/ci.yml/badge.svg)](https://github.com/codeway3/ChronoRetrace/actions/workflows/ci.yml)
+[![CI/CD Pipeline](https://github.com/codeway3/ChronoRetrace/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/codeway3/ChronoRetrace/actions/workflows/ci-cd.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **English** | **[中文](./README_CN.md)**
