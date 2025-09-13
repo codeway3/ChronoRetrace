@@ -417,9 +417,11 @@ class ErrorHandlingService:
                         "severity": error_detail.severity.value,
                         "category": error_detail.category.value,
                         "suggested_action": error_detail.suggested_action,
-                        "stack_trace": error_detail.stack_trace[:1000]
-                        if error_detail.stack_trace
-                        else None,
+                        "stack_trace": (
+                            error_detail.stack_trace[:1000]
+                            if error_detail.stack_trace
+                            else None
+                        ),
                     },
                     ensure_ascii=False,
                 ),

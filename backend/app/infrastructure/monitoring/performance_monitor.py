@@ -427,9 +427,9 @@ class PerformanceMonitor:
             for metric_type, metrics in metrics_by_type.items():
                 summary["metrics_by_type"][metric_type] = {
                     "count": len(metrics),
-                    "avg_value": sum(m.value for m in metrics) / len(metrics)
-                    if metrics
-                    else 0,
+                    "avg_value": (
+                        sum(m.value for m in metrics) / len(metrics) if metrics else 0
+                    ),
                 }
 
             return summary
@@ -452,11 +452,11 @@ class PerformanceMonitor:
             "overall_hit_rate": overall_hit_rate,
             "total_hits": total_hits,
             "total_requests": total_requests,
-            "best_performing_cache": max(
-                self.cache_stats.values(), key=lambda x: x.hit_rate
-            ).cache_name
-            if self.cache_stats
-            else None,
+            "best_performing_cache": (
+                max(self.cache_stats.values(), key=lambda x: x.hit_rate).cache_name
+                if self.cache_stats
+                else None
+            ),
         }
 
     def _get_api_summary(self) -> dict[str, Any]:
@@ -491,11 +491,13 @@ class PerformanceMonitor:
             "total_requests": total_requests,
             "avg_response_time_ms": avg_response_time,
             "success_rate": success_rate,
-            "slowest_endpoint": max(
-                self.api_metrics.values(), key=lambda x: x.avg_response_time_ms
-            ).endpoint
-            if self.api_metrics
-            else None,
+            "slowest_endpoint": (
+                max(
+                    self.api_metrics.values(), key=lambda x: x.avg_response_time_ms
+                ).endpoint
+                if self.api_metrics
+                else None
+            ),
         }
 
     def reset_stats(self, cache_name: str | None = None, endpoint: str | None = None):

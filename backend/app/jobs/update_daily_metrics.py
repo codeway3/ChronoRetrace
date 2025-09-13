@@ -154,12 +154,16 @@ async def update_metrics_for_market(db: Session, market: str) -> int:
                                     "code": stock.ts_code,
                                     "market": market,
                                     "date": date.today(),
-                                    "close_price": float(last["close"])
-                                    if pd.notna(last["close"])
-                                    else None,
-                                    "volume": int(last["vol"])
-                                    if pd.notna(last["vol"])
-                                    else None,
+                                    "close_price": (
+                                        float(last["close"])
+                                        if pd.notna(last["close"])
+                                        else None
+                                    ),
+                                    "volume": (
+                                        int(last["vol"])
+                                        if pd.notna(last["vol"])
+                                        else None
+                                    ),
                                 }
                                 consecutive_failures = 0  # 重置连续失败计数
                             else:
@@ -168,21 +172,31 @@ async def update_metrics_for_market(db: Session, market: str) -> int:
                                     "code": stock.ts_code,
                                     "market": market,
                                     "date": date.today(),
-                                    "close_price": float(row.get("close"))
-                                    if pd.notna(row.get("close"))
-                                    else None,
-                                    "volume": int(row.get("vol"))
-                                    if pd.notna(row.get("vol"))
-                                    else None,
-                                    "pe_ratio": float(row.get("pe_ratio"))
-                                    if pd.notna(row.get("pe_ratio"))
-                                    else None,
-                                    "pb_ratio": float(row.get("pb_ratio"))
-                                    if pd.notna(row.get("pb_ratio"))
-                                    else None,
-                                    "market_cap": int(row.get("market_cap"))
-                                    if pd.notna(row.get("market_cap"))
-                                    else None,
+                                    "close_price": (
+                                        float(row.get("close"))
+                                        if pd.notna(row.get("close"))
+                                        else None
+                                    ),
+                                    "volume": (
+                                        int(row.get("vol"))
+                                        if pd.notna(row.get("vol"))
+                                        else None
+                                    ),
+                                    "pe_ratio": (
+                                        float(row.get("pe_ratio"))
+                                        if pd.notna(row.get("pe_ratio"))
+                                        else None
+                                    ),
+                                    "pb_ratio": (
+                                        float(row.get("pb_ratio"))
+                                        if pd.notna(row.get("pb_ratio"))
+                                        else None
+                                    ),
+                                    "market_cap": (
+                                        int(row.get("market_cap"))
+                                        if pd.notna(row.get("market_cap"))
+                                        else None
+                                    ),
                                 }
                                 consecutive_failures = 0  # 重置连续失败计数
 
@@ -243,12 +257,14 @@ async def update_metrics_for_market(db: Session, market: str) -> int:
                                 "code": stock.ts_code,
                                 "market": market,
                                 "date": date.today(),
-                                "close_price": float(last["close"])
-                                if pd.notna(last["close"])
-                                else None,
-                                "volume": int(last["vol"])
-                                if pd.notna(last["vol"])
-                                else None,
+                                "close_price": (
+                                    float(last["close"])
+                                    if pd.notna(last["close"])
+                                    else None
+                                ),
+                                "volume": (
+                                    int(last["vol"]) if pd.notna(last["vol"]) else None
+                                ),
                             }
                             consecutive_failures = 0  # 重置连续失败计数
 
@@ -330,9 +346,9 @@ async def update_metrics_for_market(db: Session, market: str) -> int:
                         "code": stock.ts_code,
                         "market": market,
                         "date": end_date,
-                        "close_price": float(last["close"])
-                        if pd.notna(last["close"])
-                        else None,
+                        "close_price": (
+                            float(last["close"]) if pd.notna(last["close"]) else None
+                        ),
                         "volume": int(last["vol"]) if pd.notna(last["vol"]) else None,
                     }
                     existing = (

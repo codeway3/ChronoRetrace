@@ -184,6 +184,7 @@ class DataQualityLog(Base):
 # 用户认证与管理相关模型
 class User(Base):
     """用户核心表"""
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -196,7 +197,9 @@ class User(Base):
     birth_date = Column(Date, nullable=True)
     gender = Column(String(10), nullable=True)  # male, female, other
     profession = Column(String(100), nullable=True)
-    investment_experience = Column(String(20), default="beginner")  # beginner, intermediate, advanced, expert
+    investment_experience = Column(
+        String(20), default="beginner"
+    )  # beginner, intermediate, advanced, expert
 
     # 账户状态
     is_active = Column(Boolean, default=True, index=True)
@@ -219,7 +222,11 @@ class User(Base):
     preferences = relationship("UserPreferences", back_populates="user", uselist=False)
     watchlists = relationship("UserWatchlist", back_populates="user")
     portfolios = relationship("UserPortfolio", back_populates="user")
-    role_assignments = relationship("UserRoleAssignment", back_populates="user", foreign_keys="UserRoleAssignment.user_id")
+    role_assignments = relationship(
+        "UserRoleAssignment",
+        back_populates="user",
+        foreign_keys="UserRoleAssignment.user_id",
+    )
     sessions = relationship("UserSession", back_populates="user")
     activity_logs = relationship("UserActivityLog", back_populates="user")
 
@@ -231,10 +238,13 @@ class User(Base):
 
 class UserRole(Base):
     """用户角色表"""
+
     __tablename__ = "user_roles"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50), unique=True, nullable=False)  # super_admin, admin, vip_user, normal_user, guest
+    name = Column(
+        String(50), unique=True, nullable=False
+    )  # super_admin, admin, vip_user, normal_user, guest
     description = Column(Text, nullable=True)
     permissions = Column(Text, nullable=True)  # JSON格式存储权限列表
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -245,6 +255,7 @@ class UserRole(Base):
 
 class UserRoleAssignment(Base):
     """用户角色分配表"""
+
     __tablename__ = "user_role_assignments"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -254,17 +265,18 @@ class UserRoleAssignment(Base):
     assigned_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # 关系
-    user = relationship("User", back_populates="role_assignments", foreign_keys=[user_id])
+    user = relationship(
+        "User", back_populates="role_assignments", foreign_keys=[user_id]
+    )
     role = relationship("UserRole", back_populates="assignments")
     assigner = relationship("User", foreign_keys=[assigned_by])
 
-    __table_args__ = (
-        UniqueConstraint("user_id", "role_id", name="_user_role_uc"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "role_id", name="_user_role_uc"),)
 
 
 class UserPreferences(Base):
     """用户偏好设置表"""
+
     __tablename__ = "user_preferences"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -287,9 +299,13 @@ class UserPreferences(Base):
     preferred_indicators = Column(Text, nullable=True)  # JSON格式存储技术指标偏好
 
     # 投资偏好
-    risk_tolerance = Column(String(20), default="moderate")  # conservative, moderate, aggressive
+    risk_tolerance = Column(
+        String(20), default="moderate"
+    )  # conservative, moderate, aggressive
     investment_goal = Column(String(50), nullable=True)
-    investment_horizon = Column(String(20), nullable=True)  # short_term, medium_term, long_term
+    investment_horizon = Column(
+        String(20), nullable=True
+    )  # short_term, medium_term, long_term
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -300,6 +316,7 @@ class UserPreferences(Base):
 
 class UserWatchlist(Base):
     """用户自选股分组表"""
+
     __tablename__ = "user_watchlists"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -313,7 +330,9 @@ class UserWatchlist(Base):
 
     # 关系
     user = relationship("User", back_populates="watchlists")
-    items = relationship("UserWatchlistItem", back_populates="watchlist", cascade="all, delete-orphan")
+    items = relationship(
+        "UserWatchlistItem", back_populates="watchlist", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         UniqueConstraint("user_id", "name", name="_user_watchlist_name_uc"),
@@ -322,10 +341,13 @@ class UserWatchlist(Base):
 
 class UserWatchlistItem(Base):
     """用户自选股项目表"""
+
     __tablename__ = "user_watchlist_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    watchlist_id = Column(Integer, ForeignKey("user_watchlists.id"), nullable=False, index=True)
+    watchlist_id = Column(
+        Integer, ForeignKey("user_watchlists.id"), nullable=False, index=True
+    )
     symbol = Column(String(20), nullable=False, index=True)
     market = Column(String(20), nullable=False)
     added_at = Column(DateTime, default=datetime.utcnow)
@@ -343,12 +365,15 @@ class UserWatchlistItem(Base):
     watchlist = relationship("UserWatchlist", back_populates="items")
 
     __table_args__ = (
-        UniqueConstraint("watchlist_id", "symbol", "market", name="_watchlist_symbol_market_uc"),
+        UniqueConstraint(
+            "watchlist_id", "symbol", "market", name="_watchlist_symbol_market_uc"
+        ),
     )
 
 
 class UserPortfolio(Base):
     """用户投资组合表"""
+
     __tablename__ = "user_portfolios"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -364,8 +389,12 @@ class UserPortfolio(Base):
 
     # 关系
     user = relationship("User", back_populates="portfolios")
-    holdings = relationship("UserPortfolioHolding", back_populates="portfolio", cascade="all, delete-orphan")
-    transactions = relationship("UserTransaction", back_populates="portfolio", cascade="all, delete-orphan")
+    holdings = relationship(
+        "UserPortfolioHolding", back_populates="portfolio", cascade="all, delete-orphan"
+    )
+    transactions = relationship(
+        "UserTransaction", back_populates="portfolio", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         UniqueConstraint("user_id", "name", name="_user_portfolio_name_uc"),
@@ -374,10 +403,13 @@ class UserPortfolio(Base):
 
 class UserPortfolioHolding(Base):
     """用户投资组合持仓表"""
+
     __tablename__ = "user_portfolio_holdings"
 
     id = Column(Integer, primary_key=True, index=True)
-    portfolio_id = Column(Integer, ForeignKey("user_portfolios.id"), nullable=False, index=True)
+    portfolio_id = Column(
+        Integer, ForeignKey("user_portfolios.id"), nullable=False, index=True
+    )
     symbol = Column(String(20), nullable=False, index=True)
     market = Column(String(20), nullable=False)
     quantity = Column(Integer, nullable=False)
@@ -393,16 +425,21 @@ class UserPortfolioHolding(Base):
     portfolio = relationship("UserPortfolio", back_populates="holdings")
 
     __table_args__ = (
-        UniqueConstraint("portfolio_id", "symbol", "market", name="_portfolio_symbol_market_uc"),
+        UniqueConstraint(
+            "portfolio_id", "symbol", "market", name="_portfolio_symbol_market_uc"
+        ),
     )
 
 
 class UserTransaction(Base):
     """用户交易记录表"""
+
     __tablename__ = "user_transactions"
 
     id = Column(Integer, primary_key=True, index=True)
-    portfolio_id = Column(Integer, ForeignKey("user_portfolios.id"), nullable=False, index=True)
+    portfolio_id = Column(
+        Integer, ForeignKey("user_portfolios.id"), nullable=False, index=True
+    )
     symbol = Column(String(20), nullable=False, index=True)
     market = Column(String(20), nullable=False)
     transaction_type = Column(String(10), nullable=False)  # buy, sell
@@ -425,6 +462,7 @@ class UserTransaction(Base):
 
 class UserSession(Base):
     """用户会话表"""
+
     __tablename__ = "user_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -437,7 +475,9 @@ class UserSession(Base):
     is_active = Column(Boolean, default=True, nullable=False, index=True)
     expires_at = Column(DateTime, nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    last_accessed_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_accessed_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     # 关系
     user = relationship("User", back_populates="sessions")
@@ -450,6 +490,7 @@ class UserSession(Base):
 
 class UserActivityLog(Base):
     """用户行为日志表"""
+
     __tablename__ = "user_activity_logs"
 
     id = Column(Integer, primary_key=True, index=True)

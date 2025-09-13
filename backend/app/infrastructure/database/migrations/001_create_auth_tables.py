@@ -5,7 +5,6 @@
 描述: 创建用户、角色、会话、活动日志等认证相关表
 """
 
-
 from sqlalchemy import (
     Boolean,
     Column,
@@ -50,9 +49,7 @@ class UserRole(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    __table_args__ = (
-        Index('idx_user_roles_name', 'name'),
-    )
+    __table_args__ = (Index("idx_user_roles_name", "name"),)
 
 
 # 用户表
@@ -89,11 +86,11 @@ class User(Base):
     last_login_at = Column(DateTime, nullable=True)
 
     __table_args__ = (
-        Index('idx_users_username', 'username'),
-        Index('idx_users_email', 'email'),
-        Index('idx_users_active', 'is_active'),
-        Index('idx_users_email_verified', 'email_verified'),
-        Index('idx_users_created_at', 'created_at'),
+        Index("idx_users_username", "username"),
+        Index("idx_users_email", "email"),
+        Index("idx_users_active", "is_active"),
+        Index("idx_users_email_verified", "email_verified"),
+        Index("idx_users_created_at", "created_at"),
     )
 
 
@@ -102,15 +99,19 @@ class UserRoleAssignment(Base):
     __tablename__ = "user_role_assignments"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    role_id = Column(Integer, ForeignKey("user_roles.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    role_id = Column(
+        Integer, ForeignKey("user_roles.id", ondelete="CASCADE"), nullable=False
+    )
     assigned_at = Column(DateTime, default=func.now(), nullable=False)
     assigned_by = Column(Integer, ForeignKey("users.id"))
 
     __table_args__ = (
-        UniqueConstraint('user_id', 'role_id', name='uq_user_role'),
-        Index('idx_user_role_assignments_user', 'user_id'),
-        Index('idx_user_role_assignments_role', 'role_id'),
+        UniqueConstraint("user_id", "role_id", name="uq_user_role"),
+        Index("idx_user_role_assignments_user", "user_id"),
+        Index("idx_user_role_assignments_role", "role_id"),
     )
 
 
@@ -119,7 +120,9 @@ class UserSession(Base):
     __tablename__ = "user_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     session_token = Column(String(255), unique=True, nullable=False, index=True)
     refresh_token = Column(String(255), unique=True, nullable=True, index=True)
     device_info = Column(Text)  # JSON格式存储设备信息
@@ -131,10 +134,10 @@ class UserSession(Base):
     last_accessed_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     __table_args__ = (
-        Index('idx_user_sessions_user', 'user_id'),
-        Index('idx_user_sessions_token', 'session_token'),
-        Index('idx_user_sessions_active', 'is_active'),
-        Index('idx_user_sessions_expires', 'expires_at'),
+        Index("idx_user_sessions_user", "user_id"),
+        Index("idx_user_sessions_token", "session_token"),
+        Index("idx_user_sessions_active", "is_active"),
+        Index("idx_user_sessions_expires", "expires_at"),
     )
 
 
@@ -154,10 +157,10 @@ class UserActivityLog(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
 
     __table_args__ = (
-        Index('idx_user_activity_logs_user', 'user_id'),
-        Index('idx_user_activity_logs_action', 'action'),
-        Index('idx_user_activity_logs_created', 'created_at'),
-        Index('idx_user_activity_logs_success', 'success'),
+        Index("idx_user_activity_logs_user", "user_id"),
+        Index("idx_user_activity_logs_action", "action"),
+        Index("idx_user_activity_logs_created", "created_at"),
+        Index("idx_user_activity_logs_success", "success"),
     )
 
 
@@ -166,7 +169,9 @@ class UserSettings(Base):
     __tablename__ = "user_settings"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
     theme_mode = Column(String(20), default="light")
     language = Column(String(10), default="zh-CN")
     timezone = Column(String(50), default="Asia/Shanghai")
@@ -178,9 +183,7 @@ class UserSettings(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    __table_args__ = (
-        Index('idx_user_settings_user', 'user_id'),
-    )
+    __table_args__ = (Index("idx_user_settings_user", "user_id"),)
 
 
 # 用户验证码表
@@ -192,17 +195,19 @@ class UserVerificationCode(Base):
     email = Column(String(100), nullable=True)
     phone = Column(String(20), nullable=True)
     code = Column(String(10), nullable=False)
-    code_type = Column(String(20), nullable=False, index=True)  # email_verify, phone_verify, password_reset, login_2fa
+    code_type = Column(
+        String(20), nullable=False, index=True
+    )  # email_verify, phone_verify, password_reset, login_2fa
     is_used = Column(Boolean, default=False, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
     __table_args__ = (
-        Index('idx_user_verification_codes_user', 'user_id'),
-        Index('idx_user_verification_codes_email', 'email'),
-        Index('idx_user_verification_codes_phone', 'phone'),
-        Index('idx_user_verification_codes_type', 'code_type'),
-        Index('idx_user_verification_codes_expires', 'expires_at'),
+        Index("idx_user_verification_codes_user", "user_id"),
+        Index("idx_user_verification_codes_email", "email"),
+        Index("idx_user_verification_codes_phone", "phone"),
+        Index("idx_user_verification_codes_type", "code_type"),
+        Index("idx_user_verification_codes_expires", "expires_at"),
     )
 
 
@@ -211,7 +216,9 @@ class UserLoginHistory(Base):
     __tablename__ = "user_login_history"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     login_method = Column(String(20), nullable=False)  # password, sms, email, oauth
     ip_address = Column(String(45))
     user_agent = Column(Text)
@@ -222,10 +229,10 @@ class UserLoginHistory(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False, index=True)
 
     __table_args__ = (
-        Index('idx_user_login_history_user', 'user_id'),
-        Index('idx_user_login_history_method', 'login_method'),
-        Index('idx_user_login_history_success', 'success'),
-        Index('idx_user_login_history_created', 'created_at'),
+        Index("idx_user_login_history_user", "user_id"),
+        Index("idx_user_login_history_method", "login_method"),
+        Index("idx_user_login_history_success", "success"),
+        Index("idx_user_login_history_created", "created_at"),
     )
 
 
@@ -234,7 +241,9 @@ class UserPreferences(Base):
     __tablename__ = "user_preferences"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
     theme_mode = Column(String(20), default="light")
     language = Column(String(10), default="zh-CN")
     timezone = Column(String(50), default="Asia/Shanghai")
@@ -244,9 +253,7 @@ class UserPreferences(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    __table_args__ = (
-        Index('idx_user_preferences_user', 'user_id'),
-    )
+    __table_args__ = (Index("idx_user_preferences_user", "user_id"),)
 
 
 # 用户关注列表表
@@ -254,16 +261,16 @@ class UserWatchlist(Base):
     __tablename__ = "user_watchlists"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     is_default = Column(Boolean, default=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    __table_args__ = (
-        Index('idx_user_watchlists_user', 'user_id'),
-    )
+    __table_args__ = (Index("idx_user_watchlists_user", "user_id"),)
 
 
 # 关注列表股票表
@@ -271,12 +278,14 @@ class WatchlistStock(Base):
     __tablename__ = "watchlist_stocks"
 
     id = Column(Integer, primary_key=True, index=True)
-    watchlist_id = Column(Integer, ForeignKey("user_watchlists.id", ondelete="CASCADE"), nullable=False)
+    watchlist_id = Column(
+        Integer, ForeignKey("user_watchlists.id", ondelete="CASCADE"), nullable=False
+    )
     symbol = Column(String(20), nullable=False, index=True)
     market = Column(String(10), nullable=False)
     added_at = Column(DateTime, default=func.now(), nullable=False)
 
     __table_args__ = (
-        Index('idx_watchlist_stocks_watchlist', 'watchlist_id'),
-        Index('idx_watchlist_stocks_symbol', 'symbol'),
+        Index("idx_watchlist_stocks_watchlist", "watchlist_id"),
+        Index("idx_watchlist_stocks_symbol", "symbol"),
     )

@@ -328,9 +328,9 @@ class LoggingService:
             "total_processed": total_processed,
             "duplicates_found": duplicates_found,
             "duplicates_removed": duplicates_removed,
-            "duplicate_rate": duplicates_found / total_processed
-            if total_processed > 0
-            else 0,
+            "duplicate_rate": (
+                duplicates_found / total_processed if total_processed > 0 else 0
+            ),
         }
 
         self.log_operation(
@@ -505,9 +505,9 @@ class LoggingService:
             "total_operations": total_operations,
             "success_operations": success_operations,
             "failed_operations": failed_operations,
-            "success_rate": success_operations / total_operations
-            if total_operations > 0
-            else 0,
+            "success_rate": (
+                success_operations / total_operations if total_operations > 0 else 0
+            ),
             "avg_execution_time": avg_execution_time,
             "operation_type_stats": operation_type_stats,
         }

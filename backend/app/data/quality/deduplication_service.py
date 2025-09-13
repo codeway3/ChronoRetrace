@@ -223,9 +223,11 @@ class DataDeduplicationService:
         similarity_distribution = {
             "min": min(similarity_scores) if similarity_scores else 0,
             "max": max(similarity_scores) if similarity_scores else 0,
-            "avg": sum(similarity_scores) / len(similarity_scores)
-            if similarity_scores
-            else 0,
+            "avg": (
+                sum(similarity_scores) / len(similarity_scores)
+                if similarity_scores
+                else 0
+            ),
         }
 
         return {

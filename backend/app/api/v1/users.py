@@ -11,8 +11,7 @@ router = APIRouter(prefix="/users", tags=["用户"])
 
 @router.get("/profile", response_model=UserResponse)
 async def get_user_profile(
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)
 ):
     """获取用户资料"""
     return current_user
@@ -22,7 +21,7 @@ async def get_user_profile(
 async def update_user_profile(
     user_data: dict,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """更新用户资料"""
     # 这里可以添加更新用户资料的逻辑

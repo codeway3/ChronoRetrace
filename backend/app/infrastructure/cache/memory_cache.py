@@ -270,14 +270,16 @@ class LRUMemoryCache:
             return {
                 "key": key,
                 "created_at": datetime.fromtimestamp(item.created_at).isoformat(),
-                "expires_at": datetime.fromtimestamp(item.expires_at).isoformat()
-                if item.expires_at
-                else None,
+                "expires_at": (
+                    datetime.fromtimestamp(item.expires_at).isoformat()
+                    if item.expires_at
+                    else None
+                ),
                 "last_accessed": datetime.fromtimestamp(item.last_accessed).isoformat(),
                 "access_count": item.access_count,
-                "ttl_remaining": int(item.expires_at - current_time)
-                if item.expires_at
-                else None,
+                "ttl_remaining": (
+                    int(item.expires_at - current_time) if item.expires_at else None
+                ),
                 "is_expired": item.is_expired(),
                 "age_seconds": int(current_time - item.created_at),
             }

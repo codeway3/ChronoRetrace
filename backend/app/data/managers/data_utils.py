@@ -30,9 +30,7 @@ def calculate_ma(df: pd.DataFrame) -> pd.DataFrame:
 
 if __name__ == "__main__":
     # Create a dummy DataFrame to test the MA calculation
-    data = {
-        "close": list(range(1, 101))  # Simple series of numbers from 1 to 100
-    }
+    data = {"close": list(range(1, 101))}  # Simple series of numbers from 1 to 100
     df = pd.DataFrame(data)
 
     # Calculate MAs

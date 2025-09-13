@@ -112,13 +112,15 @@ async def warm_up_cache():
         backend = FastAPICache.get_backend()
         print(f"Redis backend obtained: {backend}")
 
-        print(f"Attempting to get last warming time with key: {INDUSTRY_WARMING_TIME_KEY}")
+        print(
+            f"Attempting to get last warming time with key: {INDUSTRY_WARMING_TIME_KEY}"
+        )
         last_warming_str = await backend.get(INDUSTRY_WARMING_TIME_KEY)
         print(f"Retrieved last warming time from Redis: {last_warming_str}")
 
         if last_warming_str:
             print("Found previous warming time, parsing...")
-            last_warming_time = datetime.fromisoformat(last_warming_str.decode('utf-8'))
+            last_warming_time = datetime.fromisoformat(last_warming_str.decode("utf-8"))
             time_since_last_warming = datetime.now() - last_warming_time
             print(f"Last warming time: {last_warming_time}")
             print(f"Time since last warming: {time_since_last_warming}")
@@ -126,7 +128,9 @@ async def warm_up_cache():
 
             if time_since_last_warming < timedelta(hours=12):
                 remaining_time = timedelta(hours=12) - time_since_last_warming
-                print(f"距离上次行业数据预热不足12小时，跳过预热。剩余等待时间: {remaining_time}")
+                print(
+                    f"距离上次行业数据预热不足12小时，跳过预热。剩余等待时间: {remaining_time}"
+                )
                 print("=== RETURNING EARLY DUE TO TIME CONSTRAINT ===")
                 return
             else:
@@ -136,6 +140,7 @@ async def warm_up_cache():
     except Exception as e:
         print(f"获取上次预热时间失败，继续执行预热: {e}")
         import traceback
+
         traceback.print_exc()
 
     print("=== PROCEEDING WITH CACHE WARMING ===")
@@ -242,9 +247,9 @@ async def warm_up_cache():
                                 "industry_code": code,
                                 "industry_name": name,
                                 "today_pct": float(today_pct),
-                                "turnover": float(turnover)
-                                if turnover is not None
-                                else None,
+                                "turnover": (
+                                    float(turnover) if turnover is not None else None
+                                ),
                                 "ret_window": period_return,
                                 "window": window.upper(),
                                 "sparkline": sparkline,
@@ -281,8 +286,12 @@ async def warm_up_cache():
         try:
             backend = FastAPICache.get_backend()
             current_time = datetime.now()
-            await backend.set(INDUSTRY_WARMING_TIME_KEY, current_time.isoformat().encode('utf-8'))
-            print(f"行业数据预热完成，下次预热时间: {current_time + timedelta(hours=12)}")
+            await backend.set(
+                INDUSTRY_WARMING_TIME_KEY, current_time.isoformat().encode("utf-8")
+            )
+            print(
+                f"行业数据预热完成，下次预热时间: {current_time + timedelta(hours=12)}"
+            )
         except Exception as e:
             print(f"保存预热时间失败: {e}")
 
@@ -364,7 +373,9 @@ async def lifespan(app: FastAPI):
     warming_result = await cache_warming_service.warm_all_caches(force=True)
     print(f"Cache warming completed: {warming_result.get('status', 'unknown')}")
     print(f"Cache warming stats: {warming_result.get('stats', {})}")
-    print(f"Total keys warmed: {warming_result.get('stats', {}).get('stock_list', 0) + warming_result.get('stats', {}).get('hot_stocks_data', 0) + warming_result.get('stats', {}).get('market_metrics', 0) + warming_result.get('stats', {}).get('fundamental_data', 0)}")
+    print(
+        f"Total keys warmed: {warming_result.get('stats', {}).get('stock_list', 0) + warming_result.get('stats', {}).get('hot_stocks_data', 0) + warming_result.get('stats', {}).get('market_metrics', 0) + warming_result.get('stats', {}).get('fundamental_data', 0)}"
+    )
 
     # Initialize performance monitor
     performance_monitor.start_monitoring()
@@ -392,7 +403,11 @@ app.add_middleware(
     allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
     allow_methods=settings.CORS_ALLOW_METHODS.split(","),
-    allow_headers=settings.CORS_ALLOW_HEADERS.split(",") if settings.CORS_ALLOW_HEADERS != "*" else ["*"],
+    allow_headers=(
+        settings.CORS_ALLOW_HEADERS.split(",")
+        if settings.CORS_ALLOW_HEADERS != "*"
+        else ["*"]
+    ),
 )
 
 # Add monitoring middleware

@@ -111,9 +111,7 @@ class CacheService:
 
         if strategy["use_multi_level"]:
             return await self.multi_cache.set(
-                key, data,
-                ttl=strategy["redis_ttl"],
-                l1_ttl=strategy["memory_ttl"]
+                key, data, ttl=strategy["redis_ttl"], l1_ttl=strategy["memory_ttl"]
             )
         else:
             return await self.redis_cache.set(key, data, ttl=strategy["redis_ttl"])

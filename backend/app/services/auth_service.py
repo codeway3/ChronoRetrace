@@ -32,13 +32,17 @@ class AuthService:
         """验证密码"""
         return self.pwd_context.verify(plain_password, hashed_password)
 
-    def create_access_token(self, data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
+    def create_access_token(
+        self, data: dict[str, Any], expires_delta: timedelta | None = None
+    ) -> str:
         """创建访问令牌"""
         to_encode = data.copy()
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=self.access_token_expire_minutes)
+            expire = datetime.utcnow() + timedelta(
+                minutes=self.access_token_expire_minutes
+            )
 
         to_encode.update({"exp": expire, "type": "access"})
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
@@ -52,7 +56,9 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
 
-    def verify_token(self, token: str, token_type: str = "access") -> dict[str, Any] | None:
+    def verify_token(
+        self, token: str, token_type: str = "access"
+    ) -> dict[str, Any] | None:
         """验证令牌"""
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
@@ -62,11 +68,15 @@ class AuthService:
         except JWTError:
             return None
 
-    def authenticate_user(self, db: Session, username: str, password: str) -> User | None:
+    def authenticate_user(
+        self, db: Session, username: str, password: str
+    ) -> User | None:
         """用户认证"""
-        user = db.query(User).filter(
-            (User.username == username) | (User.email == username)
-        ).first()
+        user = (
+            db.query(User)
+            .filter((User.username == username) | (User.email == username))
+            .first()
+        )
 
         if not user or not user.is_active:
             return None
@@ -76,13 +86,18 @@ class AuthService:
 
         return user
 
-    def create_user_session(self, db: Session, user_id: int, refresh_token: str,
-                           ip_address: str, user_agent: str) -> UserSession:
+    def create_user_session(
+        self,
+        db: Session,
+        user_id: int,
+        refresh_token: str,
+        ip_address: str,
+        user_agent: str,
+    ) -> UserSession:
         """创建用户会话"""
         # 删除用户的旧会话（可选：限制同时登录数量）
         db.query(UserSession).filter(
-            UserSession.user_id == user_id,
-            UserSession.is_active
+            UserSession.user_id == user_id, UserSession.is_active
         ).update({"is_active": False})
 
         session = UserSession(
@@ -90,8 +105,9 @@ class AuthService:
             session_token=refresh_token,
             ip_address=ip_address,
             user_agent=user_agent,
-            expires_at=datetime.utcnow() + timedelta(days=self.refresh_token_expire_days),
-            is_active=True
+            expires_at=datetime.utcnow()
+            + timedelta(days=self.refresh_token_expire_days),
+            is_active=True,
         )
 
         db.add(session)
@@ -101,10 +117,11 @@ class AuthService:
 
     def invalidate_session(self, db: Session, refresh_token: str) -> bool:
         """使会话失效"""
-        session = db.query(UserSession).filter(
-            UserSession.session_token == refresh_token,
-            UserSession.is_active
-        ).first()
+        session = (
+            db.query(UserSession)
+            .filter(UserSession.session_token == refresh_token, UserSession.is_active)
+            .first()
+        )
 
         if session:
             session.is_active = False
@@ -114,11 +131,15 @@ class AuthService:
 
     def validate_session(self, db: Session, refresh_token: str) -> UserSession | None:
         """验证会话"""
-        session = db.query(UserSession).filter(
-            UserSession.session_token == refresh_token,
-            UserSession.is_active,
-            UserSession.expires_at > datetime.utcnow()
-        ).first()
+        session = (
+            db.query(UserSession)
+            .filter(
+                UserSession.session_token == refresh_token,
+                UserSession.is_active,
+                UserSession.expires_at > datetime.utcnow(),
+            )
+            .first()
+        )
 
         return session
 
@@ -131,7 +152,7 @@ class AuthService:
         data = {
             "user_id": user_id,
             "type": "password_reset",
-            "exp": datetime.utcnow() + timedelta(hours=1)  # 1小时有效期
+            "exp": datetime.utcnow() + timedelta(hours=1),  # 1小时有效期
         }
         return jwt.encode(data, self.secret_key, algorithm=self.algorithm)
 

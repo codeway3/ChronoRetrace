@@ -73,7 +73,9 @@ class TestScreenerIntegration:
         """测试无筛选条件的情况"""
         # 设置模拟
         mock_db.query.return_value.filter.return_value.all.return_value = sample_stocks
-        mock_db.query.return_value.join.return_value.join.return_value.filter.return_value.count.return_value = 3
+        mock_db.query.return_value.join.return_value.join.return_value.filter.return_value.count.return_value = (
+            3
+        )
         mock_db.query.return_value.join.return_value.join.return_value.filter.return_value.limit.return_value.offset.return_value.all.return_value = [
             (sample_metrics[0], "平安银行"),
             (sample_metrics[1], "万科A"),

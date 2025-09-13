@@ -22,7 +22,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.cleanup_interval = 300  # 清理间隔（秒）
         self.last_cleanup = time.time()
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         # 获取客户端标识
         client_id = self._get_client_id(request)
 
@@ -39,9 +41,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 content={
                     "error": "Rate limit exceeded",
                     "message": f"Too many requests. Limit: {self.calls} per {self.period} seconds",
-                    "retry_after": self.period
+                    "retry_after": self.period,
                 },
-                headers={"Retry-After": str(self.period)}
+                headers={"Retry-After": str(self.period)},
             )
 
         # 记录请求
@@ -53,7 +55,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def _get_client_id(self, request: Request) -> str:
         """获取客户端唯一标识"""
         # 优先使用用户ID（如果已认证）
-        user_id = getattr(request.state, 'user_id', None)
+        user_id = getattr(request.state, "user_id", None)
         if user_id:
             return f"user:{user_id}"
 
@@ -100,16 +102,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """安全头部中间件"""
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         response = await call_next(request)
 
         # 添加安全头部
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        response.headers["Permissions-Policy"] = (
+            "geolocation=(), microphone=(), camera=()"
+        )
 
         # CSP头部（根据需要调整）
         csp = (
@@ -135,14 +143,18 @@ class IPWhitelistMiddleware(BaseHTTPMiddleware):
         self.admin_only = admin_only  # 是否仅对管理员接口启用
         self.admin_paths = ["/api/v1/admin", "/api/v1/auth/admin"]
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         # 如果没有配置白名单，直接通过
         if not self.whitelist:
             return await call_next(request)
 
         # 检查是否为管理员路径
         if self.admin_only:
-            is_admin_path = any(request.url.path.startswith(path) for path in self.admin_paths)
+            is_admin_path = any(
+                request.url.path.startswith(path) for path in self.admin_paths
+            )
             if not is_admin_path:
                 return await call_next(request)
 
@@ -155,8 +167,8 @@ class IPWhitelistMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={
                     "error": "Access denied",
-                    "message": "Your IP address is not allowed to access this resource"
-                }
+                    "message": "Your IP address is not allowed to access this resource",
+                },
             )
 
         return await call_next(request)
@@ -210,7 +222,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         self.log_responses = log_responses
         self.sensitive_paths = ["/api/v1/auth/login", "/api/v1/auth/register"]
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         start_time = time.time()
 
         # 记录请求信息
@@ -242,35 +256,41 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             pass
 
         # 记录到数据库（异步）
-        asyncio.create_task(self._save_activity_log(
-            user_id=getattr(user, 'id', None) if user else None,
-            action="api_request",
-            details={
-                "method": request.method,
-                "path": request.url.path,
-                "query_params": str(request.query_params),
-                "user_agent": request.headers.get("User-Agent", "")
-            },
-            ip_address=self._get_client_ip(request),
-            user_agent=request.headers.get("User-Agent", "")
-        ))
-
-    async def _log_response(self, request: Request, response: Response, process_time: float):
-        """记录响应信息"""
-        # 只记录错误响应或慢请求
-        if response.status_code >= 400 or process_time > 1.0:
-            asyncio.create_task(self._save_activity_log(
-                user_id=None,
-                action="api_response",
+        asyncio.create_task(
+            self._save_activity_log(
+                user_id=getattr(user, "id", None) if user else None,
+                action="api_request",
                 details={
                     "method": request.method,
                     "path": request.url.path,
-                    "status_code": response.status_code,
-                    "process_time": process_time
+                    "query_params": str(request.query_params),
+                    "user_agent": request.headers.get("User-Agent", ""),
                 },
                 ip_address=self._get_client_ip(request),
-                user_agent=request.headers.get("User-Agent", "")
-            ))
+                user_agent=request.headers.get("User-Agent", ""),
+            )
+        )
+
+    async def _log_response(
+        self, request: Request, response: Response, process_time: float
+    ):
+        """记录响应信息"""
+        # 只记录错误响应或慢请求
+        if response.status_code >= 400 or process_time > 1.0:
+            asyncio.create_task(
+                self._save_activity_log(
+                    user_id=None,
+                    action="api_response",
+                    details={
+                        "method": request.method,
+                        "path": request.url.path,
+                        "status_code": response.status_code,
+                        "process_time": process_time,
+                    },
+                    ip_address=self._get_client_ip(request),
+                    user_agent=request.headers.get("User-Agent", ""),
+                )
+            )
 
     def _get_client_ip(self, request: Request) -> str:
         """获取客户端IP"""
@@ -279,8 +299,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             return forwarded_for.split(",")[0].strip()
         return request.client.host if request.client else "unknown"
 
-    async def _save_activity_log(self, user_id: int | None, action: str,
-                                details: dict, ip_address: str, user_agent: str):
+    async def _save_activity_log(
+        self,
+        user_id: int | None,
+        action: str,
+        details: dict,
+        ip_address: str,
+        user_agent: str,
+    ):
         """保存活动日志到数据库"""
         try:
             # 这里需要获取数据库会话
@@ -294,7 +320,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                     action=action,
                     details=str(details),
                     ip_address=ip_address,
-                    user_agent=user_agent
+                    user_agent=user_agent,
                 )
                 db.add(activity_log)
                 db.commit()
@@ -308,15 +334,29 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 class CORSMiddleware(BaseHTTPMiddleware):
     """CORS中间件"""
 
-    def __init__(self, app, allow_origins: list = None, allow_methods: list = None,
-                 allow_headers: list = None, allow_credentials: bool = True):
+    def __init__(
+        self,
+        app,
+        allow_origins: list = None,
+        allow_methods: list = None,
+        allow_headers: list = None,
+        allow_credentials: bool = True,
+    ):
         super().__init__(app)
         self.allow_origins = allow_origins or ["*"]
-        self.allow_methods = allow_methods or ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        self.allow_methods = allow_methods or [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE",
+            "OPTIONS",
+        ]
         self.allow_headers = allow_headers or ["*"]
         self.allow_credentials = allow_credentials
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         # 处理预检请求
         if request.method == "OPTIONS":
             response = Response()
@@ -362,32 +402,44 @@ def setup_middleware(app):
     # CORS中间件（最先添加）
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.ALLOWED_ORIGINS if hasattr(settings, 'ALLOWED_ORIGINS') else ["*"],
-        allow_credentials=True
+        allow_origins=(
+            settings.ALLOWED_ORIGINS if hasattr(settings, "ALLOWED_ORIGINS") else ["*"]
+        ),
+        allow_credentials=True,
     )
 
     # 安全头部中间件
     app.add_middleware(SecurityHeadersMiddleware)
 
     # 限流中间件
-    if hasattr(settings, 'RATE_LIMIT_ENABLED') and settings.RATE_LIMIT_ENABLED:
+    if hasattr(settings, "RATE_LIMIT_ENABLED") and settings.RATE_LIMIT_ENABLED:
         app.add_middleware(
             RateLimitMiddleware,
-            calls=settings.RATE_LIMIT_REQUESTS_PER_MINUTE if hasattr(settings, 'RATE_LIMIT_REQUESTS_PER_MINUTE') else 100,
-            period=60  # 固定为60秒（1分钟）
+            calls=(
+                settings.RATE_LIMIT_REQUESTS_PER_MINUTE
+                if hasattr(settings, "RATE_LIMIT_REQUESTS_PER_MINUTE")
+                else 100
+            ),
+            period=60,  # 固定为60秒（1分钟）
         )
 
     # IP白名单中间件（如果配置了白名单）
-    if hasattr(settings, 'IP_WHITELIST_ENABLED') and settings.IP_WHITELIST_ENABLED and hasattr(settings, 'IP_WHITELIST_LIST'):
+    if (
+        hasattr(settings, "IP_WHITELIST_ENABLED")
+        and settings.IP_WHITELIST_ENABLED
+        and hasattr(settings, "IP_WHITELIST_LIST")
+    ):
         app.add_middleware(
-            IPWhitelistMiddleware,
-            whitelist=settings.IP_WHITELIST_LIST,
-            admin_only=True
+            IPWhitelistMiddleware, whitelist=settings.IP_WHITELIST_LIST, admin_only=True
         )
 
     # 请求日志中间件
     app.add_middleware(
         RequestLoggingMiddleware,
-        log_requests=settings.LOG_REQUESTS if hasattr(settings, 'LOG_REQUESTS') else True,
-        log_responses=settings.LOG_RESPONSES if hasattr(settings, 'LOG_RESPONSES') else False
+        log_requests=(
+            settings.LOG_REQUESTS if hasattr(settings, "LOG_REQUESTS") else True
+        ),
+        log_responses=(
+            settings.LOG_RESPONSES if hasattr(settings, "LOG_RESPONSES") else False
+        ),
     )

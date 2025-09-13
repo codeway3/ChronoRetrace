@@ -267,12 +267,14 @@ class DatabaseIndexOptimizer:
 
             # 获取现有索引信息
             indexes_result = session.execute(
-                text("""
+                text(
+                    """
                 SELECT name, tbl_name, sql
                 FROM sqlite_master
                 WHERE type='index' AND name NOT LIKE 'sqlite_%'
                 ORDER BY tbl_name, name
-                """)
+                """
+                )
             ).fetchall()
 
             for row in indexes_result:
@@ -303,8 +305,6 @@ class DatabaseIndexOptimizer:
                             analysis["recommendations"].append(
                                 f"表 {table} 记录数较大({count_result})，建议考虑分区策略"
                             )
-
-
 
                 except Exception as e:
                     logger.warning(f"无法分析表 {table}: {e}")

@@ -7,9 +7,7 @@ from app.data.managers.data_utils import calculate_ma
 def test_calculate_ma_with_sufficient_data():
     """Test MA calculation when there is enough data for all periods."""
     # Create DataFrame with 100 rows (enough for MA60)
-    data = {
-        "close": list(range(1, 101))  # 1 to 100
-    }
+    data = {"close": list(range(1, 101))}  # 1 to 100
     df = pd.DataFrame(data)
 
     result = calculate_ma(df)
@@ -33,9 +31,7 @@ def test_calculate_ma_with_sufficient_data():
 def test_calculate_ma_with_insufficient_data():
     """Test MA calculation when there is not enough data for longer periods."""
     # Create DataFrame with only 10 rows (enough for MA5 and MA10, but not MA20 or MA60)
-    data = {
-        "close": list(range(1, 11))  # 1 to 10
-    }
+    data = {"close": list(range(1, 11))}  # 1 to 10
     df = pd.DataFrame(data)
 
     result = calculate_ma(df)
@@ -119,9 +115,7 @@ def test_calculate_ma_with_nan_values():
 
 def test_calculate_ma_preserves_original_data():
     """Test that MA calculation doesn't modify the original DataFrame."""
-    data = {
-        "close": list(range(1, 21))  # 1 to 20
-    }
+    data = {"close": list(range(1, 21))}  # 1 to 20
     df = pd.DataFrame(data)
     original_df = df.copy()
 

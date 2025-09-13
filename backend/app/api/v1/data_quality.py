@@ -47,9 +47,11 @@ async def validate_data(
                     "errors": result.validation_report.errors,
                     "warnings": result.validation_report.warnings,
                 },
-                "processed_data": result.processed_data.to_dict(orient="records")
-                if not result.processed_data.empty
-                else [],
+                "processed_data": (
+                    result.processed_data.to_dict(orient="records")
+                    if not result.processed_data.empty
+                    else []
+                ),
             }
 
     except Exception as e:
@@ -85,18 +87,22 @@ async def deduplicate_data(
 
             return {
                 "status": "success",
-                "deduplication_report": {
-                    "summary": result.deduplication_report.summary,
-                    "total_records": result.deduplication_report.total_records,
-                    "unique_records": result.deduplication_report.unique_records,
-                    "duplicate_records": result.deduplication_report.duplicate_records,
-                    "duplicates_removed": result.deduplication_report.duplicates_removed,
-                }
-                if result.deduplication_report
-                else None,
-                "processed_data": result.processed_data.to_dict(orient="records")
-                if not result.processed_data.empty
-                else [],
+                "deduplication_report": (
+                    {
+                        "summary": result.deduplication_report.summary,
+                        "total_records": result.deduplication_report.total_records,
+                        "unique_records": result.deduplication_report.unique_records,
+                        "duplicate_records": result.deduplication_report.duplicate_records,
+                        "duplicates_removed": result.deduplication_report.duplicates_removed,
+                    }
+                    if result.deduplication_report
+                    else None
+                ),
+                "processed_data": (
+                    result.processed_data.to_dict(orient="records")
+                    if not result.processed_data.empty
+                    else []
+                ),
             }
 
     except Exception as e:
@@ -135,9 +141,11 @@ async def process_data(
             response = {
                 "status": "success",
                 "has_errors": result.has_errors,
-                "processed_data": result.processed_data.to_dict(orient="records")
-                if not result.processed_data.empty
-                else [],
+                "processed_data": (
+                    result.processed_data.to_dict(orient="records")
+                    if not result.processed_data.empty
+                    else []
+                ),
             }
 
             if result.validation_report:

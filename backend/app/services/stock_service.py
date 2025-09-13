@@ -79,8 +79,7 @@ class CachedStockService:
                 stock_info = StockInfo(ts_code=stock.ts_code, name=stock.name)
                 stock_list.append(stock_info)
 
-            logger.info(
-                f"Retrieved {len(stock_list)} stocks for {market_type}")
+            logger.info(f"Retrieved {len(stock_list)} stocks for {market_type}")
             return stock_list
 
         except Exception as e:
@@ -102,8 +101,7 @@ class CachedStockService:
             刷新结果
         """
         try:
-            logger.info(
-                f"Force refreshing stock list for market: {market_type}")
+            logger.info(f"Force refreshing stock list for market: {market_type}")
 
             # 强制更新股票列表
             data_manager.force_update_stock_list(db, market_type)
@@ -155,8 +153,7 @@ class CachedStockService:
                 "market_type": market_type,
                 "trade_date": trade_date.isoformat() if trade_date else None,
             }
-            cache_key_suffix = hashlib.md5(
-                str(cache_params).encode()).hexdigest()
+            cache_key_suffix = hashlib.md5(str(cache_params).encode()).hexdigest()
 
             # 对于分钟级和5日线数据，不使用缓存（数据变化频繁）
             if interval in ["minute", "5day"]:
@@ -230,8 +227,7 @@ class CachedStockService:
             record["ts_code"] = stock_code
             record["interval"] = interval
 
-        records = [StockDataBase.model_validate(
-            record) for record in dict_records]
+        records = [StockDataBase.model_validate(record) for record in dict_records]
         return records
 
     @smart_cache("stock_info", lambda self, symbol: f"fundamental_{symbol}")
@@ -294,8 +290,7 @@ class CachedStockService:
                 )
 
             # 从数据库获取公司行动数据
-            actions = data_manager.get_corporate_actions_from_db(
-                db, resolved_symbol)
+            actions = data_manager.get_corporate_actions_from_db(db, resolved_symbol)
 
             return actions
 
@@ -331,8 +326,7 @@ class CachedStockService:
                 )
 
             # 从数据库获取年度收益数据
-            earnings = data_manager.get_annual_earnings_from_db(
-                db, resolved_symbol)
+            earnings = data_manager.get_annual_earnings_from_db(db, resolved_symbol)
 
             return earnings
 
@@ -372,8 +366,7 @@ class CachedStockService:
                     f"Deleted {deleted_count} cache entries for pattern: {pattern}"
                 )
 
-            logger.info(
-                f"Cache invalidation completed for stock: {stock_code}")
+            logger.info(f"Cache invalidation completed for stock: {stock_code}")
 
         except Exception as e:
             logger.error(f"Error invalidating cache for {stock_code}: {e}")
@@ -412,12 +405,10 @@ class CachedStockService:
                         )
 
                 except Exception as e:
-                    logger.warning(
-                        f"Failed to preload data for {stock.ts_code}: {e}")
+                    logger.warning(f"Failed to preload data for {stock.ts_code}: {e}")
                     continue
 
-            logger.info(
-                f"Preload completed: {preload_count}/{len(hot_stocks)} stocks")
+            logger.info(f"Preload completed: {preload_count}/{len(hot_stocks)} stocks")
 
         except Exception as e:
             logger.error(f"Error during hot stocks preload: {e}")

@@ -174,8 +174,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
             relevant_headers = ["accept", "accept-language", "authorization"]
             for header in relevant_headers:
                 if header in request.headers:
-                    key_components.append(
-                        f"{header}:{request.headers[header]}")
+                    key_components.append(f"{header}:{request.headers[header]}")
 
         # 生成哈希
         key_string = "|".join(key_components)
@@ -203,8 +202,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
         if hasattr(response, "body"):
             body_size = len(response.body) if response.body else 0
             if body_size > config["max_response_size"]:
-                logger.warning(
-                    f"Response too large to cache: {body_size} bytes")
+                logger.warning(f"Response too large to cache: {body_size} bytes")
                 return False
 
         # 检查缓存控制头
@@ -257,15 +255,12 @@ class CacheMiddleware(BaseHTTPMiddleware):
             ttl = config.get("ttl", config["default_ttl"])
 
             # 缓存响应
-            success = cache_service.redis_cache.set(
-                cache_key, cache_data, ttl=ttl)
+            success = cache_service.redis_cache.set(cache_key, cache_data, ttl=ttl)
 
             if success:
-                logger.debug(
-                    f"Cached response for key: {cache_key}, TTL: {ttl}s")
+                logger.debug(f"Cached response for key: {cache_key}, TTL: {ttl}s")
             else:
-                logger.warning(
-                    f"Failed to cache response for key: {cache_key}")
+                logger.warning(f"Failed to cache response for key: {cache_key}")
 
         except Exception as e:
             logger.error(f"Error caching response: {e}")
@@ -296,8 +291,7 @@ class CacheInvalidationMiddleware(BaseHTTPMiddleware):
         }
 
         # 合并配置
-        self.rules = {**self.default_rules, **
-                      self.invalidation_config.get("rules", {})}
+        self.rules = {**self.default_rules, **self.invalidation_config.get("rules", {})}
 
         # 路径到缓存模式的映射
         self.path_patterns = self.invalidation_config.get(
@@ -383,8 +377,7 @@ class CacheInvalidationMiddleware(BaseHTTPMiddleware):
                         f"Invalidated {count} cache entries for pattern: {pattern}"
                     )
                 except Exception as e:
-                    logger.error(
-                        f"Error invalidating cache pattern {pattern}: {e}")
+                    logger.error(f"Error invalidating cache pattern {pattern}: {e}")
 
             # 失效HTTP缓存
             http_cache_pattern = "http_cache:*"

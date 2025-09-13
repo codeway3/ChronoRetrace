@@ -30,7 +30,7 @@ def upgrade(engine):
     existing_tables = inspector.get_table_names()
 
     # 检查users表是否存在
-    if 'users' not in existing_tables:
+    if "users" not in existing_tables:
         print("❌ users表不存在，无法创建关注列表表")
         raise Exception("users表不存在，请先执行001迁移")
 
@@ -65,9 +65,9 @@ class WatchlistGroup(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     __table_args__ = (
-        Index('idx_watchlist_groups_user', 'user_id'),
-        Index('idx_watchlist_groups_sort', 'sort_order'),
-        UniqueConstraint('user_id', 'name', name='uq_user_group_name'),
+        Index("idx_watchlist_groups_user", "user_id"),
+        Index("idx_watchlist_groups_sort", "sort_order"),
+        UniqueConstraint("user_id", "name", name="uq_user_group_name"),
     )
 
 
@@ -85,18 +85,18 @@ class WatchlistItem(Base):
     notes = Column(Text)  # 用户备注
     alert_enabled = Column(Boolean, default=False)
     alert_price_high = Column(Numeric(10, 2))  # 价格上限提醒
-    alert_price_low = Column(Numeric(10, 2))   # 价格下限提醒
+    alert_price_low = Column(Numeric(10, 2))  # 价格下限提醒
     alert_change_percent = Column(Numeric(5, 2))  # 涨跌幅提醒
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     __table_args__ = (
-        Index('idx_watchlist_items_user', 'user_id'),
-        Index('idx_watchlist_items_group', 'group_id'),
-        Index('idx_watchlist_items_symbol', 'symbol'),
-        Index('idx_watchlist_items_market', 'market'),
-        Index('idx_watchlist_items_sort', 'sort_order'),
-        UniqueConstraint('user_id', 'symbol', 'market', name='uq_user_symbol_market'),
+        Index("idx_watchlist_items_user", "user_id"),
+        Index("idx_watchlist_items_group", "group_id"),
+        Index("idx_watchlist_items_symbol", "symbol"),
+        Index("idx_watchlist_items_market", "market"),
+        Index("idx_watchlist_items_sort", "sort_order"),
+        UniqueConstraint("user_id", "symbol", "market", name="uq_user_symbol_market"),
     )
 
 
@@ -107,7 +107,9 @@ class PriceAlertHistory(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=False)  # 暂时移除外键约束
     watchlist_item_id = Column(Integer, nullable=False)  # 暂时移除外键约束
-    alert_type = Column(String(20), nullable=False)  # price_high, price_low, change_percent
+    alert_type = Column(
+        String(20), nullable=False
+    )  # price_high, price_low, change_percent
     trigger_value = Column(Numeric(10, 2), nullable=False)
     actual_value = Column(Numeric(10, 2), nullable=False)
     message = Column(Text)
@@ -116,11 +118,11 @@ class PriceAlertHistory(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
     __table_args__ = (
-        Index('idx_price_alert_history_user', 'user_id'),
-        Index('idx_price_alert_history_item', 'watchlist_item_id'),
-        Index('idx_price_alert_history_type', 'alert_type'),
-        Index('idx_price_alert_history_sent', 'is_sent'),
-        Index('idx_price_alert_history_created', 'created_at'),
+        Index("idx_price_alert_history_user", "user_id"),
+        Index("idx_price_alert_history_item", "watchlist_item_id"),
+        Index("idx_price_alert_history_type", "alert_type"),
+        Index("idx_price_alert_history_sent", "is_sent"),
+        Index("idx_price_alert_history_created", "created_at"),
     )
 
 
@@ -149,8 +151,8 @@ class StockDataCache(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
     __table_args__ = (
-        Index('idx_stock_data_cache_symbol', 'symbol'),
-        Index('idx_stock_data_cache_market', 'market'),
-        Index('idx_stock_data_cache_updated', 'last_updated'),
-        UniqueConstraint('symbol', 'market', name='uq_symbol_market'),
+        Index("idx_stock_data_cache_symbol", "symbol"),
+        Index("idx_stock_data_cache_market", "market"),
+        Index("idx_stock_data_cache_updated", "last_updated"),
+        UniqueConstraint("symbol", "market", name="uq_symbol_market"),
     )

@@ -18,7 +18,7 @@ from app.infrastructure.database.models import Base
 
 # import akshare as ak  # Removed to avoid initialization issues in tests
 # Mock akshare module completely to avoid initialization issues
-sys.modules['akshare'] = MagicMock()
+sys.modules["akshare"] = MagicMock()
 
 
 def pytest_configure(config):
@@ -170,7 +170,8 @@ def setup_fastapi_cache():
     try:
         from fastapi_cache import FastAPICache
         from fastapi_cache.backends.inmemory import InMemoryBackend
-        if not hasattr(FastAPICache, '_prefix') or FastAPICache._prefix is None:
+
+        if not hasattr(FastAPICache, "_prefix") or FastAPICache._prefix is None:
             FastAPICache.init(InMemoryBackend(), prefix="test-cache")
     except Exception:
         pass
@@ -183,6 +184,7 @@ def clear_cache_between_tests():
         import asyncio
 
         from fastapi_cache import FastAPICache
+
         loop = asyncio.get_event_loop()
         if loop.is_running():
             # If we're already in an async context, create a task

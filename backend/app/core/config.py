@@ -12,7 +12,9 @@ load_dotenv(dotenv_path=dotenv_path)
 
 class Settings(BaseSettings):
     # Database Configuration
-    DATABASE_URL: str = "postgresql://chronoretrace:password@localhost:5432/chronoretrace"
+    DATABASE_URL: str = (
+        "postgresql://chronoretrace:password@localhost:5432/chronoretrace"
+    )
     DATABASE_POOL_SIZE: int = 10
     DATABASE_MAX_OVERFLOW: int = 20
     DATABASE_POOL_TIMEOUT: int = 30
@@ -103,7 +105,11 @@ class Settings(BaseSettings):
     @property
     def ALLOWED_ORIGINS(self) -> list[str]:
         """Convert CORS_ALLOWED_ORIGINS string to list"""
-        return [origin.strip() for origin in self.CORS_ALLOWED_ORIGINS.split(",") if origin.strip()]
+        return [
+            origin.strip()
+            for origin in self.CORS_ALLOWED_ORIGINS.split(",")
+            if origin.strip()
+        ]
 
     @property
     def IP_WHITELIST_LIST(self) -> list[str]:
@@ -115,7 +121,9 @@ class Settings(BaseSettings):
     @property
     def ALLOWED_FILE_TYPES_LIST(self) -> list[str]:
         """Convert ALLOWED_FILE_TYPES string to list"""
-        return [ext.strip() for ext in self.ALLOWED_FILE_TYPES.split(",") if ext.strip()]
+        return [
+            ext.strip() for ext in self.ALLOWED_FILE_TYPES.split(",") if ext.strip()
+        ]
 
     # Backward compatibility aliases
     @property

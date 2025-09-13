@@ -54,7 +54,8 @@ class DatabaseMigration:
         """
         try:
             session.execute(
-                text("""
+                text(
+                    """
                 CREATE TABLE IF NOT EXISTS schema_migrations (
                     version VARCHAR(10) PRIMARY KEY,
                     name VARCHAR(100) NOT NULL,
@@ -62,7 +63,8 @@ class DatabaseMigration:
                     applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     execution_time_ms INTEGER
                 )
-            """)
+            """
+                )
             )
             session.commit()
         except Exception as e:
@@ -91,10 +93,12 @@ class DatabaseMigration:
         """
         try:
             session.execute(
-                text("""
+                text(
+                    """
                 INSERT INTO schema_migrations (version, name, description, execution_time_ms)
                 VALUES (:version, :name, :description, :execution_time_ms)
-            """),
+            """
+                ),
                 {
                     "version": migration["version"],
                     "name": migration["name"],
@@ -153,7 +157,8 @@ class DatabaseMigration:
 
         # 创建表
         session.execute(
-            text("""
+            text(
+                """
             CREATE TABLE IF NOT EXISTS cache_metadata (
                 id SERIAL PRIMARY KEY,
                 cache_key VARCHAR(255) NOT NULL UNIQUE,
@@ -166,14 +171,31 @@ class DatabaseMigration:
                 last_accessed TIMESTAMP,
                 data_size_bytes INTEGER DEFAULT 0
             )
-        """)
+        """
+            )
         )
-        
+
         # 分别创建索引
-        session.execute(text("CREATE INDEX IF NOT EXISTS idx_cache_key ON cache_metadata (cache_key)"))
-        session.execute(text("CREATE INDEX IF NOT EXISTS idx_cache_type ON cache_metadata (cache_type)"))
-        session.execute(text("CREATE INDEX IF NOT EXISTS idx_expires_at ON cache_metadata (expires_at)"))
-        session.execute(text("CREATE INDEX IF NOT EXISTS idx_last_accessed ON cache_metadata (last_accessed)"))
+        session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_cache_key ON cache_metadata (cache_key)"
+            )
+        )
+        session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_cache_type ON cache_metadata (cache_type)"
+            )
+        )
+        session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_expires_at ON cache_metadata (expires_at)"
+            )
+        )
+        session.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_last_accessed ON cache_metadata (last_accessed)"
+            )
+        )
 
         session.commit()
         logger.info("缓存元数据表创建完成")
@@ -271,10 +293,10 @@ class DatabaseMigration:
             Dict: 迁移状态信息
         """
         status: dict[str, Any] = {
-                    "available_migrations": [],
-                    "applied_migrations": [],
-                    "pending_migrations": [],
-                }
+            "available_migrations": [],
+            "applied_migrations": [],
+            "pending_migrations": [],
+        }
 
         db = next(get_db())
         try:

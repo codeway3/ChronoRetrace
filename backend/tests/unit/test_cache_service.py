@@ -103,8 +103,12 @@ class TestCacheService:
         result = await cache_service.set("test_key", test_data, ttl=3600)
 
         assert result is True
-        cache_service.redis_cache.set.assert_called_once_with("test_key", test_data, ttl=3600)
-        cache_service.multi_cache.set.assert_called_once_with("test_key", test_data, ttl=3600)
+        cache_service.redis_cache.set.assert_called_once_with(
+            "test_key", test_data, ttl=3600
+        )
+        cache_service.multi_cache.set.assert_called_once_with(
+            "test_key", test_data, ttl=3600
+        )
 
     @pytest.mark.asyncio
     async def test_delete_cache(self, cache_service, mock_redis):

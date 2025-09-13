@@ -139,8 +139,12 @@ class CacheWarmingService:
                 # 预热A股列表
                 # 检查A股列表缓存
                 a_share_stock_code = "list_A_share"
-                cached_data = await cache_service.get_stock_info(a_share_stock_code, "A_share")
-                logger.debug(f"A股缓存检查结果: {cached_data is not None}, force={force}")
+                cached_data = await cache_service.get_stock_info(
+                    a_share_stock_code, "A_share"
+                )
+                logger.debug(
+                    f"A股缓存检查结果: {cached_data is not None}, force={force}"
+                )
 
                 if force or not cached_data:
                     a_shares = (
@@ -176,8 +180,12 @@ class CacheWarmingService:
 
                 # 预热美股列表
                 us_stock_code = "list_US_stock"
-                us_cached_data = await cache_service.get_stock_info(us_stock_code, "US_stock")
-                logger.debug(f"美股缓存检查结果: {us_cached_data is not None}, force={force}")
+                us_cached_data = await cache_service.get_stock_info(
+                    us_stock_code, "US_stock"
+                )
+                logger.debug(
+                    f"美股缓存检查结果: {us_cached_data is not None}, force={force}"
+                )
 
                 if force or not us_cached_data:
                     us_stocks = (
@@ -243,7 +251,9 @@ class CacheWarmingService:
                     for interval in intervals:
                         cache_key_suffix = f"{ts_code}_{interval}"
 
-                        if force or not await cache_service.get_stock_daily_data(ts_code, cache_key_suffix):
+                        if force or not await cache_service.get_stock_daily_data(
+                            ts_code, cache_key_suffix
+                        ):
                             # 获取股票数据
                             stock_data = await self._fetch_stock_data(
                                 db, ts_code, interval
@@ -282,12 +292,16 @@ class CacheWarmingService:
                 for market in markets:
                     market_code = f"market_metrics_{market}"
 
-                    if force or not await cache_service.get_stock_metrics(market_code, "latest", market):
+                    if force or not await cache_service.get_stock_metrics(
+                        market_code, "latest", market
+                    ):
                         # 获取市场指标
                         metrics = await self._fetch_market_metrics(db, market)
 
                         if metrics:
-                            await cache_service.set_stock_metrics(market_code, "latest", metrics, market)
+                            await cache_service.set_stock_metrics(
+                                market_code, "latest", metrics, market
+                            )
                             stats["market_metrics"] += 1
 
                 logger.info(f"市场指标预热完成: {stats['market_metrics']} 个指标")
@@ -350,12 +364,14 @@ class CacheWarmingService:
             try:
                 # 基于交易量和价格变动获取热点股票
                 recent_date = datetime.now().date() - timedelta(days=7)
-                sql = text("""
+                sql = text(
+                    """
                     SELECT DISTINCT code
                     FROM daily_stock_metrics
                     WHERE date >= :recent_date AND volume IS NOT NULL
                     LIMIT :limit
-                """)
+                """
+                )
                 result = db.execute(sql, {"recent_date": recent_date, "limit": limit})
                 hot_stocks = [row[0] for row in result.fetchall()]
 
@@ -631,21 +647,31 @@ class CacheWarmingService:
                                 {
                                     "ts_code": latest_data.ts_code,
                                     "trade_date": latest_data.trade_date.isoformat(),
-                                    "close": float(latest_data.close)
-                                    if latest_data.close
-                                    else None,
-                                    "open": float(latest_data.open)
-                                    if latest_data.open
-                                    else None,
-                                    "high": float(latest_data.high)
-                                    if latest_data.high
-                                    else None,
-                                    "low": float(latest_data.low)
-                                    if latest_data.low
-                                    else None,
-                                    "volume": float(latest_data.vol)
-                                    if latest_data.vol
-                                    else None,
+                                    "close": (
+                                        float(latest_data.close)
+                                        if latest_data.close
+                                        else None
+                                    ),
+                                    "open": (
+                                        float(latest_data.open)
+                                        if latest_data.open
+                                        else None
+                                    ),
+                                    "high": (
+                                        float(latest_data.high)
+                                        if latest_data.high
+                                        else None
+                                    ),
+                                    "low": (
+                                        float(latest_data.low)
+                                        if latest_data.low
+                                        else None
+                                    ),
+                                    "volume": (
+                                        float(latest_data.vol)
+                                        if latest_data.vol
+                                        else None
+                                    ),
                                 },
                             )
                             if success:

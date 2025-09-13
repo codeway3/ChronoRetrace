@@ -110,7 +110,7 @@ async def get_system_health():
         issues = []
         memory_usage_mb = system_metrics.get("memory_available_mb", 0)
         cpu_usage_percent = system_metrics.get("cpu_percent", 0)
-        
+
         # 计算内存使用量（从可用内存推算）
         if memory_usage_mb < 500:  # 可用内存少于500MB
             issues.append("内存使用量过高")
@@ -129,8 +129,9 @@ async def get_system_health():
 
         # 计算运行时间（简化实现）
         import time
+
         uptime_seconds = time.time() - system_metrics.get("start_time", time.time())
-        
+
         return SystemHealthResponse(
             status=status,
             timestamp=datetime.now(),

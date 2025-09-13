@@ -251,9 +251,11 @@ def fetch_us_fundamental_data_from_yfinance(symbol: str) -> dict | None:
             "symbol": symbol,
             "market_cap": info.get("marketCap"),
             "pe_ratio": info.get("trailingPE"),
-            "dividend_yield": info.get("dividendYield", 0) * 100
-            if info.get("dividendYield")
-            else None,
+            "dividend_yield": (
+                info.get("dividendYield", 0) * 100
+                if info.get("dividendYield")
+                else None
+            ),
             "eps": info.get("trailingEps"),
             "beta": info.get("beta"),
             "gross_profit_margin": info.get("grossMargins"),

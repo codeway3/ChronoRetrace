@@ -15,7 +15,9 @@ client = TestClient(app)
 @patch("app.data.fetchers.commodity_fetcher.fetch_commodity_from_yfinance")
 def test_get_commodity_data_success(mock_fetch, mock_akshare):
     # Mock akshare to avoid initialization error
-    mock_akshare.return_value = pd.DataFrame({"symbol": ["ag2412"], "name": ["白银2412"]})
+    mock_akshare.return_value = pd.DataFrame(
+        {"symbol": ["ag2412"], "name": ["白银2412"]}
+    )
 
     successful_mock = MagicMock()
     successful_mock.return_value = pd.DataFrame(
@@ -39,7 +41,9 @@ def test_get_commodity_data_success(mock_fetch, mock_akshare):
 @patch("app.data.fetchers.commodity_fetcher.fetch_commodity_from_yfinance")
 def test_get_commodity_data_not_found(mock_fetch, mock_akshare):
     # Mock akshare to avoid initialization error
-    mock_akshare.return_value = pd.DataFrame({"symbol": ["ag2412"], "name": ["白银2412"]})
+    mock_akshare.return_value = pd.DataFrame(
+        {"symbol": ["ag2412"], "name": ["白银2412"]}
+    )
 
     mock_fetch.return_value = pd.DataFrame()
     response = client.get("/api/v1/commodities/invalid_symbol")

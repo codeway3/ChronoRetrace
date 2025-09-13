@@ -37,17 +37,17 @@ class DatabaseInitializer:
         """检查数据库是否存在"""
         try:
             # 从URL中提取数据库名
-            db_name = self.database_url.split('/')[-1].split('?')[0]
+            db_name = self.database_url.split("/")[-1].split("?")[0]
 
             # 对于PostgreSQL，创建连接到postgres数据库的URL
-            if 'postgresql' in self.database_url:
-                base_url = self.database_url.rsplit('/', 1)[0] + '/postgres'
+            if "postgresql" in self.database_url:
+                base_url = self.database_url.rsplit("/", 1)[0] + "/postgres"
                 base_engine = create_engine(base_url)
 
                 with base_engine.connect() as conn:
-                    result = conn.execute(text(
-                        f"SELECT 1 FROM pg_database WHERE datname = '{db_name}'"
-                    ))
+                    result = conn.execute(
+                        text(f"SELECT 1 FROM pg_database WHERE datname = '{db_name}'")
+                    )
                     exists = result.fetchone() is not None
 
                 base_engine.dispose()
@@ -68,11 +68,11 @@ class DatabaseInitializer:
                 return True
 
             # 从URL中提取数据库名
-            db_name = self.database_url.split('/')[-1].split('?')[0]
+            db_name = self.database_url.split("/")[-1].split("?")[0]
 
-            if 'postgresql' in self.database_url:
+            if "postgresql" in self.database_url:
                 # PostgreSQL数据库创建
-                base_url = self.database_url.rsplit('/', 1)[0] + '/postgres'
+                base_url = self.database_url.rsplit("/", 1)[0] + "/postgres"
                 base_engine = create_engine(base_url)
 
                 with base_engine.connect() as conn:
@@ -99,9 +99,11 @@ class DatabaseInitializer:
 
             # 获取迁移状态
             status = self.migration_manager.get_migration_status()
-            logger.info(f"迁移状态: 总计 {status['total_migrations']} 个，已应用 {status['applied_count']} 个，待执行 {status['pending_count']} 个")
+            logger.info(
+                f"迁移状态: 总计 {status['total_migrations']} 个，已应用 {status['applied_count']} 个，待执行 {status['pending_count']} 个"
+            )
 
-            if status['pending_count'] == 0:
+            if status["pending_count"] == 0:
                 logger.info("✅ 所有迁移已是最新状态")
                 return True
 
@@ -122,30 +124,34 @@ class DatabaseInitializer:
     def verify_tables(self) -> bool:
         """验证关键表是否存在"""
         required_tables = [
-            'users',
-            'user_roles',
-            'user_sessions',
-            'user_activity_logs',
-            'user_preferences',
-            'user_watchlists',
-            'watchlist_stocks'
+            "users",
+            "user_roles",
+            "user_sessions",
+            "user_activity_logs",
+            "user_preferences",
+            "user_watchlists",
+            "watchlist_stocks",
         ]
 
         try:
             with self.engine.connect() as conn:
                 for table in required_tables:
-                    if 'postgresql' in self.database_url:
+                    if "postgresql" in self.database_url:
                         # PostgreSQL使用information_schema查询表信息
-                        result = conn.execute(text(
-                            f"SELECT COUNT(*) FROM information_schema.tables "
-                            f"WHERE table_name = '{table}' AND table_schema = 'public'"
-                        ))
+                        result = conn.execute(
+                            text(
+                                f"SELECT COUNT(*) FROM information_schema.tables "
+                                f"WHERE table_name = '{table}' AND table_schema = 'public'"
+                            )
+                        )
                     else:
                         # SQLite使用sqlite_master表查询表信息
-                        result = conn.execute(text(
-                            f"SELECT COUNT(*) FROM sqlite_master "
-                            f"WHERE type='table' AND name='{table}'"
-                        ))
+                        result = conn.execute(
+                            text(
+                                f"SELECT COUNT(*) FROM sqlite_master "
+                                f"WHERE type='table' AND name='{table}'"
+                            )
+                        )
 
                     if result.scalar() == 0:
                         logger.error(f"❌ 关键表 {table} 不存在")
@@ -202,7 +208,7 @@ class DatabaseInitializer:
         """获取数据库信息"""
         try:
             with self.engine.connect() as conn:
-                if 'postgresql' in self.database_url:
+                if "postgresql" in self.database_url:
                     # PostgreSQL查询
                     version_result = conn.execute(text("SELECT version()"))
                     db_version = version_result.scalar()
@@ -210,20 +216,22 @@ class DatabaseInitializer:
                     db_name_result = conn.execute(text("SELECT current_database()"))
                     db_name = db_name_result.scalar()
 
-                    table_count_result = conn.execute(text(
-                        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
-                    ))
+                    table_count_result = conn.execute(
+                        text(
+                            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
+                        )
+                    )
                     table_count = table_count_result.scalar()
                 else:
                     # SQLite查询
                     version_result = conn.execute(text("SELECT sqlite_version()"))
                     db_version = f"SQLite {version_result.scalar()}"
 
-                    db_name = self.database_url.split('/')[-1].split('?')[0]
+                    db_name = self.database_url.split("/")[-1].split("?")[0]
 
-                    table_count_result = conn.execute(text(
-                        "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
-                    ))
+                    table_count_result = conn.execute(
+                        text("SELECT COUNT(*) FROM sqlite_master WHERE type='table'")
+                    )
                     table_count = table_count_result.scalar()
 
                 # 获取迁移状态
@@ -234,10 +242,13 @@ class DatabaseInitializer:
                     "database_version": db_version,
                     "table_count": table_count,
                     "migration_status": migration_status,
-                    "connection_url": self.database_url.replace(
-                        self.database_url.split('@')[0].split('//')[-1],
-                        "***:***"
-                    ) if '@' in self.database_url else self.database_url
+                    "connection_url": (
+                        self.database_url.replace(
+                            self.database_url.split("@")[0].split("//")[-1], "***:***"
+                        )
+                        if "@" in self.database_url
+                        else self.database_url
+                    ),
                 }
 
         except Exception as e:

@@ -34,31 +34,31 @@ from ...services.auth_service import auth_service
 router = APIRouter(prefix="/auth", tags=["认证"])
 
 
-@router.post("/register", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=ApiResponse, status_code=status.HTTP_201_CREATED
+)
 async def register(
-    user_data: UserCreate,
-    request: Request,
-    db: Session = Depends(get_db)
+    user_data: UserCreate, request: Request, db: Session = Depends(get_db)
 ):
     """用户注册"""
     # 检查频率限制
     check_rate_limit(request)
 
     # 检查用户名是否已存在
-    existing_user = db.query(User).filter(
-        (User.username == user_data.username) | (User.email == user_data.email)
-    ).first()
+    existing_user = (
+        db.query(User)
+        .filter((User.username == user_data.username) | (User.email == user_data.email))
+        .first()
+    )
 
     if existing_user:
         if existing_user.username == user_data.username:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="用户名已存在"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="用户名已存在"
             )
         else:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="邮箱已被注册"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="邮箱已被注册"
             )
 
     # 创建新用户
@@ -69,7 +69,7 @@ async def register(
         email=user_data.email,
         full_name=user_data.full_name,
         password_hash=hashed_password,
-        is_active=True
+        is_active=True,
     )
 
     db.add(new_user)
@@ -79,10 +79,7 @@ async def register(
     # 分配默认用户角色
     user_role = db.query(UserRole).filter(UserRole.name == "user").first()
     if user_role:
-        role_assignment = UserRoleAssignment(
-            user_id=new_user.id,
-            role_id=user_role.id
-        )
+        role_assignment = UserRoleAssignment(user_id=new_user.id, role_id=user_role.id)
         db.add(role_assignment)
 
     # 创建默认用户偏好设置
@@ -92,7 +89,7 @@ async def register(
         language="zh-CN",
         timezone="Asia/Shanghai",
         email_notifications=True,
-        push_notifications=True
+        push_notifications=True,
     )
     db.add(user_preferences)
     db.commit()
@@ -101,17 +98,13 @@ async def register(
     log_user_activity(new_user, "user_registered", None, request, db)
 
     return ApiResponse(
-        success=True,
-        message="用户注册成功",
-        data={"user_id": new_user.id}
+        success=True, message="用户注册成功", data={"user_id": new_user.id}
     )
 
 
 @router.post("/login", response_model=Token)
 async def login(
-    user_credentials: UserLogin,
-    request: Request,
-    db: Session = Depends(get_db)
+    user_credentials: UserLogin, request: Request, db: Session = Depends(get_db)
 ):
     """用户登录"""
     # 检查频率限制
@@ -125,35 +118,28 @@ async def login(
     if not user:
         # 记录失败的登录尝试
         log_user_activity(
-            None, "login_failed",
-            f"用户名: {user_credentials.username}",
-            request, db
+            None, "login_failed", f"用户名: {user_credentials.username}", request, db
         )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户名或密码错误"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误"
         )
 
     # 创建访问令牌和刷新令牌
-    access_token_expires = timedelta(
-        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = auth_service.create_access_token(
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
 
-    refresh_token = auth_service.create_refresh_token(
-        data={"sub": str(user.id)}
-    )
+    refresh_token = auth_service.create_refresh_token(data={"sub": str(user.id)})
 
     # 创建用户会话
     # 获取客户端IP地址,优先使用X-Forwarded-For头,如果不存在则使用连接的远程地址
     ip_address = request.headers.get(
-        'X-Forwarded-For', request.client.host if request.client else None)
+        "X-Forwarded-For", request.client.host if request.client else None
+    )
     user_agent = request.headers.get("user-agent", "unknown")
 
-    auth_service.create_user_session(
-        db, user.id, refresh_token, ip_address, user_agent
-    )
+    auth_service.create_user_session(db, user.id, refresh_token, ip_address, user_agent)
 
     # 更新最后登录时间
     user.last_login = datetime.utcnow()
@@ -166,31 +152,27 @@ async def login(
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="bearer",
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    token_data: TokenRefresh,
-    request: Request,
-    db: Session = Depends(get_db)
+    token_data: TokenRefresh, request: Request, db: Session = Depends(get_db)
 ):
     """刷新访问令牌"""
     # 验证刷新令牌
     payload = auth_service.verify_token(token_data.refresh_token, "refresh")
     if not payload:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="无效的刷新令牌"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的刷新令牌"
         )
 
     # 验证会话
     session = auth_service.validate_session(db, token_data.refresh_token)
     if not session:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="会话已过期或无效"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="会话已过期或无效"
         )
 
     user_id = payload.get("sub")
@@ -198,13 +180,11 @@ async def refresh_token(
 
     if not user or not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户不存在或已被禁用"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在或已被禁用"
         )
 
     # 创建新的访问令牌
-    access_token_expires = timedelta(
-        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = auth_service.create_access_token(
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
@@ -216,7 +196,7 @@ async def refresh_token(
         access_token=access_token,
         refresh_token=token_data.refresh_token,
         token_type="bearer",
-        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
 
@@ -225,7 +205,7 @@ async def logout(
     token_data: TokenRefresh,
     request: Request,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """用户登出"""
     # 使刷新令牌失效
@@ -234,16 +214,11 @@ async def logout(
     # 记录登出活动
     log_user_activity(current_user, "user_logout", None, request, db)
 
-    return ApiResponse(
-        success=True,
-        message="登出成功"
-    )
+    return ApiResponse(success=True, message="登出成功")
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(
-    current_user: User = Depends(get_current_active_user)
-):
+async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
     """获取当前用户信息"""
     return current_user
 
@@ -253,14 +228,15 @@ async def change_password(
     password_data: PasswordChange,
     request: Request,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """修改密码"""
     # 验证当前密码
-    if not auth_service.verify_password(password_data.current_password, current_user.password_hash):
+    if not auth_service.verify_password(
+        password_data.current_password, current_user.password_hash
+    ):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="当前密码错误"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="当前密码错误"
         )
 
     # 更新密码
@@ -273,17 +249,12 @@ async def change_password(
     # 记录密码修改活动
     log_user_activity(current_user, "password_changed", None, request, db)
 
-    return ApiResponse(
-        success=True,
-        message="密码修改成功"
-    )
+    return ApiResponse(success=True, message="密码修改成功")
 
 
 @router.post("/reset-password", response_model=ApiResponse)
 async def reset_password(
-    reset_data: PasswordReset,
-    request: Request,
-    db: Session = Depends(get_db)
+    reset_data: PasswordReset, request: Request, db: Session = Depends(get_db)
 ):
     """请求密码重置"""
     # 检查频率限制
@@ -292,46 +263,38 @@ async def reset_password(
     user = db.query(User).filter(User.email == reset_data.email).first()
     if not user:
         # 为了安全，即使用户不存在也返回成功消息
-        return ApiResponse(
-            success=True,
-            message="如果邮箱存在，重置链接已发送"
-        )
+        return ApiResponse(success=True, message="如果邮箱存在，重置链接已发送")
 
     # 生成重置令牌
     reset_token = auth_service.create_password_reset_token(user.id)
 
     # 这里应该发送邮件，暂时只记录日志
-    log_user_activity(user, "password_reset_requested",
-                      f"重置令牌: {reset_token}", request, db)
+    log_user_activity(
+        user, "password_reset_requested", f"重置令牌: {reset_token}", request, db
+    )
 
     return ApiResponse(
         success=True,
         message="如果邮箱存在，重置链接已发送",
-        data={"reset_token": reset_token}  # 生产环境中不应返回令牌
+        data={"reset_token": reset_token},  # 生产环境中不应返回令牌
     )
 
 
 @router.post("/reset-password/confirm", response_model=ApiResponse)
 async def confirm_password_reset(
-    reset_data: PasswordResetConfirm,
-    request: Request,
-    db: Session = Depends(get_db)
+    reset_data: PasswordResetConfirm, request: Request, db: Session = Depends(get_db)
 ):
     """确认密码重置"""
     # 验证重置令牌
     user_id = auth_service.verify_password_reset_token(reset_data.token)
     if not user_id:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="无效或已过期的重置令牌"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="无效或已过期的重置令牌"
         )
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
 
     # 更新密码
     new_password_hash = auth_service.hash_password(reset_data.new_password)
@@ -343,26 +306,23 @@ async def confirm_password_reset(
     # 记录密码重置活动
     log_user_activity(user, "password_reset_completed", None, request, db)
 
-    return ApiResponse(
-        success=True,
-        message="密码重置成功"
-    )
+    return ApiResponse(success=True, message="密码重置成功")
 
 
 @router.get("/preferences", response_model=UserPreferencesResponse)
 async def get_user_preferences(
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)
 ):
     """获取用户偏好设置"""
-    preferences = db.query(UserPreferences).filter(
-        UserPreferences.user_id == current_user.id
-    ).first()
+    preferences = (
+        db.query(UserPreferences)
+        .filter(UserPreferences.user_id == current_user.id)
+        .first()
+    )
 
     if not preferences:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户偏好设置不存在"
+            status_code=status.HTTP_404_NOT_FOUND, detail="用户偏好设置不存在"
         )
 
     return preferences
@@ -373,17 +333,18 @@ async def update_user_preferences(
     preferences_data: UserPreferencesUpdate,
     request: Request,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """更新用户偏好设置"""
-    preferences = db.query(UserPreferences).filter(
-        UserPreferences.user_id == current_user.id
-    ).first()
+    preferences = (
+        db.query(UserPreferences)
+        .filter(UserPreferences.user_id == current_user.id)
+        .first()
+    )
 
     if not preferences:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户偏好设置不存在"
+            status_code=status.HTTP_404_NOT_FOUND, detail="用户偏好设置不存在"
         )
 
     # 更新偏好设置
@@ -396,7 +357,8 @@ async def update_user_preferences(
     db.refresh(preferences)
 
     # 记录偏好设置更新活动
-    log_user_activity(current_user, "preferences_updated",
-                      str(update_data), request, db)
+    log_user_activity(
+        current_user, "preferences_updated", str(update_data), request, db
+    )
 
     return preferences

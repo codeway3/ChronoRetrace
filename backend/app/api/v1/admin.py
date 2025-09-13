@@ -81,38 +81,36 @@ async def clear_cache(db: Session = Depends(get_db)):
 
 
 @router.post("/init-admin", response_model=ApiResponse)
-async def initialize_admin_account(
-    request: Request,
-    db: Session = Depends(get_db)
-):
+async def initialize_admin_account(request: Request, db: Session = Depends(get_db)):
     """初始化默认管理员账号"""
     try:
         # 检查是否已存在管理员
         admin_role = db.query(UserRole).filter(UserRole.name == "admin").first()
         if admin_role:
-            admin_exists = db.query(UserRoleAssignment).filter(
-                UserRoleAssignment.role_id == admin_role.id
-            ).first()
+            admin_exists = (
+                db.query(UserRoleAssignment)
+                .filter(UserRoleAssignment.role_id == admin_role.id)
+                .first()
+            )
             if admin_exists:
-                return ApiResponse(
-                    success=False,
-                    message="管理员账号已存在"
-                )
+                return ApiResponse(success=False, message="管理员账号已存在")
 
         # 创建角色（如果不存在）
         roles_to_create = [
             {"name": "admin", "description": "系统管理员", "permissions": "*"},
             {"name": "moderator", "description": "版主", "permissions": "moderate"},
-            {"name": "user", "description": "普通用户", "permissions": "read"}
+            {"name": "user", "description": "普通用户", "permissions": "read"},
         ]
 
         for role_data in roles_to_create:
-            existing_role = db.query(UserRole).filter(UserRole.name == role_data["name"]).first()
+            existing_role = (
+                db.query(UserRole).filter(UserRole.name == role_data["name"]).first()
+            )
             if not existing_role:
                 new_role = UserRole(
                     name=role_data["name"],
                     description=role_data["description"],
-                    permissions=role_data["permissions"]
+                    permissions=role_data["permissions"],
                 )
                 db.add(new_role)
 
@@ -124,15 +122,14 @@ async def initialize_admin_account(
         admin_password = "ChronoAdmin2024!"  # 生产环境中应该使用更安全的密码
 
         # 检查管理员用户是否已存在
-        existing_admin = db.query(User).filter(
-            (User.username == admin_username) | (User.email == admin_email)
-        ).first()
+        existing_admin = (
+            db.query(User)
+            .filter((User.username == admin_username) | (User.email == admin_email))
+            .first()
+        )
 
         if existing_admin:
-            return ApiResponse(
-                success=False,
-                message="管理员用户已存在"
-            )
+            return ApiResponse(success=False, message="管理员用户已存在")
 
         # 创建管理员用户
         hashed_password = auth_service.hash_password(admin_password)
@@ -141,7 +138,7 @@ async def initialize_admin_account(
             email=admin_email,
             full_name="系统管理员",
             password_hash=hashed_password,
-            is_active=True
+            is_active=True,
         )
 
         db.add(admin_user)
@@ -152,8 +149,7 @@ async def initialize_admin_account(
         admin_role = db.query(UserRole).filter(UserRole.name == "admin").first()
         if admin_role:
             role_assignment = UserRoleAssignment(
-                user_id=admin_user.id,
-                role_id=admin_role.id
+                user_id=admin_user.id, role_id=admin_role.id
             )
             db.add(role_assignment)
 
@@ -164,13 +160,15 @@ async def initialize_admin_account(
             language="zh-CN",
             timezone="Asia/Shanghai",
             email_notifications=True,
-            push_notifications=False
+            push_notifications=False,
         )
         db.add(admin_preferences)
         db.commit()
 
         # 记录管理员创建活动
-        log_user_activity(admin_user, "admin_account_created", "默认管理员账号初始化", request, db)
+        log_user_activity(
+            admin_user, "admin_account_created", "默认管理员账号初始化", request, db
+        )
 
         return ApiResponse(
             success=True,
@@ -179,15 +177,15 @@ async def initialize_admin_account(
                 "username": admin_username,
                 "email": admin_email,
                 "password": admin_password,  # 仅在开发环境返回
-                "note": "请立即修改默认密码"
-            }
+                "note": "请立即修改默认密码",
+            },
         )
 
     except Exception as e:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"创建管理员账号失败: {str(e)}"
+            detail=f"创建管理员账号失败: {str(e)}",
         ) from None
 
 
@@ -198,7 +196,7 @@ async def get_users(
     search: str | None = Query(None),
     is_active: bool | None = Query(None),
     current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """获取用户列表（分页）"""
     query = db.query(User)
@@ -206,9 +204,9 @@ async def get_users(
     # 搜索过滤
     if search:
         query = query.filter(
-            (User.username.contains(search)) |
-            (User.email.contains(search)) |
-            (User.full_name.contains(search))
+            (User.username.contains(search))
+            | (User.email.contains(search))
+            | (User.full_name.contains(search))
         )
 
     # 状态过滤
@@ -232,18 +230,14 @@ async def get_users(
             "full_name": user.full_name,
             "is_active": user.is_active,
             "created_at": user.created_at.isoformat(),
-            "last_login": user.last_login.isoformat() if user.last_login else None
+            "last_login": user.last_login.isoformat() if user.last_login else None,
         }
         user_data.append(user_dict)
 
     pages = (total + size - 1) // size
 
     return PaginatedResponse(
-        items=user_data,
-        total=total,
-        page=page,
-        size=size,
-        pages=pages
+        items=user_data, total=total, page=page, size=size, pages=pages
     )
 
 
@@ -251,15 +245,12 @@ async def get_users(
 async def get_user(
     user_id: int,
     current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """获取用户详情"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
 
     return user
 
@@ -270,15 +261,12 @@ async def update_user(
     user_update: UserUpdate,
     request: Request,
     current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """更新用户信息"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
 
     # 更新用户信息
     update_data = user_update.dict(exclude_unset=True)
@@ -291,9 +279,11 @@ async def update_user(
 
     # 记录管理员操作
     log_user_activity(
-        current_user, "admin_user_updated",
+        current_user,
+        "admin_user_updated",
         f"更新用户 {user.username} 信息: {update_data}",
-        request, db
+        request,
+        db,
     )
 
     return user
@@ -304,21 +294,17 @@ async def delete_user(
     user_id: int,
     request: Request,
     current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """删除用户（软删除）"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
 
     # 防止删除管理员自己
     if user.id == current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="不能删除自己的账号"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="不能删除自己的账号"
         )
 
     # 软删除（设置为非活跃状态）
@@ -328,34 +314,29 @@ async def delete_user(
 
     # 记录管理员操作
     log_user_activity(
-        current_user, "admin_user_deleted",
-        f"删除用户 {user.username}",
-        request, db
+        current_user, "admin_user_deleted", f"删除用户 {user.username}", request, db
     )
 
-    return ApiResponse(
-        success=True,
-        message="用户删除成功"
-    )
+    return ApiResponse(success=True, message="用户删除成功")
 
 
 @router.get("/users/{user_id}/sessions", response_model=list[UserSessionResponse])
 async def get_user_sessions(
     user_id: int,
     current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """获取用户会话列表"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
 
-    sessions = db.query(UserSession).filter(
-        UserSession.user_id == user_id
-    ).order_by(UserSession.created_at.desc()).all()
+    sessions = (
+        db.query(UserSession)
+        .filter(UserSession.user_id == user_id)
+        .order_by(UserSession.created_at.desc())
+        .all()
+    )
 
     return sessions
 
@@ -366,34 +347,31 @@ async def revoke_user_session(
     session_id: int,
     request: Request,
     current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """撤销用户会话"""
-    session = db.query(UserSession).filter(
-        UserSession.id == session_id,
-        UserSession.user_id == user_id
-    ).first()
+    session = (
+        db.query(UserSession)
+        .filter(UserSession.id == session_id, UserSession.user_id == user_id)
+        .first()
+    )
 
     if not session:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="会话不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="会话不存在")
 
     session.is_active = False
     db.commit()
 
     # 记录管理员操作
     log_user_activity(
-        current_user, "admin_session_revoked",
+        current_user,
+        "admin_session_revoked",
         f"撤销用户 {user_id} 的会话 {session_id}",
-        request, db
+        request,
+        db,
     )
 
-    return ApiResponse(
-        success=True,
-        message="会话撤销成功"
-    )
+    return ApiResponse(success=True, message="会话撤销成功")
 
 
 @router.get("/users/{user_id}/activities", response_model=PaginatedResponse)
@@ -402,21 +380,23 @@ async def get_user_activities(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """获取用户活动日志"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
 
     query = db.query(UserActivityLog).filter(UserActivityLog.user_id == user_id)
     total = query.count()
 
     offset = (page - 1) * size
-    activities = query.order_by(UserActivityLog.created_at.desc()).offset(offset).limit(size).all()
+    activities = (
+        query.order_by(UserActivityLog.created_at.desc())
+        .offset(offset)
+        .limit(size)
+        .all()
+    )
 
     activity_data = []
     for activity in activities:
@@ -426,25 +406,20 @@ async def get_user_activities(
             "details": activity.details,
             "ip_address": activity.ip_address,
             "user_agent": activity.user_agent,
-            "created_at": activity.created_at.isoformat()
+            "created_at": activity.created_at.isoformat(),
         }
         activity_data.append(activity_dict)
 
     pages = (total + size - 1) // size
 
     return PaginatedResponse(
-        items=activity_data,
-        total=total,
-        page=page,
-        size=size,
-        pages=pages
+        items=activity_data, total=total, page=page, size=size, pages=pages
     )
 
 
 @router.get("/stats", response_model=dict)
 async def get_admin_stats(
-    current_user: User = Depends(require_admin),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_admin), db: Session = Depends(get_db)
 ):
     """获取管理员统计信息"""
     # 用户统计
@@ -454,20 +429,22 @@ async def get_admin_stats(
 
     # 今日新注册用户
     today = datetime.utcnow().date()
-    new_users_today = db.query(User).filter(
-        func.date(User.created_at) == today
-    ).count()
+    new_users_today = db.query(User).filter(func.date(User.created_at) == today).count()
 
     # 活跃会话
-    active_sessions = db.query(UserSession).filter(
-        UserSession.is_active,
-        UserSession.expires_at > datetime.utcnow()
-    ).count()
+    active_sessions = (
+        db.query(UserSession)
+        .filter(UserSession.is_active, UserSession.expires_at > datetime.utcnow())
+        .count()
+    )
 
     # 最近活动
-    recent_activities = db.query(UserActivityLog).order_by(
-        UserActivityLog.created_at.desc()
-    ).limit(10).all()
+    recent_activities = (
+        db.query(UserActivityLog)
+        .order_by(UserActivityLog.created_at.desc())
+        .limit(10)
+        .all()
+    )
 
     recent_activity_data = []
     for activity in recent_activities:
@@ -477,7 +454,7 @@ async def get_admin_stats(
             "user_id": activity.user_id,
             "username": user.username if user else "未知用户",
             "action": activity.action,
-            "created_at": activity.created_at.isoformat()
+            "created_at": activity.created_at.isoformat(),
         }
         recent_activity_data.append(activity_dict)
 
@@ -486,10 +463,8 @@ async def get_admin_stats(
             "total": total_users,
             "active": active_users,
             "inactive": inactive_users,
-            "new_today": new_users_today
+            "new_today": new_users_today,
         },
-        "sessions": {
-            "active": active_sessions
-        },
-        "recent_activities": recent_activity_data
+        "sessions": {"active": active_sessions},
+        "recent_activities": recent_activity_data,
     }

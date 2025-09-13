@@ -20,6 +20,7 @@ Base = declarative_base()
 
 class MigrationHistory(Base):
     """迁移历史记录表"""
+
     __tablename__ = "migration_history"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -37,9 +38,7 @@ class MigrationManager:
         self.database_url = database_url or settings.DATABASE_URL
         self.engine = create_engine(self.database_url)
         self.Session = sessionmaker(bind=self.engine)
-        self.migrations_dir = os.path.join(
-            os.path.dirname(__file__), "migrations"
-        )
+        self.migrations_dir = os.path.join(os.path.dirname(__file__), "migrations")
 
         # 确保迁移历史表存在
         self._ensure_migration_table()
@@ -66,12 +65,14 @@ class MigrationManager:
                 name = filename[:-3]  # 移除.py扩展名
                 filepath = os.path.join(self.migrations_dir, filename)
 
-                migrations.append({
-                    "version": version,
-                    "name": name,
-                    "filename": filename,
-                    "filepath": filepath
-                })
+                migrations.append(
+                    {
+                        "version": version,
+                        "name": name,
+                        "filename": filename,
+                        "filepath": filepath,
+                    }
+                )
 
         return migrations
 
@@ -79,9 +80,11 @@ class MigrationManager:
         """获取已应用的迁移版本列表"""
         session = self.Session()
         try:
-            applied = session.query(MigrationHistory.version).filter(
-                MigrationHistory.success
-            ).all()
+            applied = (
+                session.query(MigrationHistory.version)
+                .filter(MigrationHistory.success)
+                .all()
+            )
             return [version[0] for version in applied]
         except Exception:
             return []
@@ -129,9 +132,7 @@ class MigrationManager:
 
             # 记录迁移历史
             history = MigrationHistory(
-                version=migration["version"],
-                name=migration["name"],
-                success=True
+                version=migration["version"], name=migration["name"], success=True
             )
             session.add(history)
             session.commit()
@@ -159,7 +160,7 @@ class MigrationManager:
                     version=migration["version"],
                     name=migration["name"],
                     success=False,
-                    error_message=error_msg[:1000]  # 限制错误消息长度
+                    error_message=error_msg[:1000],  # 限制错误消息长度
                 )
                 session.add(history)
                 session.commit()
@@ -183,8 +184,7 @@ class MigrationManager:
 
             # 检查是否有downgrade函数
             if not hasattr(module, "downgrade"):
-                raise Exception(
-                    f"迁移文件 {migration['filename']} 缺少 downgrade 函数")
+                raise Exception(f"迁移文件 {migration['filename']} 缺少 downgrade 函数")
 
             # 执行回滚
             module.downgrade(self.engine)
@@ -217,8 +217,7 @@ class MigrationManager:
         # 如果指定了目标版本，只执行到该版本
         if target_version:
             pending_migrations = [
-                m for m in pending_migrations
-                if m["version"] <= target_version
+                m for m in pending_migrations if m["version"] <= target_version
             ]
 
         print(f"发现 {len(pending_migrations)} 个待执行的迁移")
@@ -240,21 +239,21 @@ class MigrationManager:
         all_migrations = self.get_migration_files()
 
         # 构建版本到迁移的映射
-        version_to_migration = {
-            m["version"]: m for m in all_migrations
-        }
+        version_to_migration = {m["version"]: m for m in all_migrations}
 
         # 确定要回滚的迁移
         if target_version:
             # 回滚到指定版本
             to_rollback = [
-                version for version in applied_migrations
-                if version > target_version
+                version for version in applied_migrations if version > target_version
             ]
         else:
             # 回滚指定步数
-            to_rollback = applied_migrations[-steps:] if steps <= len(
-                applied_migrations) else applied_migrations
+            to_rollback = (
+                applied_migrations[-steps:]
+                if steps <= len(applied_migrations)
+                else applied_migrations
+            )
 
         if not to_rollback:
             print("✅ 没有需要回滚的迁移")
@@ -288,7 +287,7 @@ class MigrationManager:
             "pending_count": len(pending_migrations),
             "applied_versions": applied_migrations,
             "pending_migrations": [m["name"] for m in pending_migrations],
-            "current_version": applied_migrations[-1] if applied_migrations else None
+            "current_version": applied_migrations[-1] if applied_migrations else None,
         }
 
     def reset_database(self) -> bool:
@@ -305,10 +304,12 @@ class MigrationManager:
                     pass
 
                 # 获取所有表
-                result = conn.execute(text(
-                    "SELECT table_name FROM information_schema.tables "
-                    "WHERE table_schema = DATABASE()"
-                ))
+                result = conn.execute(
+                    text(
+                        "SELECT table_name FROM information_schema.tables "
+                        "WHERE table_schema = DATABASE()"
+                    )
+                )
                 tables = [row[0] for row in result]
 
                 # 删除所有表
@@ -394,7 +395,7 @@ def insert_initial_data(engine):
         os.makedirs(self.migrations_dir, exist_ok=True)
 
         # 写入文件
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(template)
 
         print(f"✅ 迁移文件已创建: {filename}")
@@ -432,7 +433,7 @@ if __name__ == "__main__":
         print(f"  已应用: {status['applied_count']}")
         print(f"  待执行: {status['pending_count']}")
         print(f"  当前版本: {status['current_version'] or '无'}")
-        if status['pending_migrations']:
+        if status["pending_migrations"]:
             print(f"  待执行迁移: {', '.join(status['pending_migrations'])}")
 
     elif command == "migrate":

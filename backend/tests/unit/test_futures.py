@@ -32,7 +32,9 @@ client = TestClient(app)
 @patch("app.data.fetchers.futures_fetcher.fetch_china_futures_from_akshare")
 def test_get_futures_data_success(mock_fetch, mock_akshare):
     # Mock akshare to avoid initialization error
-    mock_akshare.return_value = pd.DataFrame({"symbol": ["rb2410"], "name": ["螺纹钢2410"]})
+    mock_akshare.return_value = pd.DataFrame(
+        {"symbol": ["rb2410"], "name": ["螺纹钢2410"]}
+    )
 
     successful_mock = MagicMock()
     successful_mock.return_value = pd.DataFrame(
@@ -59,7 +61,9 @@ def test_get_futures_data_success(mock_fetch, mock_akshare):
 @patch("app.data.fetchers.futures_fetcher.fetch_futures_from_yfinance")
 def test_get_futures_data_not_found(mock_fetch, mock_akshare):
     # Mock akshare to avoid initialization error
-    mock_akshare.return_value = pd.DataFrame({"symbol": ["rb2410"], "name": ["螺纹钢2410"]})
+    mock_akshare.return_value = pd.DataFrame(
+        {"symbol": ["rb2410"], "name": ["螺纹钢2410"]}
+    )
 
     mock_fetch.return_value = pd.DataFrame()
     response = client.get("/api/v1/futures/invalid_symbol")
