@@ -15,6 +15,13 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // 检查是否从首页传递了注册模式参数
+  useEffect(() => {
+    if (location.state?.mode === 'register') {
+      setIsRegisterMode(true);
+    }
+  }, [location.state]);
+
   // 如果已经登录，重定向到主页
   useEffect(() => {
     if (isAuthenticated) {

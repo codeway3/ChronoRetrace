@@ -1,7 +1,8 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import MainLayout from './layouts/MainLayout';
+import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -21,10 +22,10 @@ function App() {
     <AuthProvider>
       <Routes>
           {/* 公开路由 */}
+          <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           
           {/* 受保护的路由 */}
-          <Route path="/" element={<Navigate to="/a-share" replace />} />
           <Route path="/a-share" element={
             <ProtectedRoute>
               <MainLayout><AShareDashboard /></MainLayout>
