@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from datetime import date, datetime, timedelta
 
@@ -14,6 +16,8 @@ from app.schemas.annual_earnings import AnnualEarningsInDB
 from app.schemas.corporate_action import CorporateActionResponse
 from app.schemas.fundamental import FundamentalDataInDB
 from app.schemas.stock import StockDataBase, StockInfo
+
+from typing import Union
 
 router = APIRouter()
 
@@ -89,7 +93,7 @@ async def get_stock_data(
         "daily", enum=["minute", "5day", "daily", "weekly", "monthly"]
     ),
     market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
-    trade_date: date | None = Query(
+    trade_date: Union[date, None] = Query(
         None, description="Date for 'minute' or '5day' interval, format YYYY-MM-DD"
     ),
 ):

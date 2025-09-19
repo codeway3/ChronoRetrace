@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import threading
 import time
@@ -11,6 +13,8 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from app.infrastructure.database import models
+
+from typing import Union
 
 logger = logging.getLogger(__name__)
 baostock_lock = threading.Lock()
@@ -318,6 +322,7 @@ def update_stock_list_from_akshare(db: Session):
         # Standardize ETF column names
         etf_df.rename(columns={"代码": "代码", "名称": "name"}, inplace=True)
 
+
         def get_etf_suffix(code):
             """Determines the market suffix for an ETF code."""
             code_str = str(code)
@@ -359,7 +364,7 @@ def update_stock_list_from_akshare(db: Session):
             )
 
 
-def fetch_fundamental_data_from_baostock(symbol: str) -> dict | None:
+def fetch_fundamental_data_from_baostock(symbol: str) -> Union[dict, None]:
     with baostock_session():
         # This function can also be refactored to use the _baostock_query_with_retry wrapper
         # For now, keeping it as is to focus on the main error source.
@@ -411,7 +416,7 @@ def fetch_corporate_actions_from_baostock(symbol: str) -> list[dict]:
 
 
 def fetch_a_share_data_from_akshare(
-    stock_code: str, interval: str, trade_date: date | None = None
+    stock_code: str, interval: str, trade_date: Union[date, None] = None
 ) -> pd.DataFrame:
     """
     Fetches historical or intraday data for a specific A-share stock or ETF using AKShare,

@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Union
 
 from sqlalchemy.orm import Session
 
@@ -31,7 +33,7 @@ class DataQualityConfig:
     enable_logging: bool = True
 
     # 校验配置
-    validation_rules: dict[str, Any] | None = None
+    validation_rules: Union[dict[str, Any], None] = None
 
     # 去重配置
     deduplication_strategy: DeduplicationStrategy = DeduplicationStrategy.KEEP_FIRST
@@ -61,7 +63,7 @@ class DataQualityResult:
     processing_time: float
     quality_score: float
     validation_reports: list[ValidationReport]
-    deduplication_report: DeduplicationReport | None
+    deduplication_report: Union[DeduplicationReport, None]
     error_messages: list[str]
     warnings: list[str]
     performance_metrics: dict[str, Any]
@@ -70,7 +72,7 @@ class DataQualityResult:
 class DataQualityManager:
     """数据质量管理器 - 统一的数据质量处理入口"""
 
-    def __init__(self, session: Session, config: DataQualityConfig | None = None):
+    def __init__(self, session: Session, config: Union[DataQualityConfig, None] = None):
         """
         初始化数据质量管理器
 
@@ -86,6 +88,7 @@ class DataQualityManager:
 
         # 设置日志
         self._setup_logging()
+
 
     def _init_services(self):
         """初始化服务组件"""
@@ -113,6 +116,7 @@ class DataQualityManager:
                 self.session, perf_config
             )
 
+
     def _setup_logging(self):
         """设置日志"""
         logging.basicConfig(
@@ -120,6 +124,7 @@ class DataQualityManager:
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
         self.logger = logging.getLogger(__name__)
+
 
     def process_data(
         self, data: list[dict[str, Any]], data_type: str = "A_share"
@@ -268,6 +273,7 @@ class DataQualityManager:
 
             return result
 
+
     def _validate_data(
         self, data: list[dict[str, Any]], data_type: str
     ) -> dict[str, Any]:
@@ -301,6 +307,7 @@ class DataQualityManager:
         except Exception as e:
             self.logger.error(f"数据校验失败: {str(e)}")
             raise
+
 
     def _deduplicate_data(self, data: list[dict[str, Any]]) -> dict[str, Any]:
         """执行数据去重"""
@@ -344,6 +351,7 @@ class DataQualityManager:
             self.logger.error(f"数据去重失败: {str(e)}")
             raise
 
+
     def _collect_performance_metrics(self, start_time: datetime) -> dict[str, Any]:
         """收集性能指标"""
         try:
@@ -359,6 +367,7 @@ class DataQualityManager:
         except Exception as e:
             self.logger.warning(f"性能指标收集失败: {str(e)}")
             return {}
+
 
     def validate_only(
         self, data: list[dict[str, Any]], data_type: str = "A_share"
@@ -378,10 +387,11 @@ class DataQualityManager:
 
         return self.validation_service.batch_validate_data(data, data_type)
 
+
     def deduplicate_only(
         self,
         data: list[dict[str, Any]],
-        strategy: DeduplicationStrategy | None = None,
+        strategy: Union[DeduplicationStrategy, None] = None,
     ) -> DeduplicationReport:
         """
         仅执行数据去重
@@ -399,6 +409,7 @@ class DataQualityManager:
         strategy = strategy or self.config.deduplication_strategy
         return self.deduplication_service.batch_deduplicate_data(data, strategy)
 
+
     def get_quality_statistics(self) -> dict[str, Any]:
         """
         获取数据质量统计信息
@@ -415,6 +426,7 @@ class DataQualityManager:
             self.logger.error(f"获取质量统计失败: {str(e)}")
             return {"error": str(e)}
 
+
     def cleanup_resources(self):
         """清理资源"""
         try:
@@ -429,9 +441,11 @@ class DataQualityManager:
         except Exception as e:
             self.logger.error(f"资源清理失败: {str(e)}")
 
+
     def __enter__(self):
         """上下文管理器入口"""
         return self
+
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """上下文管理器出口"""
@@ -440,7 +454,7 @@ class DataQualityManager:
 
 # 便捷函数
 def create_data_quality_manager(
-    session: Session, config: DataQualityConfig | None = None
+    session: Session, config: Union[DataQualityConfig, None] = None
 ) -> DataQualityManager:
     """
     创建数据质量管理器的便捷函数

@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import logging
 from datetime import datetime
+from typing import Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -25,29 +28,29 @@ class WatchlistCreate(BaseModel):
     """创建自选股列表请求"""
 
     name: str = Field(..., min_length=1, max_length=100, description="列表名称")
-    description: str | None = Field(None, max_length=500, description="列表描述")
+    description: Union[str, None] = Field(None, max_length=500, description="列表描述")
     is_public: bool = Field(False, description="是否公开")
 
 
 class WatchlistUpdate(BaseModel):
     """更新自选股列表请求"""
 
-    name: str | None = Field(None, min_length=1, max_length=100, description="列表名称")
-    description: str | None = Field(None, max_length=500, description="列表描述")
-    is_public: bool | None = Field(None, description="是否公开")
+    name: Union[str, None] = Field(None, min_length=1, max_length=100, description="列表名称")
+    description: Union[str, None] = Field(None, max_length=500, description="列表描述")
+    is_public: Union[bool, None] = Field(None, description="是否公开")
 
 
 class WatchlistItemAdd(BaseModel):
     """添加股票到自选股请求"""
 
     stock_code: str = Field(..., description="股票代码")
-    notes: str | None = Field(None, max_length=500, description="备注")
+    notes: Union[str, None] = Field(None, max_length=500, description="备注")
 
 
 class WatchlistItemUpdate(BaseModel):
     """更新自选股股票请求"""
 
-    notes: str | None = Field(None, max_length=500, description="备注")
+    notes: Union[str, None] = Field(None, max_length=500, description="备注")
 
 
 class WatchlistResponse(BaseModel):
@@ -55,12 +58,12 @@ class WatchlistResponse(BaseModel):
 
     id: int
     name: str
-    description: str | None
+    description: Union[str, None]
     is_public: bool
     is_default: bool
     items_count: int
     created_at: datetime
-    updated_at: datetime | None
+    updated_at: Union[datetime, None]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -70,8 +73,8 @@ class WatchlistItemResponse(BaseModel):
 
     id: int
     stock_code: str
-    stock_name: str | None
-    notes: str | None
+    stock_name: Union[str, None]
+    notes: Union[str, None]
     added_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -82,11 +85,11 @@ class WatchlistDetailResponse(BaseModel):
 
     id: int
     name: str
-    description: str | None
+    description: Union[str, None]
     is_public: bool
     is_default: bool
     created_at: datetime
-    updated_at: datetime | None
+    updated_at: Union[datetime, None]
     items: list[WatchlistItemResponse]
 
     model_config = ConfigDict(from_attributes=True)

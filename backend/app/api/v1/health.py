@@ -28,6 +28,7 @@ class HealthChecker:
     def __init__(self):
         self.base_url = f"http://localhost:{settings.PORT or 8000}"
 
+
     async def check_monitoring_health(self) -> Dict[str, Any]:
         """检查监控模块健康状态"""
         try:
@@ -45,6 +46,7 @@ class HealthChecker:
         except Exception as e:
             logger.error(f"监控模块健康检查失败: {e}")
             return {"status": "unhealthy", "error": str(e)}
+
 
     async def check_cache_health(self) -> Dict[str, Any]:
         """检查缓存模块健康状态"""
@@ -68,6 +70,7 @@ class HealthChecker:
             logger.error(f"缓存模块健康检查失败: {e}")
             return {"status": "unhealthy", "error": str(e)}
 
+
     async def check_stock_service_health(self) -> Dict[str, Any]:
         """检查股票服务健康状态"""
         try:
@@ -79,6 +82,7 @@ class HealthChecker:
         except Exception as e:
             logger.error(f"股票服务健康检查失败: {e}")
             return {"status": "unhealthy", "error": str(e)}
+
 
     async def check_data_quality_health(self) -> Dict[str, Any]:
         """检查数据质量模块健康状态"""
@@ -98,6 +102,7 @@ class HealthChecker:
         except Exception as e:
             logger.error(f"数据质量模块健康检查失败: {e}")
             return {"status": "unhealthy", "error": str(e)}
+
 
     async def check_database_health(self) -> Dict[str, Any]:
         """检查数据库健康状态"""
@@ -132,6 +137,7 @@ class HealthChecker:
         except Exception as e:
             logger.error(f"数据库健康检查失败: {e}")
             return {"status": "unhealthy", "error": str(e)}
+
 
     async def perform_comprehensive_health_check(self) -> Dict[str, Any]:
         """执行全面的健康检查"""

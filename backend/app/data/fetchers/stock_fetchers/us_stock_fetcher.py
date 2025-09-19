@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 
@@ -8,6 +10,8 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from app.infrastructure.database import models
+
+from typing import Union
 
 logger = logging.getLogger(__name__)
 
@@ -237,7 +241,7 @@ def update_us_stock_list(db: Session):
         logger.warning("No US stock symbols fetched to update.")
 
 
-def fetch_us_fundamental_data_from_yfinance(symbol: str) -> dict | None:
+def fetch_us_fundamental_data_from_yfinance(symbol: str) -> Union[dict, None]:
     """Fetches fundamental data for a US stock from yfinance."""
     try:
         ticker = yf.Ticker(symbol)

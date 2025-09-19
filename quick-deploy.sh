@@ -343,6 +343,43 @@ health_check() {
     done
 }
 
+# 初始化管理员账号
+initialize_admin_account() {
+    log_info "正在初始化管理员账号..."
+    
+    # 等待后端服务完全启动
+    sleep 3
+    
+    # 尝试初始化管理员账号
+    for i in {1..5}; do
+        response=$(curl -s -w "%{http_code}" -X POST http://localhost:8000/api/v1/admin/init-admin 2>/dev/null)
+        http_code=${response: -3}
+        response_body=${response%???}
+        
+        if [ "$http_code" = "200" ]; then
+            log_success "管理员账号初始化成功"
+            log_info "管理员账号信息:"
+            log_info "  用户名: admin"
+            log_info "  邮箱: admin@chronoretrace.com"
+            log_info "  密码: ChronoAdmin2024!"
+            log_warning "请在首次登录后立即修改默认密码！"
+            return 0
+        elif [ "$http_code" = "400" ] && echo "$response_body" | grep -q "已存在"; then
+            log_info "管理员账号已存在，跳过初始化"
+            log_info "如需重置管理员账号，请手动操作"
+            return 0
+        else
+            if [ $i -eq 5 ]; then
+                log_warning "管理员账号初始化失败 (HTTP: $http_code)"
+                log_warning "请部署完成后手动执行: curl -X POST http://localhost:8000/api/v1/admin/init-admin"
+                return 1
+            fi
+            log_info "初始化尝试 $i/5 失败，等待重试..."
+            sleep 2
+        fi
+    done
+}
+
 # 创建日志目录
 create_log_dir() {
     mkdir -p logs
@@ -366,7 +403,9 @@ show_deployment_info() {
     echo
     log_info "默认管理员账号:"
     log_info "  用户名: admin"
-    log_info "  密码: admin123"
+    log_info "  邮箱: admin@chronoretrace.com"
+    log_info "  密码: ChronoAdmin2024!"
+    log_warning "⚠️  请在首次登录后立即修改默认密码！"
     echo
     log_info "常用命令:"
     if [ "$USE_DOCKER" = true ]; then
@@ -480,6 +519,9 @@ main() {
     
     # 健康检查
     health_check
+    
+    # 初始化管理员账号
+    initialize_admin_account
     
     # 显示部署信息
     show_deployment_info

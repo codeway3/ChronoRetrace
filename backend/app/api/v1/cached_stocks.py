@@ -1,8 +1,12 @@
-#!/usr/bin/env python3
+from __future__ import annotations
+
+# !/usr/bin/env python3
 """
 带缓存的股票API路由
 使用新的缓存服务层提供高性能的股票数据API
 """
+
+from typing import Union
 
 import logging
 from datetime import date, datetime, timedelta
@@ -26,7 +30,11 @@ async def get_all_stock_list_cached(
     market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
     db: Session = Depends(get_db),
 ):
-    """获取股票列表（带缓存）
+    """
+
+from __future__ import annotations
+
+获取股票列表（带缓存）
 
     使用多级缓存提供高性能的股票列表查询
     """
@@ -61,7 +69,7 @@ async def get_stock_data_cached(
         "daily", enum=["minute", "5day", "daily", "weekly", "monthly"]
     ),
     market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
-    trade_date: date | None = Query(
+    trade_date: Union[date, None] = Query(
         None, description="Date for 'minute' or '5day' interval, format YYYY-MM-DD"
     ),
 ):

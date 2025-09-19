@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Hashable, Sequence
 from datetime import datetime
-from typing import Any
+from typing import Any, Union
 
 import akshare as ak
 import pandas as pd
@@ -168,7 +170,7 @@ def fetch_industry_hist(industry_name: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def compute_period_return(hist_df: pd.DataFrame, days: int) -> float | None:
+def compute_period_return(hist_df: pd.DataFrame, days: int) -> Union[float, None]:
     if hist_df is None or hist_df.empty or "close" not in hist_df.columns:
         return None
     df = hist_df.copy()

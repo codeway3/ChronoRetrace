@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import hashlib
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Union
 
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
@@ -38,13 +40,13 @@ class DuplicateRecord:
 
     duplicate_type: DuplicateType
     similarity_score: float  # 0.0 - 1.0
-    record_id: int | None = None
-    conflicting_fields: list[str] | None = None
-    data_source: str | None = None
+    record_id: Union[int, None] = None
+    conflicting_fields: Union[list[str], None] = None
+    data_source: Union[str, None] = None
     quality_score: float = 0.0
-    created_at: datetime | None = None
-    index: int | None = None  # 记录在列表中的索引
-    data: dict[str, Any] | None = None  # 记录的实际数据
+    created_at: Union[datetime, None] = None
+    index: Union[int, None] = None  # 记录在列表中的索引
+    data: Union[dict[str, Any], None] = None  # 记录的实际数据
 
 
 @dataclass
@@ -67,7 +69,7 @@ class DeduplicationReport:
     duplicate_groups: list[DuplicateGroup]
     execution_time: float
     processed_at: datetime
-    deduplicated_data: list[dict[str, Any]] | None = None  # 去重后的数据，用于向后兼容
+    deduplicated_data: Union[list[dict[str, Any]], None] = None  # 去重后的数据，用于向后兼容
 
 
 class DataDeduplicationService:
@@ -90,6 +92,7 @@ class DataDeduplicationService:
 
         # 相似度阈值
         self.similarity_thresholds = {"exact": 1.0, "partial": 0.8, "similar": 0.6}
+
 
     def deduplicate_stock_data(
         self,
@@ -134,6 +137,7 @@ class DataDeduplicationService:
             processed_at=datetime.now(),
         )
 
+
     def _generate_data_hash(self, data: dict[str, Any]) -> str:
         """生成数据哈希值"""
         # 创建一个排序后的字符串表示
@@ -141,9 +145,10 @@ class DataDeduplicationService:
         data_str = str(sorted_items)
         return hashlib.md5(data_str.encode(), usedforsecurity=False).hexdigest()
 
+
     def _identify_duplicate_type(
         self, data1: dict[str, Any], data2: dict[str, Any]
-    ) -> DuplicateType | None:
+    ) -> Union[DuplicateType, None]:
         """识别重复类型"""
         similarity = self._calculate_similarity(data1, data2)
 
@@ -155,6 +160,7 @@ class DataDeduplicationService:
             return DuplicateType.SIMILAR
         else:
             return None
+
 
     def remove_duplicates_from_list(
         self, duplicate_groups: list[DuplicateGroup], strategy: DeduplicationStrategy
@@ -184,6 +190,7 @@ class DataDeduplicationService:
 
         return removed_count
 
+
     def generate_deduplication_report(
         self,
         total_processed: int,
@@ -202,6 +209,7 @@ class DataDeduplicationService:
             execution_time=execution_time,
             processed_at=datetime.now(),
         )
+
 
     def get_duplicate_statistics(
         self, duplicate_groups: list[DuplicateGroup]
@@ -237,10 +245,11 @@ class DataDeduplicationService:
             "similarity_distribution": similarity_distribution,
         }
 
+
     def find_database_duplicates(
         self,
         table_name: str = "daily_stock_metrics",
-        date_range: tuple[str, str] | None = None,
+        date_range: Union[tuple[str, str], None] = None,
     ) -> list[DuplicateGroup]:
         """查找数据库中的重复记录
 
@@ -302,8 +311,9 @@ class DataDeduplicationService:
 
         return duplicate_groups
 
+
     def find_duplicates_in_list(
-        self, data_list: list[dict[str, Any]], unique_fields: list[str] | None = None
+        self, data_list: list[dict[str, Any]], unique_fields: Union[list[str], None] = None
     ) -> list[DuplicateGroup]:
         """在数据列表中查找重复项
 
@@ -376,11 +386,12 @@ class DataDeduplicationService:
 
         return duplicate_groups
 
+
     def batch_deduplicate_data(
         self,
         data_list: list[dict[str, Any]],
         strategy: DeduplicationStrategy = DeduplicationStrategy.KEEP_HIGHEST_QUALITY,
-        unique_fields: list[str] | None = None,
+        unique_fields: Union[list[str], None] = None,
     ) -> DeduplicationReport:
         """批量去重数据
 
@@ -464,6 +475,7 @@ class DataDeduplicationService:
 
         return report
 
+
     def remove_database_duplicates(
         self,
         duplicate_groups: list[DuplicateGroup],
@@ -527,6 +539,7 @@ class DataDeduplicationService:
 
         return removed_count
 
+
     def _group_by_unique_key(
         self, data_list: list[dict[str, Any]]
     ) -> dict[str, list[dict[str, Any]]]:
@@ -542,6 +555,7 @@ class DataDeduplicationService:
             groups[unique_key].append(data)
 
         return dict(groups)
+
 
     def _analyze_duplicate_group(
         self, key: str, records: list[dict[str, Any]]
@@ -582,6 +596,7 @@ class DataDeduplicationService:
             confidence=0.8,
         )
 
+
     def _calculate_similarity(
         self, record1: dict[str, Any], record2: dict[str, Any]
     ) -> float:
@@ -601,6 +616,7 @@ class DataDeduplicationService:
                 total_weight += weight
 
         return weighted_similarity / total_weight if total_weight > 0 else 0.0
+
 
     def _calculate_field_similarity(
         self, value1: Any, value2: Any, field_name: str
@@ -638,6 +654,7 @@ class DataDeduplicationService:
 
         return len(common_chars) / len(total_chars) if total_chars else 0.0
 
+
     def _determine_duplicate_type(self, similarity_score: float) -> DuplicateType:
         """确定重复类型"""
         if similarity_score >= self.similarity_thresholds["exact"]:
@@ -648,6 +665,7 @@ class DataDeduplicationService:
             return DuplicateType.SIMILAR
         else:
             return DuplicateType.PARTIAL  # 默认为部分重复
+
 
     def _find_conflicting_fields(
         self, record1: dict[str, Any], record2: dict[str, Any]
@@ -661,6 +679,7 @@ class DataDeduplicationService:
                 conflicting_fields.append(field)
 
         return conflicting_fields
+
 
     def _recommend_strategy(
         self, records: list[DuplicateRecord]
@@ -677,6 +696,7 @@ class DataDeduplicationService:
 
         # 默认保留最新的
         return DeduplicationStrategy.KEEP_LAST
+
 
     def _apply_deduplication_strategy(
         self, group: DuplicateGroup, strategy: DeduplicationStrategy
@@ -696,6 +716,7 @@ class DataDeduplicationService:
 
         return removed_count
 
+
     def _select_record_to_keep(
         self, records: list[DuplicateRecord], strategy: DeduplicationStrategy
     ) -> DuplicateRecord:
@@ -709,6 +730,7 @@ class DataDeduplicationService:
         else:
             # 默认保留质量最高的
             return max(records, key=lambda r: r.quality_score)
+
 
     def _log_deduplication_action(
         self, record_id: int, table_name: str, message: str
@@ -730,8 +752,9 @@ class DataDeduplicationService:
         except Exception as e:
             self.logger.error(f"记录去重日志失败: {str(e)}")
 
+
     def generate_duplicate_hash(
-        self, data: dict[str, Any], fields: list[str] | None = None
+        self, data: Union[dict[str, Any], None] = None, fields: Union[list[str], None] = None
     ) -> str:
         """生成数据哈希值用于快速重复检测
 
@@ -742,6 +765,9 @@ class DataDeduplicationService:
         Returns:
             str: 哈希值
         """
+        if data is None:
+            return ""
+            
         if fields is None:
             fields = ["code", "date", "close", "volume"]
 

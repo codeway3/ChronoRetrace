@@ -1,5 +1,9 @@
-#!/usr/bin/env python3
+from __future__ import annotations
+from typing import Union
+
+# !/usr/bin/env python3
 """
+
 ChronoRetrace - 监控API端点
 
 本模块提供系统性能监控、缓存统计、API性能等数据的查询接口。
@@ -279,7 +283,7 @@ async def get_cache_stats():
 
 @router.get("/metrics", response_model=MetricsResponse)
 async def get_metrics(
-    metric_type: str | None = Query(None, description="指标类型过滤"),
+    metric_type: Union[str, None] = Query(None, description="指标类型过滤"),
     time_range: tuple[datetime, datetime] = Depends(get_time_range),
 ):
     """
@@ -355,7 +359,7 @@ async def clear_cache(
 
 @router.get("/alerts")
 async def get_alerts(
-    severity: str | None = Query(None, description="告警级别: info, warning, error"),
+    severity: Union[str, None] = Query(None, description="告警级别: info, warning, error"),
 ):
     """
     获取系统告警信息

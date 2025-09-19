@@ -37,6 +37,8 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 @router.post(
     "/register", response_model=ApiResponse, status_code=status.HTTP_201_CREATED
 )
+
+
 async def register(
     user_data: UserCreate, request: Request, db: Session = Depends(get_db)
 ):
@@ -153,6 +155,7 @@ async def login(
         refresh_token=refresh_token,
         token_type="bearer",
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        user=user,
     )
 
 

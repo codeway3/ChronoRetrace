@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+from __future__ import annotations
+
+# !/usr/bin/env python3
 """
 ChronoRetrace - 缓存管理API
 
@@ -7,6 +9,8 @@ ChronoRetrace - 缓存管理API
 Author: ChronoRetrace Team
 Date: 2024
 """
+
+from typing import Union
 
 import logging
 from datetime import datetime
@@ -26,7 +30,7 @@ router = APIRouter(prefix="/cache", tags=["cache"])
 class CacheWarmingRequest(BaseModel):
     """缓存预热请求模型"""
 
-    stock_codes: list[str] | None = None
+    stock_codes: Union[list[str], None] = None
     force_refresh: bool = False
     warm_hot_stocks: bool = True
     warm_stock_info: bool = True
@@ -41,13 +45,13 @@ class CacheStatsResponse(BaseModel):
     hit_rate: float
     miss_rate: float
     warming_stats: dict
-    last_warming_time: datetime | None
+    last_warming_time: Union[datetime, None]
 
 
 class CacheClearRequest(BaseModel):
     """缓存清理请求模型"""
 
-    pattern: str | None = None
+    pattern: Union[str, None] = None
     clear_all: bool = False
 
 
@@ -182,7 +186,7 @@ async def clear_cache(request: CacheClearRequest):
 
 @router.post("/refresh")
 async def refresh_cache(
-    stock_codes: list[str] | None = None, background_tasks: BackgroundTasks = None
+    stock_codes: Union[list[str], None] = None, background_tasks: BackgroundTasks = None
 ):
     """
     刷新缓存数据

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from datetime import date, datetime, timedelta
 
@@ -11,6 +13,8 @@ from app.infrastructure.database.session import get_db
 from ..fetchers.stock_fetchers import a_share_fetcher, us_stock_fetcher
 from . import database_writer as db_writer
 from .data_utils import calculate_ma
+
+from typing import Union
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +69,7 @@ class StockDataFetcher:
         stock_code: str,
         interval: str,
         market_type: str,
-        trade_date: date | None = None,
+        trade_date: Union[date, None] = None,
     ):
         self.db = db
         self.stock_code = stock_code
@@ -74,6 +78,7 @@ class StockDataFetcher:
         self.trade_date = trade_date
         self.start_date = (datetime.now() - timedelta(days=15 * 365)).date()
         self.end_date = datetime.now().date()
+
 
     def fetch_stock_data(self):
         """
@@ -114,6 +119,7 @@ class StockDataFetcher:
 
         return api_data_df
 
+
     def _fetch_from_db(self):
         """Fetches stock K-line data from the local SQLite database."""
         logger.info(
@@ -138,6 +144,7 @@ class StockDataFetcher:
             df = df.drop(columns=["id"])
         return df
 
+
     def _fetch_from_api(self):
         """Fetches stock data from the appropriate external API based on market type."""
         if self.market_type == "A_share":
@@ -153,6 +160,7 @@ class StockDataFetcher:
             )
         else:
             raise ValueError(f"Unsupported market type: {self.market_type}")
+
 
     def _store_in_db(self, df: pd.DataFrame):
         """Stores the fetched DataFrame into the stock_data table."""
@@ -170,7 +178,7 @@ class StockDataFetcher:
 
 
 def fetch_stock_data(
-    stock_code: str, interval: str, market_type: str, trade_date: date | None = None
+    stock_code: str, interval: str, market_type: str, trade_date: Union[date, None] = None
 ):
     """
     Main entry point for fetching stock data.
@@ -296,7 +304,7 @@ async def _sync_us_stock_data(db: Session, symbol: str):
 
 def get_fundamental_data_from_db(
     db: Session, symbol: str
-) -> models.FundamentalData | None:
+) -> Union[models.FundamentalData, None]:
     """
     从数据库中获取指定股票的基本面数据。
 
@@ -346,7 +354,7 @@ def get_annual_earnings_from_db(
     )
 
 
-def resolve_symbol(db: Session, symbol: str) -> str | None:
+def resolve_symbol(db: Session, symbol: str) -> Union[str, None]:
     """
     Resolves a potentially incomplete stock symbol to its full ts_code.
     """

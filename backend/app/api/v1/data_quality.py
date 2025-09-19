@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, Union
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @router.post("/validate")
 async def validate_data(
     data: list[dict[str, Any]],
-    validation_rules: dict[str, dict[str, Any]] | None = None,
+    validation_rules: Union[dict[str, dict[str, Any]], None] = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -115,8 +115,8 @@ async def deduplicate_data(
 @router.post("/process")
 async def process_data(
     data: list[dict[str, Any]],
-    validation_rules: dict[str, dict[str, Any]] | None = None,
-    deduplication_fields: list[str] | None = None,
+    validation_rules: Union[dict[str, dict[str, Any]], None] = None,
+    deduplication_fields: Union[list[str], None] = None,
     strategy: str = Query(
         "KEEP_FIRST", enum=["KEEP_FIRST", "KEEP_LAST", "KEEP_HIGHEST_QUALITY"]
     ),

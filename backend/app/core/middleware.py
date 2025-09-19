@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import ipaddress
 import time
@@ -11,6 +13,8 @@ from app.core.config import settings
 from app.infrastructure.database.models import UserActivityLog
 
 
+from typing import Union
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """API限流中间件"""
 
@@ -21,6 +25,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.clients: dict[str, deque] = defaultdict(deque)
         self.cleanup_interval = 300  # 清理间隔（秒）
         self.last_cleanup = time.time()
+
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
@@ -52,6 +57,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         return response
 
+
     def _get_client_id(self, request: Request) -> str:
         """获取客户端唯一标识"""
         # 优先使用用户ID（如果已认证）
@@ -68,6 +74,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         return f"ip:{client_ip}"
 
+
     def _is_rate_limited(self, client_id: str, current_time: float) -> bool:
         """检查是否超过限流"""
         client_requests = self.clients[client_id]
@@ -79,6 +86,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # 检查是否超过限制
         return len(client_requests) >= self.calls
+
 
     def _cleanup_expired_records(self, current_time: float):
         """清理过期的客户端记录"""
@@ -137,11 +145,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 class IPWhitelistMiddleware(BaseHTTPMiddleware):
     """IP白名单中间件"""
 
-    def __init__(self, app, whitelist: list | None = None, admin_only: bool = True):
+    def __init__(self, app, whitelist: Union[list, None] = None, admin_only: bool = True):
         super().__init__(app)
         self.whitelist = whitelist or []
         self.admin_only = admin_only  # 是否仅对管理员接口启用
         self.admin_paths = ["/api/v1/admin", "/api/v1/auth/admin"]
+
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
@@ -173,6 +182,7 @@ class IPWhitelistMiddleware(BaseHTTPMiddleware):
 
         return await call_next(request)
 
+
     def _get_client_ip(self, request: Request) -> str:
         """获取客户端真实IP"""
         # 检查代理头部
@@ -185,6 +195,7 @@ class IPWhitelistMiddleware(BaseHTTPMiddleware):
             return real_ip.strip()
 
         return request.client.host if request.client else "unknown"
+
 
     def _is_ip_allowed(self, client_ip: str) -> bool:
         """检查IP是否被允许"""
@@ -222,6 +233,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         self.log_responses = log_responses
         self.sensitive_paths = ["/api/v1/auth/login", "/api/v1/auth/register"]
 
+
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
@@ -243,6 +255,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             await self._log_response(request, response, process_time)
 
         return response
+
 
     async def _log_request(self, request: Request):
         """记录请求信息"""
@@ -271,6 +284,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             )
         )
 
+
     async def _log_response(
         self, request: Request, response: Response, process_time: float
     ):
@@ -292,6 +306,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 )
             )
 
+
     def _get_client_ip(self, request: Request) -> str:
         """获取客户端IP"""
         forwarded_for = request.headers.get("X-Forwarded-For")
@@ -299,9 +314,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             return forwarded_for.split(",")[0].strip()
         return request.client.host if request.client else "unknown"
 
+
     async def _save_activity_log(
         self,
-        user_id: int | None,
+        user_id: Union[int, None],
         action: str,
         details: dict,
         ip_address: str,
@@ -354,6 +370,7 @@ class CORSMiddleware(BaseHTTPMiddleware):
         self.allow_headers = allow_headers or ["*"]
         self.allow_credentials = allow_credentials
 
+
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
@@ -367,6 +384,7 @@ class CORSMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         self._add_cors_headers(response, request)
         return response
+
 
     def _add_cors_headers(self, response: Response, request: Request):
         """添加CORS头部"""
@@ -384,7 +402,8 @@ class CORSMiddleware(BaseHTTPMiddleware):
 
         response.headers["Access-Control-Max-Age"] = "86400"  # 24小时
 
-    def _is_origin_allowed(self, origin: str | None) -> bool:
+
+    def _is_origin_allowed(self, origin: Union[str, None]) -> bool:
         """检查来源是否被允许"""
         if not origin:
             return True

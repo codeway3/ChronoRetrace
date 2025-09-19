@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import ipaddress
 from datetime import datetime
+from typing import Union
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -50,7 +53,7 @@ def get_current_user(
 def get_current_user_optional(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
-) -> User | None:
+) -> Union[User, None]:
     """获取当前用户（可选，不抛出异常）"""
     if not credentials:
         return None
@@ -131,6 +134,7 @@ class RateLimiter:
         self.window_seconds = window_seconds
         self.requests = {}  # 在生产环境中应使用Redis
 
+
     def is_allowed(self, key: str) -> bool:
         """检查是否允许请求"""
         now = datetime.utcnow().timestamp()
@@ -171,10 +175,10 @@ def check_rate_limit(request: Request):
 
 
 def log_user_activity(
-    user: User | None,
+    user: Union[User, None],
     action: str,
-    details: str | None = None,
-    request: Request | None = None,
+    details: Union[str, None] = None,
+    request: Union[Request, None] = None,
     db: Session = None,
 ):
     """记录用户活动"""

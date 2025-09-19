@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi_cache import FastAPICache
@@ -13,6 +12,8 @@ from app.core.config import settings
 from app.core.security import log_user_activity, require_admin
 from app.data.managers import database_admin as db_admin
 from app.infrastructure.database.models import (
+from typing import Union
+
     User,
     UserActivityLog,
     UserPreferences,

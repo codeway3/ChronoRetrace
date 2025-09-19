@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import logging
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Union
 
 from sqlalchemy.orm import Session
 
@@ -43,7 +45,7 @@ class ValidationRule:
 
     field_name: str
     rule_type: str  # 'format', 'range', 'type', 'logic'
-    rule_config: dict[str, Any] | None = None
+    rule_config: Union[dict[str, Any], None] = None
     severity: ValidationSeverity = ValidationSeverity.ERROR
     error_message: str = ""
     is_enabled: bool = True
@@ -57,8 +59,8 @@ class ValidationResult:
     field_name: str
     message: str
     severity: ValidationSeverity
-    suggested_value: Any | None = None
-    error_code: str | None = None
+    suggested_value: Union[Any, None] = None
+    error_code: Union[str, None] = None
 
 
 @dataclass
@@ -70,10 +72,11 @@ class ValidationReport:
     results: list[ValidationResult]
     execution_time: float
     validated_at: datetime
-    record_id: str | None = None
-    validation_time: float | None = None
-    errors: list[str] | None = None
-    warnings: list[str] | None = None
+    record_id: Union[str, None] = None
+    validation_time: Union[float, None] = None
+    errors: Union[list[str], None] = None
+    warnings: Union[list[str], None] = None
+
 
     def __post_init__(self):
         if self.errors is None:
@@ -120,8 +123,9 @@ class DataValidationService:
             "max_volume": 1e12,  # 1万亿
         }
 
+
     def validate_stock_data(
-        self, data: dict[str, Any] | None, market_type: str = "A_share"
+        self, data: Union[dict[str, Any], None], market_type: str = "A_share"
     ) -> ValidationReport:
         """校验股票数据
 
@@ -191,9 +195,10 @@ class DataValidationService:
             validated_at=datetime.now(),
         )
 
+
     def _validate_required_field(
         self, data: dict[str, Any], field_name: str
-    ) -> ValidationResult | None:
+    ) -> Union[ValidationResult, None]:
         """校验必填字段"""
         if data is None or field_name not in data or data[field_name] is None:
             return ValidationResult(
@@ -204,6 +209,7 @@ class DataValidationService:
                 error_code="REQUIRED_FIELD_MISSING",
             )
         return None
+
 
     def _validate_stock_code(self, code: Any, market_type: str) -> ValidationResult:
         """校验股票代码格式"""
@@ -234,6 +240,7 @@ class DataValidationService:
             severity=ValidationSeverity.INFO,
         )
 
+
     def _validate_date(self, date_value: Any) -> ValidationResult:
         """校验日期格式"""
         if date_value is None:
@@ -256,7 +263,7 @@ class DataValidationService:
                     severity=ValidationSeverity.ERROR,
                     error_code="INVALID_DATE_FORMAT",
                 )
-        elif not isinstance(date_value, date | datetime):
+        elif not isinstance(date_value, (date, datetime)):
             return ValidationResult(
                 is_valid=False,
                 field_name="date",
@@ -272,6 +279,7 @@ class DataValidationService:
             message="日期格式正确",
             severity=ValidationSeverity.INFO,
         )
+
 
     def _validate_price(self, price: Any, field_name: str) -> ValidationResult:
         """校验价格数据"""
@@ -342,6 +350,7 @@ class DataValidationService:
             severity=ValidationSeverity.INFO,
         )
 
+
     def _validate_price_logic(self, data: dict[str, Any]) -> list[ValidationResult]:
         """校验价格逻辑关系"""
         results: list[ValidationResult] = []
@@ -360,6 +369,7 @@ class DataValidationService:
         results.append(price_relationship_result)
 
         return results
+
 
     def _validate_price_relationships(self, data: dict[str, Any]) -> ValidationResult:
         """校验价格关系逻辑"""
@@ -404,6 +414,7 @@ class DataValidationService:
             message="价格关系逻辑正确",
             severity=ValidationSeverity.INFO,
         )
+
 
     def _validate_volume(self, volume: Any) -> ValidationResult:
         """校验成交量数据"""
@@ -454,6 +465,7 @@ class DataValidationService:
             severity=ValidationSeverity.INFO,
         )
 
+
     def _validate_change_percent(
         self, pct_chg: Any, market_type: str = "A_share"
     ) -> ValidationResult:
@@ -496,6 +508,7 @@ class DataValidationService:
             error_code="VALID_PCT_CHG",
         )
 
+
     def _calculate_quality_score(
         self, results: list[ValidationResult]
     ) -> tuple[bool, float]:
@@ -517,8 +530,9 @@ class DataValidationService:
 
         return is_valid, quality_score
 
+
     def get_validation_rules(
-        self, table_name: str | None = None
+        self, table_name: Union[str, None] = None
     ) -> list[ValidationRule]:
         """获取所有验证规则"""
         rules = []
@@ -559,6 +573,7 @@ class DataValidationService:
 
         return rules
 
+
     def log_validation_result(
         self, record_id: int, table_name: str, validation_report: ValidationReport
     ) -> None:
@@ -581,7 +596,8 @@ class DataValidationService:
             self.logger.error(f"记录校验日志失败: {str(e)}")
             self.db_session.rollback()
 
-    def _format_validation_errors(self, results: list[ValidationResult]) -> str | None:
+
+    def _format_validation_errors(self, results: list[ValidationResult]) -> Union[str, None]:
         """格式化校验错误信息"""
         if not results:
             return None
@@ -592,6 +608,7 @@ class DataValidationService:
                 error_messages.append(f"{result.field_name}: {result.message}")
 
         return "; ".join(error_messages) if error_messages else None
+
 
     def batch_validate_data(
         self, data_list: list[dict[str, Any]], data_type: str = "stock_data"

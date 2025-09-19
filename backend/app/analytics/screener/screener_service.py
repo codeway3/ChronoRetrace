@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from sqlalchemy import and_, func, literal
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
@@ -10,7 +12,7 @@ from app.schemas.stock import ScreenedStock, StockScreenerRequest, StockScreener
 def get_operator_expression(column, operator: str, value):
     """Converts a string operator to a SQLAlchemy expression."""
     # If this is a real SQLAlchemy column/expression, build a ClauseElement
-    is_sqlalchemy_col = isinstance(column, InstrumentedAttribute | ColumnElement)
+    is_sqlalchemy_col = isinstance(column, (InstrumentedAttribute, ColumnElement))
     if is_sqlalchemy_col:
         rhs = literal(value)
         if operator == "gt":
