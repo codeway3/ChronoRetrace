@@ -117,7 +117,7 @@ const HomePage = () => {
                   type="primary" 
                   size="large"
                   icon={<ArrowRightOutlined />}
-                  onClick={handleRegister}
+                  onClick={handleLogin}
                   className="cta-button"
                 >
                   立即开始
@@ -125,60 +125,57 @@ const HomePage = () => {
                 <Button 
                   type="default" 
                   size="large"
-                  onClick={handleLogin}
+                  onClick={handleRegister}
                   className="secondary-button"
                 >
-                  已有账号？登录
+                  还没有账号？注册
                 </Button>
               </div>
             </div>
             <div className="hero-visual">
               <div className="floating-cards">
-                <Card
-                  variant="borderless"
-                  className="floating-card"
-                  style={{
-                    position: 'absolute',
-                    background: 'rgba(255,255,255,0.9)',
-                    backdropFilter: 'blur(10px)',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                  }}
-                >
-                  <LineChartOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-                  <span>实时数据</span>
-                </Card>
-                <Card
-                  variant="borderless"
-                  className="floating-card"
-                  style={{
-                    position: 'absolute',
-                    background: 'rgba(255,255,255,0.9)',
-                    backdropFilter: 'blur(10px)',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                  }}
-                >
-                  <BarChartOutlined style={{ fontSize: '24px', color: '#52c41a' }} />
-                  <span>策略回测</span>
-                </Card>
-                <Card
-                  variant="borderless"
-                  className="floating-card"
-                  style={{
-                    position: 'absolute',
-                    background: 'rgba(255,255,255,0.9)',
-                    backdropFilter: 'blur(10px)',
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                  }}
-                >
-                  <SearchOutlined style={{ fontSize: '24px', color: '#faad14' }} />
-                  <span>智能筛选</span>
-                </Card>
+                {/* 实时数据卡片 */}
+                <div className="feature-tip tip-1">
+                  <div className="tip-icon-wrapper">
+                    <LineChartOutlined className="tip-icon" />
+                  </div>
+                  <div className="tip-content">
+                    <h4>实时数据</h4>
+                    <p>多市场数据源</p>
+                  </div>
+                  <div className="tip-glow"></div>
+                </div>
+
+                {/* 策略回测卡片 */}
+                <div className="feature-tip tip-2">
+                  <div className="tip-icon-wrapper">
+                    <BarChartOutlined className="tip-icon" />
+                  </div>
+                  <div className="tip-content">
+                    <h4>策略回测</h4>
+                    <p>历史数据验证</p>
+                  </div>
+                  <div className="tip-glow"></div>
+                </div>
+
+                {/* 智能筛选卡片 */}
+                <div className="feature-tip tip-3">
+                  <div className="tip-icon-wrapper">
+                    <SearchOutlined className="tip-icon" />
+                  </div>
+                  <div className="tip-content">
+                    <h4>智能筛选</h4>
+                    <p>AI驱动分析</p>
+                  </div>
+                  <div className="tip-glow"></div>
+                </div>
+
+                {/* 背景装饰元素 */}
+                <div className="visual-decoration">
+                  <div className="decoration-circle circle-1"></div>
+                  <div className="decoration-circle circle-2"></div>
+                  <div className="decoration-circle circle-3"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -227,19 +224,20 @@ const HomePage = () => {
               <Button 
                 type="primary" 
                 size="large"
-                icon={<UserAddOutlined />}
-                onClick={handleRegister}
+                icon={<LoginOutlined />}
+                onClick={handleLogin}
                 className="cta-primary"
               >
-                免费注册
+                立即登录
               </Button>
               <Button 
                 type="default" 
                 size="large"
-                onClick={handleLogin}
+                icon={<UserAddOutlined />}
+                onClick={handleRegister}
                 className="cta-secondary"
               >
-                立即登录
+                免费注册
               </Button>
             </Space>
           </div>

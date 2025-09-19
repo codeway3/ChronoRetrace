@@ -57,8 +57,7 @@ const LoginPage = () => {
       const result = await register({
         username: values.username,
         email: values.email,
-        password: values.password,
-        full_name: values.fullName
+        password: values.password
       });
       
       if (result.success) {
@@ -103,22 +102,6 @@ const LoginPage = () => {
           size="large"
           className="login-form"
         >
-          {isRegisterMode && (
-            <Form.Item
-              name="fullName"
-              label="姓名"
-              rules={[
-                { required: true, message: '请输入您的姓名！' },
-                { min: 2, message: '姓名至少需要2个字符！' }
-              ]}
-            >
-              <Input
-                prefix={<UserOutlined />}
-                placeholder="请输入您的姓名"
-              />
-            </Form.Item>
-          )}
-
           <Form.Item
             name="username"
             label="用户名"
