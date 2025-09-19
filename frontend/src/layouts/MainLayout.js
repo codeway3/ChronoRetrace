@@ -13,6 +13,9 @@ import {
   UserOutlined,
   LogoutOutlined,
   SettingOutlined,
+  BarChartOutlined,
+  FundOutlined,
+  StockOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { clearCache } from '../api/stockApi';
@@ -24,32 +27,79 @@ const { Header, Content, Sider } = Layout;
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [selectedKeys, setSelectedKeys] = useState(['1']);
+  const [selectedKeys, setSelectedKeys] = useState(['a-share-dashboard']);
+  const [openKeys, setOpenKeys] = useState(['a-share']);
   const [collapsed, setCollapsed] = useState(false);
   const { user, logout } = useAuth();
 
   useEffect(() => {
     const path = location.pathname;
+    
+    // 根据路径设置选中的菜单项和展开的子菜单
     if (path.startsWith('/a-share/industries')) {
-      setSelectedKeys(['8']);
+      setSelectedKeys(['a-share-industries']);
+      setOpenKeys(['a-share']);
+    } else if (path.startsWith('/a-share/screener')) {
+      setSelectedKeys(['a-share-screener']);
+      setOpenKeys(['a-share']);
+    } else if (path.startsWith('/a-share/backtest')) {
+      setSelectedKeys(['a-share-backtest']);
+      setOpenKeys(['a-share']);
     } else if (path.startsWith('/a-share')) {
-      setSelectedKeys(['1']);
+      setSelectedKeys(['a-share-dashboard']);
+      setOpenKeys(['a-share']);
+    } else if (path.startsWith('/us-stock/screener')) {
+      setSelectedKeys(['us-stock-screener']);
+      setOpenKeys(['us-stock']);
+    } else if (path.startsWith('/us-stock/backtest')) {
+      setSelectedKeys(['us-stock-backtest']);
+      setOpenKeys(['us-stock']);
     } else if (path.startsWith('/us-stock')) {
-      setSelectedKeys(['2']);
+      setSelectedKeys(['us-stock-dashboard']);
+      setOpenKeys(['us-stock']);
+    } else if (path.startsWith('/crypto/screener')) {
+      setSelectedKeys(['crypto-screener']);
+      setOpenKeys(['crypto']);
+    } else if (path.startsWith('/crypto/backtest')) {
+      setSelectedKeys(['crypto-backtest']);
+      setOpenKeys(['crypto']);
     } else if (path.startsWith('/crypto')) {
-      setSelectedKeys(['3']);
+      setSelectedKeys(['crypto-dashboard']);
+      setOpenKeys(['crypto']);
+    } else if (path.startsWith('/commodities/screener')) {
+      setSelectedKeys(['commodities-screener']);
+      setOpenKeys(['commodities']);
+    } else if (path.startsWith('/commodities/backtest')) {
+      setSelectedKeys(['commodities-backtest']);
+      setOpenKeys(['commodities']);
     } else if (path.startsWith('/commodities')) {
-      setSelectedKeys(['4']);
+      setSelectedKeys(['commodities-dashboard']);
+      setOpenKeys(['commodities']);
+    } else if (path.startsWith('/futures/screener')) {
+      setSelectedKeys(['futures-screener']);
+      setOpenKeys(['futures']);
+    } else if (path.startsWith('/futures/backtest')) {
+      setSelectedKeys(['futures-backtest']);
+      setOpenKeys(['futures']);
     } else if (path.startsWith('/futures')) {
-      setSelectedKeys(['5']);
+      setSelectedKeys(['futures-dashboard']);
+      setOpenKeys(['futures']);
+    } else if (path.startsWith('/options/screener')) {
+      setSelectedKeys(['options-screener']);
+      setOpenKeys(['options']);
+    } else if (path.startsWith('/options/backtest')) {
+      setSelectedKeys(['options-backtest']);
+      setOpenKeys(['options']);
     } else if (path.startsWith('/options')) {
-      setSelectedKeys(['6']);
-    } else if (path.startsWith('/backtest')) {
-      setSelectedKeys(['7']);
+      setSelectedKeys(['options-dashboard']);
+      setOpenKeys(['options']);
     } else if (path.startsWith('/screener')) {
-      setSelectedKeys(['9']);
+      setSelectedKeys(['screener']);
+    } else if (path.startsWith('/backtest')) {
+      setSelectedKeys(['backtest']);
     } else {
-      setSelectedKeys(['1']);
+      setSelectedKeys(['a-share-dashboard']);
+      setOpenKeys(['a-share']);
     }
   }, [location.pathname]);
 
@@ -76,58 +126,175 @@ const MainLayout = ({ children }) => {
 
   const menuItems = [
     {
-      key: '1',
+      key: 'a-share',
       icon: <LineChartOutlined />,
       label: 'A股市场',
-      onClick: () => navigate('/a-share'),
+      children: [
+        {
+          key: 'a-share-dashboard',
+          icon: <BarChartOutlined />,
+          label: '市场概览',
+          onClick: () => navigate('/a-share'),
+        },
+        {
+          key: 'a-share-screener',
+          icon: <FilterOutlined />,
+          label: '股票筛选',
+          onClick: () => navigate('/a-share/screener'),
+        },
+        {
+          key: 'a-share-backtest',
+          icon: <ExperimentOutlined />,
+          label: '回溯测试',
+          onClick: () => navigate('/a-share/backtest'),
+        },
+        {
+          key: 'a-share-industries',
+          icon: <StockOutlined />,
+          label: '行业分析',
+          onClick: () => navigate('/a-share/industries'),
+        },
+      ],
     },
     {
-      key: '2',
+      key: 'us-stock',
       icon: <DollarOutlined />,
       label: '美股市场',
-      onClick: () => navigate('/us-stock'),
+      children: [
+        {
+          key: 'us-stock-dashboard',
+          icon: <BarChartOutlined />,
+          label: '市场概览',
+          onClick: () => navigate('/us-stock'),
+        },
+        {
+          key: 'us-stock-screener',
+          icon: <FilterOutlined />,
+          label: '股票筛选',
+          onClick: () => navigate('/us-stock/screener'),
+        },
+        {
+          key: 'us-stock-backtest',
+          icon: <ExperimentOutlined />,
+          label: '回溯测试',
+          onClick: () => navigate('/us-stock/backtest'),
+        },
+      ],
     },
     {
-      key: '3',
+      key: 'crypto',
       icon: <GlobalOutlined />,
       label: '加密货币',
-      onClick: () => navigate('/crypto'),
+      children: [
+        {
+          key: 'crypto-dashboard',
+          icon: <BarChartOutlined />,
+          label: '市场概览',
+          onClick: () => navigate('/crypto'),
+        },
+        {
+          key: 'crypto-screener',
+          icon: <FilterOutlined />,
+          label: '币种筛选',
+          onClick: () => navigate('/crypto/screener'),
+        },
+        {
+          key: 'crypto-backtest',
+          icon: <ExperimentOutlined />,
+          label: '回溯测试',
+          onClick: () => navigate('/crypto/backtest'),
+        },
+      ],
     },
     {
-      key: '4',
+      key: 'commodities',
       icon: <GoldOutlined />,
       label: '大宗商品',
-      onClick: () => navigate('/commodities'),
+      children: [
+        {
+          key: 'commodities-dashboard',
+          icon: <BarChartOutlined />,
+          label: '市场概览',
+          onClick: () => navigate('/commodities'),
+        },
+        {
+          key: 'commodities-screener',
+          icon: <FilterOutlined />,
+          label: '商品筛选',
+          onClick: () => navigate('/commodities/screener'),
+        },
+        {
+          key: 'commodities-backtest',
+          icon: <ExperimentOutlined />,
+          label: '回溯测试',
+          onClick: () => navigate('/commodities/backtest'),
+        },
+      ],
     },
     {
-      key: '5',
-      icon: <GoldOutlined />,
+      key: 'futures',
+      icon: <FundOutlined />,
       label: '期货',
-      onClick: () => navigate('/futures'),
+      children: [
+        {
+          key: 'futures-dashboard',
+          icon: <BarChartOutlined />,
+          label: '市场概览',
+          onClick: () => navigate('/futures'),
+        },
+        {
+          key: 'futures-screener',
+          icon: <FilterOutlined />,
+          label: '期货筛选',
+          onClick: () => navigate('/futures/screener'),
+        },
+        {
+          key: 'futures-backtest',
+          icon: <ExperimentOutlined />,
+          label: '回溯测试',
+          onClick: () => navigate('/futures/backtest'),
+        },
+      ],
     },
     {
-      key: '6',
-      icon: <GoldOutlined />,
+      key: 'options',
+      icon: <StockOutlined />,
       label: '期权',
-      onClick: () => navigate('/options'),
+      children: [
+        {
+          key: 'options-dashboard',
+          icon: <BarChartOutlined />,
+          label: '市场概览',
+          onClick: () => navigate('/options'),
+        },
+        {
+          key: 'options-screener',
+          icon: <FilterOutlined />,
+          label: '期权筛选',
+          onClick: () => navigate('/options/screener'),
+        },
+        {
+          key: 'options-backtest',
+          icon: <ExperimentOutlined />,
+          label: '回溯测试',
+          onClick: () => navigate('/options/backtest'),
+        },
+      ],
     },
     {
-      key: '7',
-      icon: <ExperimentOutlined />,
-      label: '回溯测试',
-      onClick: () => navigate('/backtest'),
+      type: 'divider',
     },
     {
-      key: '8',
-      icon: <LineChartOutlined />,
-      label: 'A股行业',
-      onClick: () => navigate('/a-share/industries'),
-    },
-    {
-      key: '9',
+      key: 'screener',
       icon: <FilterOutlined />,
-      label: '股票筛选器',
+      label: '通用筛选器',
       onClick: () => navigate('/screener'),
+    },
+    {
+      key: 'backtest',
+      icon: <ExperimentOutlined />,
+      label: '通用回测',
+      onClick: () => navigate('/backtest'),
     },
   ];
 
@@ -154,6 +321,8 @@ const MainLayout = ({ children }) => {
               theme="dark"
               mode="inline"
               selectedKeys={selectedKeys}
+              openKeys={openKeys}
+              onOpenChange={setOpenKeys}
               items={menuItems}
             />
           </div>
