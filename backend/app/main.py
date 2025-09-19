@@ -14,6 +14,8 @@ from redis import asyncio as aioredis
 
 from app.api.v1 import a_industries as a_industries_v1
 from app.api.v1 import admin as admin_v1
+from app.api.v1 import asset_backtest as asset_backtest_v1
+from app.api.v1 import asset_screener as asset_screener_v1
 from app.api.v1 import auth as auth_v1
 from app.api.v1 import backtest as backtest_v1
 from app.api.v1 import cache as cache_v1
@@ -447,11 +449,29 @@ app.include_router(
 )
 app.include_router(screener_v1.router, prefix="/api/v1", tags=["screener"])
 app.include_router(
+    asset_screener_v1.router, prefix="/api/v1/assets", tags=["asset-screener"]
+)
+app.include_router(
+    asset_backtest_v1.router, prefix="/api/v1/assets", tags=["asset-backtest"]
+)
+app.include_router(
     data_quality_v1.router, prefix="/api/v1/data-quality", tags=["data-quality"]
 )
 app.include_router(health_v1.router, prefix="/api/v1/health", tags=["health"])
+
+# Import and include asset config router
+from app.api.v1 import asset_config as asset_config_v1
+app.include_router(
+    asset_config_v1.router, prefix="/api/v1/asset-config", tags=["asset-config"]
+)
 
 
 @app.get("/")
 def read_root():
     return {"message": "Welcome to ChronoRetrace API"}
+
+
+@app.get("/health")
+def health_check():
+    """简单的健康检查端点"""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}

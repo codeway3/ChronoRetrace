@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from datetime import date
 from enum import Enum
-from typing import Any
+from typing import Any, Union
 
 from pydantic import BaseModel, field_validator
 
@@ -19,7 +21,7 @@ class LowerBoundStrategy(str, Enum):
 
 # A type to represent a value that can be a single float or a range for optimization
 # Example: 5.0 or [5.0, 10.0, 1.0] for start, stop, step
-RangeValue = float | list[float]
+RangeValue = Union[float, list[float]]
 
 # --- Strategy Configuration Models ---
 
@@ -66,7 +68,7 @@ class GridStrategyOptimizeConfig(BaseModel):
     # Parameters that can be optimized are defined as ranges
     upper_price: RangeValue
     lower_price: RangeValue
-    grid_count: int | list[int]  # Grid count must be integer
+    grid_count: Union[int, list[int]]  # Grid count must be integer
 
     total_investment: float
     initial_quantity: int = 0
@@ -105,7 +107,7 @@ class Transaction(BaseModel):
     trade_type: str
     price: float
     quantity: int
-    pnl: float | None = None
+    pnl: Union[float, None] = None
 
 
 class ChartDataPoint(BaseModel):

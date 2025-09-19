@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import secrets
 import uuid
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Union
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -15,8 +17,16 @@ class AuthService:
     """用户认证服务类"""
 
     def __init__(self):
-        # 密码加密上下文
-        self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        # 密码加密上下文 - 修复bcrypt版本兼容性问题
+        try:
+            self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        except Exception:
+            # 如果bcrypt有版本兼容性问题，使用更兼容的配置
+            self.pwd_context = CryptContext(
+                schemes=["bcrypt"], 
+                deprecated="auto",
+                bcrypt__rounds=12
+            )
 
         # JWT配置
         self.secret_key = settings.JWT_SECRET_KEY
@@ -24,16 +34,19 @@ class AuthService:
         self.access_token_expire_minutes = settings.ACCESS_TOKEN_EXPIRE_MINUTES
         self.refresh_token_expire_days = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
+
     def hash_password(self, password: str) -> str:
         """加密密码"""
         return self.pwd_context.hash(password)
+
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """验证密码"""
         return self.pwd_context.verify(plain_password, hashed_password)
 
+
     def create_access_token(
-        self, data: dict[str, Any], expires_delta: timedelta | None = None
+        self, data: dict[str, Any], expires_delta: Union[timedelta, None] = None
     ) -> str:
         """创建访问令牌"""
         to_encode = data.copy()
@@ -48,6 +61,7 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
 
+
     def create_refresh_token(self, data: dict[str, Any]) -> str:
         """创建刷新令牌"""
         to_encode = data.copy()
@@ -56,9 +70,10 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
 
+
     def verify_token(
         self, token: str, token_type: str = "access"
-    ) -> dict[str, Any] | None:
+    ) -> Union[dict[str, Any], None]:
         """验证令牌"""
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
@@ -68,9 +83,10 @@ class AuthService:
         except JWTError:
             return None
 
+
     def authenticate_user(
         self, db: Session, username: str, password: str
-    ) -> User | None:
+    ) -> Union[User, None]:
         """用户认证"""
         user = (
             db.query(User)
@@ -85,6 +101,7 @@ class AuthService:
             return None
 
         return user
+
 
     def create_user_session(
         self,
@@ -115,6 +132,7 @@ class AuthService:
         db.refresh(session)
         return session
 
+
     def invalidate_session(self, db: Session, refresh_token: str) -> bool:
         """使会话失效"""
         session = (
@@ -129,7 +147,8 @@ class AuthService:
             return True
         return False
 
-    def validate_session(self, db: Session, refresh_token: str) -> UserSession | None:
+
+    def validate_session(self, db: Session, refresh_token: str) -> Union[UserSession, None]:
         """验证会话"""
         session = (
             db.query(UserSession)
@@ -143,9 +162,11 @@ class AuthService:
 
         return session
 
+
     def generate_reset_token(self) -> str:
         """生成密码重置令牌"""
         return secrets.token_urlsafe(32)
+
 
     def create_password_reset_token(self, user_id: int) -> str:
         """创建密码重置令牌"""
@@ -156,7 +177,8 @@ class AuthService:
         }
         return jwt.encode(data, self.secret_key, algorithm=self.algorithm)
 
-    def verify_password_reset_token(self, token: str) -> int | None:
+
+    def verify_password_reset_token(self, token: str) -> Union[int, None]:
         """验证密码重置令牌"""
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])

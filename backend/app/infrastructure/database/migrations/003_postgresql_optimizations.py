@@ -67,7 +67,7 @@ def upgrade(engine):
                 text(
                     """
                 CREATE OR REPLACE VIEW data_quality_summary AS
-                SELECT 
+                SELECT
                     table_name,
                     COUNT(*) as total_records,
                     COUNT(CASE WHEN validation_status = 'validated' THEN 1 END) as validated_records,

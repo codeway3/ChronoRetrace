@@ -1,5 +1,9 @@
-#!/usr/bin/env python3
+from __future__ import annotations
+from typing import Union
+
+# !/usr/bin/env python3
 """
+
 ChronoRetrace - 缓存预热服务
 
 本模块提供缓存预热和增量更新功能，确保热点数据始终在缓存中可用，
@@ -46,6 +50,7 @@ class CacheWarmingService:
         }
         self.hot_stocks: set[str] = set()
         self.warming_in_progress = False
+
 
     async def warm_all_caches(self, force: bool = False) -> dict[str, Any]:
         """
@@ -124,6 +129,7 @@ class CacheWarmingService:
 
         finally:
             self.warming_in_progress = False
+
 
     async def _warm_stock_lists(self, stats: dict[str, int], force: bool = False):
         """
@@ -230,6 +236,7 @@ class CacheWarmingService:
             logger.error(f"预热股票列表失败: {e}")
             stats["failed"] += 1
 
+
     async def _warm_hot_stocks_data(self, stats: dict[str, int], force: bool = False):
         """
         预热热点股票数据
@@ -276,6 +283,7 @@ class CacheWarmingService:
             logger.error(f"预热热点股票数据失败: {e}")
             stats["failed"] += 1
 
+
     async def _warm_market_metrics(self, stats: dict[str, int], force: bool = False):
         """
         预热市场指标数据
@@ -313,6 +321,7 @@ class CacheWarmingService:
             logger.error(f"预热市场指标失败: {e}")
             stats["failed"] += 1
 
+
     async def _warm_fundamental_data(self, stats: dict[str, int], force: bool = False):
         """
         预热基本面数据
@@ -348,6 +357,7 @@ class CacheWarmingService:
         except Exception as e:
             logger.error(f"预热基本面数据失败: {e}")
             stats["failed"] += 1
+
 
     async def _get_hot_stocks(self, limit: int = 100) -> list[str]:
         """
@@ -414,9 +424,10 @@ class CacheWarmingService:
                 "TSLA",
             ]
 
+
     async def _fetch_stock_data(
         self, db: Session, ts_code: str, interval: str
-    ) -> list[dict] | None:
+    ) -> Union[list[dict], None]:
         """
         获取股票数据
 
@@ -465,7 +476,8 @@ class CacheWarmingService:
             logger.error(f"获取股票数据失败 {ts_code}: {e}")
             return None
 
-    async def _fetch_market_metrics(self, db: Session, market: str) -> dict | None:
+
+    async def _fetch_market_metrics(self, db: Session, market: str) -> Union[dict, None]:
         """
         获取市场指标
 
@@ -529,7 +541,8 @@ class CacheWarmingService:
             logger.error(f"获取市场指标失败 {market}: {e}")
             return None
 
-    async def _fetch_fundamental_data(self, db: Session, ts_code: str) -> dict | None:
+
+    async def _fetch_fundamental_data(self, db: Session, ts_code: str) -> Union[dict, None]:
         """
         获取基本面数据
 
@@ -567,6 +580,7 @@ class CacheWarmingService:
             logger.error(f"获取基本面数据失败 {ts_code}: {e}")
             return None
 
+
     def _get_cache_ttl(self, interval: str) -> int:
         """
         根据时间间隔获取缓存TTL
@@ -583,6 +597,7 @@ class CacheWarmingService:
             "1m": 24 * 3600,  # 24小时
         }
         return ttl_map.get(interval, 3600)
+
 
     async def incremental_update_stocks(self, ts_codes: list[str]) -> dict[str, Any]:
         """
@@ -712,6 +727,7 @@ class CacheWarmingService:
         finally:
             self.warming_in_progress = False
 
+
     async def get_warming_stats_async(self) -> dict[str, Any]:
         """
         获取预热统计信息（异步版本）
@@ -725,6 +741,7 @@ class CacheWarmingService:
             "warming_in_progress": self.warming_in_progress,
             "hot_stocks": list(self.hot_stocks)[:20],  # 只返回前20个
         }
+
 
     async def invalidate_cache_pattern(self, pattern: str) -> int:
         """
@@ -741,6 +758,7 @@ class CacheWarmingService:
         except Exception as e:
             logger.error(f"失效缓存模式失败 {pattern}: {e}")
             return 0
+
 
     async def warm_specific_stocks(
         self, stock_codes: list[str], force_refresh: bool = False
@@ -774,6 +792,7 @@ class CacheWarmingService:
             logger.error(f"预热指定股票缓存失败: {e}")
             return {"status": "failed", "error": str(e), "timestamp": datetime.now()}
 
+
     async def refresh_stock_cache(self, stock_codes: list[str]) -> dict[str, Any]:
         """
         刷新股票缓存
@@ -786,6 +805,7 @@ class CacheWarmingService:
         """
         return await self.warm_specific_stocks(stock_codes, force_refresh=True)
 
+
     async def refresh_all_cache(self) -> dict[str, Any]:
         """
         刷新所有缓存
@@ -794,6 +814,7 @@ class CacheWarmingService:
             Dict[str, Any]: 刷新结果
         """
         return await self.warm_cache(force=True)
+
 
     async def warm_cache(self, force: bool = False) -> dict[str, Any]:
         """
@@ -828,6 +849,7 @@ class CacheWarmingService:
         except Exception as e:
             logger.error(f"Cache warming failed: {e}")
             return {"status": "failed", "warmed_count": 0, "error": str(e)}
+
 
     async def warm_stock_info(
         self, stock_codes: list[str], force_refresh: bool = False
@@ -876,6 +898,7 @@ class CacheWarmingService:
             logger.error(f"预热股票信息失败: {e}")
             return {"status": "failed", "error": str(e)}
 
+
     async def warm_stock_data(
         self, stock_codes: list[str], force_refresh: bool = False
     ) -> dict[str, Any]:
@@ -915,6 +938,7 @@ class CacheWarmingService:
             logger.error(f"预热股票数据失败: {e}")
             return {"status": "failed", "error": str(e)}
 
+
     def get_warming_stats(self) -> dict[str, Any]:
         """
         获取预热统计信息（同步版本）
@@ -931,6 +955,7 @@ class CacheWarmingService:
             "warming_in_progress": self.warming_in_progress,
             "hot_stocks": list(self.hot_stocks)[:20],  # 只返回前20个
         }
+
 
     def is_healthy(self) -> bool:
         """

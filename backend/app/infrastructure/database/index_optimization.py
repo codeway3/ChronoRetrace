@@ -1,5 +1,9 @@
-#!/usr/bin/env python3
+from __future__ import annotations
+from typing import Union
+
+# !/usr/bin/env python3
 """
+
 ChronoRetrace - 数据库索引优化模块
 
 本模块实现数据库索引的优化策略，特别针对DailyStockMetrics表的查询性能优化。
@@ -32,10 +36,11 @@ class DatabaseIndexOptimizer:
     特别针对股票数据查询的性能优化。
     """
 
-    def __init__(self, engine: Engine | None = None):
+    def __init__(self, engine: Union[Engine, None] = None):
         """初始化索引优化器"""
         self.engine = engine or engine
         self.optimization_history: list[dict] = []
+
 
     def analyze_query_patterns(self, session: Session) -> dict[str, Any]:
         """
@@ -105,6 +110,7 @@ class DatabaseIndexOptimizer:
         except Exception as e:
             logger.error(f"查询模式分析失败: {e}")
             raise
+
 
     def create_optimized_indexes(self, session: Session) -> dict[str, bool]:
         """
@@ -185,6 +191,7 @@ class DatabaseIndexOptimizer:
 
         return results
 
+
     def _create_index(self, session: Session, index_config: dict) -> bool:
         """
         创建单个索引
@@ -228,6 +235,7 @@ class DatabaseIndexOptimizer:
                 return False
             raise
 
+
     def _index_exists(self, session: Session, index_name: str) -> bool:
         """
         检查索引是否存在
@@ -250,6 +258,7 @@ class DatabaseIndexOptimizer:
             return result is not None
         except Exception:
             return False
+
 
     def analyze_index_usage(self, session: Session) -> dict[str, Any]:
         """
@@ -315,6 +324,7 @@ class DatabaseIndexOptimizer:
             logger.error(f"索引使用分析失败: {e}")
             raise
 
+
     def optimize_database(self, session: Session) -> dict[str, Any]:
         """
         执行完整的数据库优化
@@ -375,6 +385,7 @@ class DatabaseIndexOptimizer:
             raise
 
         return optimization_report
+
 
     def get_optimization_recommendations(self, session: Session) -> list[str]:
         """

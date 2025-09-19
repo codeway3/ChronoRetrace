@@ -1,5 +1,9 @@
-#!/usr/bin/env python3
+from __future__ import annotations
+from typing import Union
+
+# !/usr/bin/env python3
 """
+
 Redis缓存管理器
 提供统一的缓存操作接口，包括键管理、过期策略和失效机制
 """
@@ -54,8 +58,8 @@ class CacheKeyManager:
         cls,
         key_type: str,
         identifier: str,
-        date_str: str | None = None,
-        market: str | None = None,
+        date_str: Union[str, None] = None,
+        market: Union[str, None] = None,
         version: str = "v1",
     ) -> str:
         """生成标准化的缓存键
@@ -116,7 +120,7 @@ class CacheKeyManager:
         cls,
         key_type: str,
         identifier: str,
-        params: dict[str, Any] | None = None,
+        params: Union[dict[str, Any], None] = None,
         version: str = "v1",
     ) -> str:
         """生成带参数哈希的缓存键
@@ -181,7 +185,7 @@ class CacheKeyManager:
 class RedisCacheManager:
     """Redis缓存管理器"""
 
-    def __init__(self, redis_url: str | None = None):
+    def __init__(self, redis_url: Union[str, None] = None):
         """初始化Redis连接
 
         Args:
@@ -224,11 +228,13 @@ class RedisCacheManager:
 
         return self._redis_client
 
+
     def _serialize_value(self, value: Any) -> str:
         """序列化值为JSON字符串"""
-        if isinstance(value, str | int | float | bool):
+        if isinstance(value, (str, int, float, bool)):
             return json.dumps(value)
         return json.dumps(value, default=str, ensure_ascii=False)
+
 
     def _deserialize_value(self, value: str) -> Any:
         """反序列化JSON字符串为Python对象"""
@@ -237,12 +243,14 @@ class RedisCacheManager:
         except (json.JSONDecodeError, TypeError):
             return value
 
+
     def _handle_redis_error(self, operation: str, key: str, error: Exception):
         """处理Redis操作错误"""
         self.stats["errors"] += 1
         logger.error(f"Redis {operation} operation failed for key '{key}': {error}")
 
-    async def get(self, key: str) -> Any | None:
+
+    async def get(self, key: str) -> Union[Any, None]:
         """获取缓存值
 
         Args:
@@ -263,8 +271,9 @@ class RedisCacheManager:
             self._handle_redis_error("GET", key, e)
             return None
 
+
     async def set(
-        self, key: str, value: Any, ttl: int | None = None, key_type: str | None = None
+        self, key: str, value: Any, ttl: Union[int, None] = None, key_type: Union[str, None] = None
     ) -> bool:
         """设置缓存值
 
@@ -298,6 +307,7 @@ class RedisCacheManager:
             self._handle_redis_error("SET", key, e)
             return False
 
+
     def delete(self, key: str) -> bool:
         """删除缓存
 
@@ -316,6 +326,7 @@ class RedisCacheManager:
         except Exception as e:
             self._handle_redis_error("DELETE", key, e)
             return False
+
 
     def delete_pattern(self, pattern: str) -> int:
         """批量删除匹配模式的缓存
@@ -340,6 +351,7 @@ class RedisCacheManager:
             self._handle_redis_error("DELETE_PATTERN", pattern, e)
             return 0
 
+
     def exists(self, key: str) -> bool:
         """检查缓存是否存在
 
@@ -354,6 +366,7 @@ class RedisCacheManager:
         except Exception as e:
             self._handle_redis_error("EXISTS", key, e)
             return False
+
 
     def expire(self, key: str, ttl: int) -> bool:
         """设置缓存过期时间
@@ -373,6 +386,7 @@ class RedisCacheManager:
             self._handle_redis_error("EXPIRE", key, e)
             return False
 
+
     def get_ttl(self, key: str) -> int:
         """获取缓存剩余过期时间
 
@@ -388,9 +402,10 @@ class RedisCacheManager:
             self._handle_redis_error("TTL", key, e)
             return -2
 
+
     def increment(
-        self, key: str, amount: int = 1, ttl: int | None = None
-    ) -> int | None:
+        self, key: str, amount: int = 1, ttl: Union[int, None] = None
+    ) -> Union[int, None]:
         """原子性递增操作
 
         Args:
@@ -409,6 +424,7 @@ class RedisCacheManager:
         except Exception as e:
             self._handle_redis_error("INCR", key, e)
             return None
+
 
     def get_stats(self) -> dict[str, Any]:
         """获取缓存统计信息
@@ -441,10 +457,12 @@ class RedisCacheManager:
             "last_updated": datetime.now().isoformat(),
         }
 
+
     def clear_stats(self):
         """清空统计信息"""
         self.stats = {"hits": 0, "misses": 0, "sets": 0, "deletes": 0, "errors": 0}
         logger.info("Cache statistics cleared")
+
 
     def flush_all(self) -> bool:
         """清空所有缓存（谨慎使用）
@@ -460,6 +478,7 @@ class RedisCacheManager:
             logger.error(f"Failed to flush cache: {e}")
             return False
 
+
     def ping(self) -> bool:
         """检查Redis连接状态
 
@@ -471,6 +490,7 @@ class RedisCacheManager:
         except Exception as e:
             logger.error(f"Redis ping failed: {e}")
             return False
+
 
     async def health_check(self) -> bool:
         """Redis健康检查
@@ -501,6 +521,7 @@ class RedisCacheManager:
             logger.error(f"Redis health check failed: {e}")
             return False
 
+
     def get_info(self, section: str = "memory") -> Mapping[str, Any]:
         """获取Redis信息
 
@@ -516,6 +537,7 @@ class RedisCacheManager:
             logger.error(f"Failed to get Redis info: {e}")
             return {}
 
+
     def close(self):
         """关闭Redis连接"""
         if self._connection_pool:
@@ -528,7 +550,7 @@ cache_manager = RedisCacheManager()
 
 
 def cache_result(
-    key_type: str, ttl: int | None = None, key_generator: Callable | None = None
+    key_type: str, ttl: Union[int, None] = None, key_generator: Union[Callable, None] = None
 ):
     """缓存装饰器
 

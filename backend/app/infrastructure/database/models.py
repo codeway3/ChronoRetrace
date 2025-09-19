@@ -1,14 +1,18 @@
+# -*- coding: utf-8 -*-
 from datetime import datetime
+import enum
 
 from sqlalchemy import (
     Boolean,
     Column,
     Date,
     DateTime,
+    Enum as SQLEnum,
     Float,
     ForeignKey,
     Index,
     Integer,
+    JSON,
     Numeric,
     String,
     Text,
@@ -513,3 +517,214 @@ class UserActivityLog(Base):
         Index("idx_user_activity_logs_created", "created_at"),
         Index("idx_user_activity_logs_success", "success"),
     )
+
+
+# Asset Configuration Models
+
+class AssetType(enum.Enum):
+    """资产类型枚举"""
+    A_SHARE = "A_SHARE"
+    US_STOCK = "US_STOCK"
+    HK_STOCK = "HK_STOCK"
+    CRYPTO = "CRYPTO"
+    FUTURES = "FUTURES"
+    OPTIONS = "OPTIONS"
+    BONDS = "BONDS"
+    FUNDS = "FUNDS"
+
+
+class AssetConfigStatus(enum.Enum):
+    """资产配置状态枚举"""
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+    MAINTENANCE = "MAINTENANCE"
+
+
+class AssetConfig(Base):
+    """资产类型配置表"""
+    __tablename__ = "asset_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_type = Column(SQLEnum(AssetType), nullable=False, unique=True, index=True)
+    name = Column(String(100), nullable=False, comment="资产类型名称")
+    display_name = Column(String(100), nullable=False, comment="显示名称")
+    description = Column(Text, comment="资产类型描述")
+
+    # 功能支持配置
+    supported_functions = Column(JSON, nullable=False, default=list, comment="支持的功能列表")
+
+    # 筛选器配置
+    screener_config = Column(JSON, comment="筛选器配置")
+
+    # 回测配置
+    backtest_config = Column(JSON, comment="回测配置")
+
+    # 数据源配置
+    data_source_config = Column(JSON, comment="数据源配置")
+
+    # 状态和元数据
+    status = Column(SQLEnum(AssetConfigStatus), default=AssetConfigStatus.ACTIVE, nullable=False)
+    is_enabled = Column(Boolean, default=True, nullable=False, comment="是否启用")
+    sort_order = Column(Integer, default=0, comment="排序顺序")
+
+    # 时间戳
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+    def __repr__(self):
+        return "<AssetConfig(asset_type={}, name={})>".format(self.asset_type, self.name)
+
+
+class AssetSymbol(Base):
+    """资产标的表"""
+    __tablename__ = "asset_symbols"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_type = Column(SQLEnum(AssetType), nullable=False, index=True)
+    symbol = Column(String(50), nullable=False, index=True, comment="标的代码")
+    name = Column(String(200), nullable=False, comment="标的名称")
+    full_name = Column(String(500), nullable=True, comment="完整名称")
+    exchange = Column(String(50), nullable=True, comment="交易所")
+    sector = Column(String(100), nullable=True, comment="行业/板块")
+    industry = Column(String(100), nullable=True, comment="细分行业")
+    market_cap = Column(String(50), nullable=True, comment="市值")
+    currency = Column(String(10), nullable=True, comment="交易货币")
+    lot_size = Column(Integer, nullable=True, comment="最小交易单位")
+    tick_size = Column(String(20), nullable=True, comment="最小价格变动单位")
+    is_active = Column(Boolean, default=True, nullable=False, comment="是否活跃")
+    is_tradable = Column(Boolean, default=True, nullable=False, comment="是否可交易")
+    listing_date = Column(DateTime, nullable=True, comment="上市日期")
+    delisting_date = Column(DateTime, nullable=True, comment="退市日期")
+    extra_data = Column(JSON, nullable=True, comment="扩展元数据")
+
+    # 时间戳
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("asset_type", "symbol", name="_asset_type_symbol_uc"),
+        Index("idx_asset_symbols_exchange", "exchange"),
+        Index("idx_asset_symbols_sector", "sector"),
+        Index("idx_asset_symbols_active", "is_active"),
+        Index("idx_asset_symbols_tradable", "is_tradable"),
+    )
+
+
+    def __repr__(self):
+        return "<AssetSymbol(asset_type={}, symbol={}, name={})>".format(self.asset_type, self.symbol, self.name)
+
+
+class AssetMarketData(Base):
+    """资产市场数据表"""
+    __tablename__ = "asset_market_data"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_type = Column(SQLEnum(AssetType), nullable=False, index=True)
+    symbol = Column(String(50), nullable=False, index=True)
+    open_price = Column(String(20), nullable=True, comment="开盘价")
+    high_price = Column(String(20), nullable=True, comment="最高价")
+    low_price = Column(String(20), nullable=True, comment="最低价")
+    close_price = Column(String(20), nullable=True, comment="收盘价")
+    volume = Column(String(30), nullable=True, comment="成交量")
+    turnover = Column(String(30), nullable=True, comment="成交额")
+    change_amount = Column(String(20), nullable=True, comment="涨跌额")
+    change_percent = Column(String(10), nullable=True, comment="涨跌幅")
+    amplitude = Column(String(10), nullable=True, comment="振幅")
+    ma5 = Column(String(20), nullable=True, comment="5日均线")
+    ma10 = Column(String(20), nullable=True, comment="10日均线")
+    ma20 = Column(String(20), nullable=True, comment="20日均线")
+    ma60 = Column(String(20), nullable=True, comment="60日均线")
+    pe_ratio = Column(String(10), nullable=True, comment="市盈率")
+    pb_ratio = Column(String(10), nullable=True, comment="市净率")
+    ps_ratio = Column(String(10), nullable=True, comment="市销率")
+    dividend_yield = Column(String(10), nullable=True, comment="股息率")
+    open_interest = Column(String(30), nullable=True, comment="持仓量")
+    settlement_price = Column(String(20), nullable=True, comment="结算价")
+    implied_volatility = Column(String(10), nullable=True, comment="隐含波动率")
+    market_cap_rank = Column(Integer, nullable=True, comment="市值排名")
+    circulating_supply = Column(String(30), nullable=True, comment="流通供应量")
+    total_supply = Column(String(30), nullable=True, comment="总供应量")
+    trade_date = Column(DateTime, nullable=False, index=True, comment="交易日期")
+    data_timestamp = Column(DateTime, nullable=True, comment="数据时间戳")
+
+    # 时间戳
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("asset_type", "symbol", "trade_date", name="_asset_symbol_date_uc"),
+        Index("idx_asset_market_data_date", "trade_date"),
+        Index("idx_asset_market_data_symbol_date", "symbol", "trade_date"),
+    )
+
+
+    def __repr__(self):
+        return "<AssetMarketData(asset_type={}, symbol={}, trade_date={})>".format(self.asset_type, self.symbol, self.trade_date)
+
+
+class AssetScreenerTemplate(Base):
+    """资产筛选器模板表"""
+    __tablename__ = "asset_screener_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_type = Column(SQLEnum(AssetType), nullable=False, index=True)
+    name = Column(String(100), nullable=False, comment="模板名称")
+    description = Column(Text, nullable=True, comment="模板描述")
+    criteria = Column(JSON, nullable=False, comment="筛选条件配置")
+    is_public = Column(Boolean, default=False, nullable=False, comment="是否公开模板")
+    is_system = Column(Boolean, default=False, nullable=False, comment="是否系统模板")
+    usage_count = Column(Integer, default=0, nullable=False, comment="使用次数")
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True, comment="创建者ID")
+
+    # 时间戳
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 关系
+    creator = relationship("User", foreign_keys=[created_by])
+
+    __table_args__ = (
+        Index("idx_screener_templates_public", "is_public"),
+        Index("idx_screener_templates_system", "is_system"),
+        Index("idx_screener_templates_creator", "created_by"),
+    )
+
+
+    def __repr__(self):
+        return "<AssetScreenerTemplate(asset_type={}, name={})>".format(self.asset_type, self.name)
+
+
+class AssetBacktestTemplate(Base):
+    """资产回测模板表"""
+    __tablename__ = "asset_backtest_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asset_type = Column(SQLEnum(AssetType), nullable=False, index=True)
+    name = Column(String(100), nullable=False, comment="模板名称")
+    description = Column(Text, nullable=True, comment="模板描述")
+    strategy_type = Column(String(50), nullable=False, comment="策略类型")
+    strategy_config = Column(JSON, nullable=False, comment="策略配置")
+    backtest_config = Column(JSON, nullable=True, comment="回测配置")
+    is_public = Column(Boolean, default=False, nullable=False, comment="是否公开模板")
+    is_system = Column(Boolean, default=False, nullable=False, comment="是否系统模板")
+    usage_count = Column(Integer, default=0, nullable=False, comment="使用次数")
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True, comment="创建者ID")
+
+    # 时间戳
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 关系
+    creator = relationship("User", foreign_keys=[created_by])
+
+    __table_args__ = (
+        Index("idx_backtest_templates_strategy", "strategy_type"),
+        Index("idx_backtest_templates_public", "is_public"),
+        Index("idx_backtest_templates_system", "is_system"),
+        Index("idx_backtest_templates_creator", "created_by"),
+    )
+
+
+    def __repr__(self):
+        return "<AssetBacktestTemplate(asset_type={}, name={}, strategy_type={})>".format(self.asset_type, self.name, self.strategy_type)

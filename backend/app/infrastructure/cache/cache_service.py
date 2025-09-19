@@ -1,5 +1,9 @@
-#!/usr/bin/env python3
+from __future__ import annotations
+from typing import Union
+
+# !/usr/bin/env python3
 """
+
 统一缓存服务接口
 整合Redis缓存和内存缓存，提供简单易用的缓存API
 """
@@ -73,9 +77,10 @@ class CacheService:
             },
         }
 
+
     async def get_stock_info(
         self, stock_code: str, market: str = "A_share"
-    ) -> Any | None:
+    ) -> Union[Any, None]:
         """获取股票基本信息
 
         Args:
@@ -92,6 +97,7 @@ class CacheService:
             return await self.multi_cache.get(key)
         else:
             return await self.redis_cache.get(key)
+
 
     async def set_stock_info(
         self, stock_code: str, data: Any, market: str = "A_share"
@@ -116,9 +122,10 @@ class CacheService:
         else:
             return await self.redis_cache.set(key, data, ttl=strategy["redis_ttl"])
 
+
     async def get_stock_daily_data(
         self, stock_code: str, date_str: str, market: str = "A_share"
-    ) -> Any | None:
+    ) -> Union[Any, None]:
         """获取股票日线数据
 
         Args:
@@ -136,6 +143,7 @@ class CacheService:
             return await self.multi_cache.get(key)
         else:
             return await self.redis_cache.get(key)
+
 
     async def set_stock_daily_data(
         self, stock_code: str, date_str: str, data: Any, market: str = "A_share"
@@ -163,9 +171,10 @@ class CacheService:
             success = await self.redis_cache.set(key, data, ttl=strategy["redis_ttl"])
             return success
 
+
     async def get_stock_metrics(
         self, stock_code: str, date_str: str, market: str = "A_share"
-    ) -> Any | None:
+    ) -> Union[Any, None]:
         """获取股票技术指标
 
         Args:
@@ -185,6 +194,7 @@ class CacheService:
             return await self.multi_cache.get(key)
         else:
             return await self.redis_cache.get(key)
+
 
     async def set_stock_metrics(
         self, stock_code: str, date_str: str, data: Any, market: str = "A_share"
@@ -214,7 +224,8 @@ class CacheService:
             success = await self.redis_cache.set(key, data, ttl=strategy["redis_ttl"])
             return success
 
-    async def get_filter_result(self, filter_hash: str) -> Any | None:
+
+    async def get_filter_result(self, filter_hash: str) -> Union[Any, None]:
         """获取筛选结果
 
         Args:
@@ -225,6 +236,7 @@ class CacheService:
         """
         key = self.key_manager.generate_key("filter_result", filter_hash)
         return await self.redis_cache.get(key)
+
 
     async def set_filter_result(self, filter_hash: str, data: Any) -> bool:
         """设置筛选结果
@@ -239,6 +251,7 @@ class CacheService:
         key = self.key_manager.generate_key("filter_result", filter_hash)
         strategy = self.cache_strategies["filter_result"]
         return await self.redis_cache.set(key, data, ttl=strategy["redis_ttl"])
+
 
     def invalidate_stock_data(self, stock_code: str, market: str = "A_share"):
         """失效股票相关的所有缓存
@@ -263,7 +276,8 @@ class CacheService:
         # 注意：这里简化处理，实际应该实现更精确的模式匹配删除
         logger.info(f"Invalidated cache for stock: {stock_code}")
 
-    def invalidate_market_data(self, market: str, date_str: str | None = None):
+
+    def invalidate_market_data(self, market: str, date_str: Union[str, None] = None):
         """失效市场相关的缓存
 
         Args:
@@ -290,6 +304,7 @@ class CacheService:
             logger.info(
                 f"Invalidated {deleted_count} cache entries for pattern: {pattern}"
             )
+
 
     def preload_hot_data(self, stock_codes: list[str], market: str = "A_share"):
         """预加载热点数据
@@ -321,7 +336,8 @@ class CacheService:
 
         logger.info("Preload completed")
 
-    async def get(self, key: str) -> Any | None:
+
+    async def get(self, key: str) -> Union[Any, None]:
         """获取缓存数据
 
         Args:
@@ -346,7 +362,8 @@ class CacheService:
             logger.error(f"Failed to get cache for key {key}: {e}")
             return None
 
-    async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
+
+    async def set(self, key: str, value: Any, ttl: Union[int, None] = None) -> bool:
         """设置缓存数据
 
         Args:
@@ -366,6 +383,7 @@ class CacheService:
             logger.error(f"Failed to set cache for key {key}: {e}")
             return False
 
+
     def delete(self, key: str) -> bool:
         """删除缓存数据
 
@@ -383,6 +401,7 @@ class CacheService:
         except Exception as e:
             logger.error(f"Failed to delete cache for key {key}: {e}")
             return False
+
 
     def exists(self, key: str) -> bool:
         """检查缓存是否存在
@@ -402,6 +421,7 @@ class CacheService:
         except Exception as e:
             logger.error(f"Failed to check cache existence for key {key}: {e}")
             return False
+
 
     def clear_by_pattern(self, pattern: str) -> int:
         """按模式清理缓存
@@ -425,6 +445,7 @@ class CacheService:
         except Exception as e:
             logger.error(f"Failed to clear cache by pattern {pattern}: {e}")
             return 0
+
 
     def get_cache_stats(self) -> dict[str, Any]:
         """
@@ -464,6 +485,7 @@ class CacheService:
             logger.error(f"Failed to get cache stats: {e}")
             return {"error": str(e), "timestamp": datetime.now().isoformat()}
 
+
     async def health_check(self) -> bool:
         """缓存健康检查
 
@@ -492,6 +514,7 @@ class CacheService:
             logger.error(f"Cache health check failed: {e}")
             return False
 
+
     def get_comprehensive_stats(self) -> dict[str, Any]:
         """获取综合缓存统计信息
 
@@ -504,6 +527,7 @@ class CacheService:
             "memory_cache": self.memory_cache.get_stats(),
             "cache_strategies": self.cache_strategies,
         }
+
 
     def get_detailed_health_check(self) -> dict[str, Any]:
         """获取详细的缓存健康检查信息
@@ -542,12 +566,14 @@ class CacheService:
 
         return health_status
 
+
     def cleanup_expired(self):
         """清理过期缓存"""
         # 内存缓存会自动清理过期项
         # Redis缓存依赖TTL自动过期
         stats = self.memory_cache.cleanup_and_stats()
         logger.info(f"Cache cleanup completed. Memory cache stats: {stats}")
+
 
     def shutdown(self):
         """关闭缓存服务"""
@@ -566,7 +592,7 @@ cache_service = CacheService()
 
 
 def smart_cache(
-    key_type: str, identifier_func: Callable | None = None, ttl: int | None = None
+    key_type: str, identifier_func: Union[Callable, None] = None, ttl: Union[int, None] = None
 ):
     """智能缓存装饰器
 

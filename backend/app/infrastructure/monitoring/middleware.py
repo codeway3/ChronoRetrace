@@ -1,4 +1,7 @@
-#!/usr/bin/env python3
+from __future__ import annotations
+from typing import Union
+
+# !/usr/bin/env python3
 """
 ChronoRetrace - 监控中间件
 
@@ -8,6 +11,9 @@ ChronoRetrace - 监控中间件
 Author: ChronoRetrace Team
 Date: 2024
 """
+
+
+
 
 import logging
 import time
@@ -32,7 +38,7 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        exclude_paths: list | None = None,
+        exclude_paths: Union[list, None] = None,
         include_request_body: bool = False,
         include_response_body: bool = False,
     ):
@@ -57,6 +63,7 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         self.include_request_body = include_request_body
         self.include_response_body = include_response_body
 
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
         处理请求并收集性能指标
@@ -80,7 +87,7 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         endpoint = self._extract_endpoint(request)
 
         # 初始化响应变量
-        response: Response | None = None
+        response: Union[Response, None] = None
         success = True
         status_code = 200
 
@@ -140,6 +147,7 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
             # 重新抛出异常
             raise
 
+
     def _should_exclude_path(self, path: str) -> bool:
         """
         检查路径是否应该被排除
@@ -151,6 +159,7 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
             bool: 是否排除
         """
         return any(excluded in path for excluded in self.exclude_paths)
+
 
     def _extract_endpoint(self, request: Request) -> str:
         """
@@ -179,10 +188,11 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
 
         return path
 
+
     def _record_detailed_metrics(
         self,
         request: Request,
-        response: Response | None,
+        response: Union[Response, None],
         endpoint: str,
         method: str,
         response_time_ms: float,
@@ -282,6 +292,7 @@ class CacheMonitoringMiddleware(BaseHTTPMiddleware):
         """
         super().__init__(app)
 
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
         处理请求并监控缓存使用情况
@@ -305,6 +316,7 @@ class CacheMonitoringMiddleware(BaseHTTPMiddleware):
         self._analyze_cache_response(request, response)
 
         return response
+
 
     def _analyze_cache_response(self, request: Request, response: Response):
         """
@@ -340,6 +352,7 @@ class CacheMonitoringMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             logger.error(f"分析缓存响应失败: {e}")
 
+
     def _extract_endpoint(self, request: Request) -> str:
         """
         提取API端点（复用PerformanceMonitoringMiddleware的方法）
@@ -362,7 +375,7 @@ def create_monitoring_middleware(
     app: ASGIApp,
     enable_performance: bool = True,
     enable_cache: bool = True,
-    exclude_paths: list | None = None,
+    exclude_paths: Union[list, None] = None,
 ) -> ASGIApp:
     """
     创建监控中间件的工厂函数

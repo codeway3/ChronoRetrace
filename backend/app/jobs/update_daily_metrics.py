@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+from typing import Union
+
+# !/usr/bin/env python3
 """
 股票指标数据更新任务
 每天自动更新所有股票的技术指标和基本面数据，用于股票筛选器功能
@@ -26,7 +28,7 @@ from app.infrastructure.database.session import SessionLocal
 logger = logging.getLogger(__name__)
 
 
-def calculate_technical_metrics(df: pd.DataFrame) -> dict[str, Any] | None:
+def calculate_technical_metrics(df: pd.DataFrame) -> Union[dict[str, Any], None]:
     """计算技术指标
 
     约定：

@@ -43,12 +43,14 @@ class MigrationManager:
         # 确保迁移历史表存在
         self._ensure_migration_table()
 
+
     def _ensure_migration_table(self):
         """确保迁移历史表存在"""
         try:
             MigrationHistory.metadata.create_all(bind=self.engine)
         except Exception as e:
             print(f"创建迁移历史表失败: {e}")
+
 
     def get_migration_files(self) -> list[dict[str, str]]:
         """获取所有迁移文件"""
@@ -76,6 +78,7 @@ class MigrationManager:
 
         return migrations
 
+
     def get_applied_migrations(self) -> list[str]:
         """获取已应用的迁移版本列表"""
         session = self.Session()
@@ -91,6 +94,7 @@ class MigrationManager:
         finally:
             session.close()
 
+
     def get_pending_migrations(self) -> list[dict[str, str]]:
         """获取待执行的迁移"""
         all_migrations = self.get_migration_files()
@@ -103,6 +107,7 @@ class MigrationManager:
 
         return pending
 
+
     def load_migration_module(self, filepath: str):
         """动态加载迁移模块"""
         spec = importlib.util.spec_from_file_location("migration", filepath)
@@ -112,6 +117,7 @@ class MigrationManager:
         else:
             raise ImportError("无法加载迁移模块: spec 或 loader为空")
         return module
+
 
     def apply_migration(self, migration: dict[str, str]) -> bool:
         """应用单个迁移"""
@@ -172,6 +178,7 @@ class MigrationManager:
         finally:
             session.close()
 
+
     def rollback_migration(self, migration: dict[str, str]) -> bool:
         """回滚单个迁移"""
         session = self.Session()
@@ -206,6 +213,7 @@ class MigrationManager:
         finally:
             session.close()
 
+
     def migrate(self, target_version: str = None) -> bool:
         """执行迁移到指定版本（默认为最新版本）"""
         pending_migrations = self.get_pending_migrations()
@@ -232,6 +240,7 @@ class MigrationManager:
 
         print(f"完成 {success_count}/{len(pending_migrations)} 个迁移")
         return success_count == len(pending_migrations)
+
 
     def rollback(self, target_version: str = None, steps: int = 1) -> bool:
         """回滚迁移"""
@@ -275,6 +284,7 @@ class MigrationManager:
         print(f"完成 {success_count}/{len(to_rollback)} 个回滚")
         return success_count == len(to_rollback)
 
+
     def get_migration_status(self) -> dict:
         """获取迁移状态"""
         all_migrations = self.get_migration_files()
@@ -289,6 +299,7 @@ class MigrationManager:
             "pending_migrations": [m["name"] for m in pending_migrations],
             "current_version": applied_migrations[-1] if applied_migrations else None,
         }
+
 
     def reset_database(self) -> bool:
         """重置数据库（删除所有表）"""
@@ -337,6 +348,7 @@ class MigrationManager:
         except Exception as e:
             print(f"❌ 数据库重置失败: {e}")
             return False
+
 
     def create_migration(self, name: str, description: str = "") -> str:
         """创建新的迁移文件模板"""

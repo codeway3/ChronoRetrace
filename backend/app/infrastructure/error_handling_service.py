@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import json
 import logging
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Union
 
 from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -39,11 +41,11 @@ class ErrorContext:
     """错误上下文信息"""
 
     operation: str  # 操作名称
-    record_id: int | None = None
-    table_name: str | None = None
-    user_id: int | None = None
-    request_id: str | None = None
-    additional_data: dict[str, Any] | None = None
+    record_id: Union[int, None] = None
+    table_name: Union[str, None] = None
+    user_id: Union[int, None] = None
+    request_id: Union[str, None] = None
+    additional_data: Union[dict[str, Any], None] = None
 
 
 @dataclass
@@ -56,9 +58,9 @@ class ErrorDetail:
     category: ErrorCategory
     context: ErrorContext
     timestamp: datetime
-    stack_trace: str | None = None
-    suggested_action: str | None = None
-    recovery_steps: list[str] | None = None
+    stack_trace: Union[str, None] = None
+    suggested_action: Union[str, None] = None
+    recovery_steps: Union[list[str], None] = None
 
 
 @dataclass
@@ -69,9 +71,10 @@ class ErrorResponse:
     error_code: str = ""
     error_message: str = ""
     user_message: str = ""  # 用户友好的错误信息
-    details: dict[str, Any] | None = None
-    timestamp: datetime | None = None
-    request_id: str | None = None
+    details: Union[dict[str, Any], None] = None
+    timestamp: Union[datetime, None] = None
+    request_id: Union[str, None] = None
+
 
     def __post_init__(self):
         if self.timestamp is None:
@@ -87,7 +90,7 @@ class DataQualityError(Exception):
         error_code: str = "DQ_ERROR",
         severity: ErrorSeverity = ErrorSeverity.MEDIUM,
         category: ErrorCategory = ErrorCategory.VALIDATION,
-        context: ErrorContext | None = None,
+        context: Union[ErrorContext, None] = None,
     ):
         super().__init__(message)
         self.message = message
@@ -130,7 +133,7 @@ class DeduplicationError(DataQualityError):
 class DatabaseError(DataQualityError):
     """数据库操作异常"""
 
-    def __init__(self, message: str, sql_error: Exception | None = None, **kwargs):
+    def __init__(self, message: str, sql_error: Union[Exception, None] = None, **kwargs):
         super().__init__(
             message,
             error_code="DATABASE_ERROR",
@@ -194,6 +197,7 @@ class ErrorHandlingService:
             "SYSTEM_ERROR": "系统繁忙，请稍后重试",
         }
 
+
     def handle_exception(
         self, exception: Exception, context: ErrorContext, log_to_db: bool = True
     ) -> ErrorResponse:
@@ -226,12 +230,13 @@ class ErrorHandlingService:
             self.logger.critical(f"错误处理服务异常: {str(e)}")
             return self._build_fallback_error_response()
 
+
     def handle_validation_error(
         self,
         field_name: str,
         error_code: str,
         invalid_value: Any = None,
-        context: ErrorContext | None = None,
+        context: Union[ErrorContext, None] = None,
     ) -> ErrorResponse:
         """处理数据校验错误
 
@@ -256,11 +261,12 @@ class ErrorHandlingService:
 
         return self.handle_exception(validation_error, validation_error.context)
 
+
     def handle_database_error(
         self,
         sql_error: SQLAlchemyError,
         operation: str,
-        context: ErrorContext | None = None,
+        context: Union[ErrorContext, None] = None,
     ) -> ErrorResponse:
         """处理数据库错误
 
@@ -283,6 +289,7 @@ class ErrorHandlingService:
         db_error.error_code = error_code
 
         return self.handle_exception(db_error, db_error.context, log_to_db=False)
+
 
     def _parse_exception(
         self, exception: Exception, context: ErrorContext
@@ -327,6 +334,7 @@ class ErrorHandlingService:
                 suggested_action="请联系系统管理员",
             )
 
+
     def _classify_database_error(self, sql_error: SQLAlchemyError) -> str:
         """分类数据库错误"""
         if isinstance(sql_error, IntegrityError):
@@ -339,6 +347,7 @@ class ErrorHandlingService:
             return "TIMEOUT_ERROR"
         else:
             return "DB_TRANSACTION_ERROR"
+
 
     def _get_suggested_action(self, error_code: str) -> str:
         """获取建议操作"""
@@ -353,6 +362,7 @@ class ErrorHandlingService:
             "SYSTEM_ERROR": "请联系技术支持",
         }
         return suggestions.get(error_code, "请检查输入数据并重试")
+
 
     def _get_recovery_steps(self, error_code: str) -> list[str]:
         """获取恢复步骤"""
@@ -375,6 +385,7 @@ class ErrorHandlingService:
             ],
         }
         return recovery_steps.get(error_code, ["请联系技术支持获取帮助"])
+
 
     def _log_error(self, error_detail: ErrorDetail) -> None:
         """记录错误日志"""
@@ -401,6 +412,7 @@ class ErrorHandlingService:
         }
 
         self.logger.log(log_level, log_message, extra=extra_info)
+
 
     def _log_to_database(self, error_detail: ErrorDetail) -> None:
         """记录错误到数据库"""
@@ -435,6 +447,7 @@ class ErrorHandlingService:
             self.logger.error(f"记录错误日志到数据库失败: {str(e)}")
             self.db_session.rollback()
 
+
     def _build_error_response(self, error_detail: ErrorDetail) -> ErrorResponse:
         """构建错误响应"""
         user_message = self.user_friendly_messages.get(
@@ -456,6 +469,7 @@ class ErrorHandlingService:
             request_id=error_detail.context.request_id,
         )
 
+
     def _build_fallback_error_response(self) -> ErrorResponse:
         """构建备用错误响应"""
         return ErrorResponse(
@@ -465,6 +479,7 @@ class ErrorHandlingService:
             user_message="系统繁忙，请稍后重试",
             timestamp=datetime.now(),
         )
+
 
     def create_success_response(
         self, data: Any = None, message: str = "操作成功"

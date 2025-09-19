@@ -22,6 +22,7 @@ class DatabaseInitializer:
         self.migration_manager = MigrationManager(self.database_url)
         self.engine = create_engine(self.database_url)
 
+
     def check_database_connection(self) -> bool:
         """检查数据库连接"""
         try:
@@ -32,6 +33,7 @@ class DatabaseInitializer:
         except Exception as e:
             logger.error(f"❌ 数据库连接失败: {e}")
             return False
+
 
     def check_database_exists(self) -> bool:
         """检查数据库是否存在"""
@@ -59,6 +61,7 @@ class DatabaseInitializer:
         except Exception as e:
             logger.warning(f"检查数据库存在性时出错: {e}")
             return True  # 假设存在，继续执行
+
 
     def create_database_if_not_exists(self) -> bool:
         """如果数据库不存在则创建"""
@@ -92,6 +95,7 @@ class DatabaseInitializer:
             logger.error(f"❌ 创建数据库失败: {e}")
             return False
 
+
     def run_migrations(self) -> bool:
         """执行数据库迁移"""
         try:
@@ -120,6 +124,7 @@ class DatabaseInitializer:
         except Exception as e:
             logger.error(f"❌ 执行数据库迁移时出错: {e}")
             return False
+
 
     def verify_tables(self) -> bool:
         """验证关键表是否存在"""
@@ -164,6 +169,7 @@ class DatabaseInitializer:
             logger.error(f"❌ 验证表结构时出错: {e}")
             return False
 
+
     def initialize(self, force_recreate: bool = False) -> bool:
         """完整的数据库初始化流程"""
         logger.info("开始数据库初始化...")
@@ -203,6 +209,7 @@ class DatabaseInitializer:
         finally:
             # 清理连接
             self.engine.dispose()
+
 
     def get_database_info(self) -> dict:
         """获取数据库信息"""

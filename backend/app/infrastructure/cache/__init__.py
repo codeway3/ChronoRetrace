@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 """
 缓存基础设施包
 提供多级缓存、Redis缓存和内存缓存功能

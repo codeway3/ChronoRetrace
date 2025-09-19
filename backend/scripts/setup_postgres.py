@@ -9,6 +9,11 @@ PostgreSQL数据库设置脚本
 - 运行迁移
 """
 
+from __future__ import annotations
+
+from typing import Union
+
+
 import os
 import sys
 import subprocess
@@ -169,7 +174,7 @@ def main():
     # 检查参数
     env = sys.argv[1] if len(sys.argv) > 1 else "development"
     if env not in ["development", "testing", "production"]:
-        print("用法: python setup_postgres.py [development|testing|production]")
+        print("用法: python setup_postgres.py [Union[Union[development, testing], production]]")
         sys.exit(1)
 
     print(f"设置环境: {env}")

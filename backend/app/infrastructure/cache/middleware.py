@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+from typing import Union
+
+# !/usr/bin/env python3
 """
 缓存中间件
 为FastAPI应用提供缓存功能集成
@@ -25,7 +27,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
     为HTTP请求提供自动缓存功能
     """
 
-    def __init__(self, app, cache_config: dict[str, Any] | None = None):
+    def __init__(self, app, cache_config: Union[dict[str, Any], None] = None):
         """初始化缓存中间件
 
         Args:
@@ -51,6 +53,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
         # 路径特定配置
         self.path_configs = self.cache_config.get("path_configs", {})
+
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """处理HTTP请求
@@ -122,6 +125,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
         return response
 
+
     def _is_excluded_path(self, path: str) -> bool:
         """检查路径是否被排除
 
@@ -136,6 +140,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
                 return True
         return False
 
+
     def _get_path_config(self, path: str) -> dict[str, Any]:
         """获取路径特定配置
 
@@ -149,6 +154,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
             if path.startswith(pattern):
                 return {**self.config, **config}
         return self.config
+
 
     def _generate_cache_key(self, request: Request) -> str:
         """生成缓存键
@@ -182,6 +188,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
         return f"http_cache:{cache_key}"
 
+
     def _should_cache_response(
         self, response: Response, config: dict[str, Any]
     ) -> bool:
@@ -211,6 +218,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
             return False
 
         return True
+
 
     async def _cache_response(
         self,
@@ -272,7 +280,7 @@ class CacheInvalidationMiddleware(BaseHTTPMiddleware):
     在数据更新时自动失效相关缓存
     """
 
-    def __init__(self, app, invalidation_config: dict[str, Any] | None = None):
+    def __init__(self, app, invalidation_config: Union[dict[str, Any], None] = None):
         """初始化缓存失效中间件
 
         Args:
@@ -303,6 +311,7 @@ class CacheInvalidationMiddleware(BaseHTTPMiddleware):
             },
         )
 
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """处理HTTP请求
 
@@ -321,6 +330,7 @@ class CacheInvalidationMiddleware(BaseHTTPMiddleware):
             await self._invalidate_cache(request, response)
 
         return response
+
 
     def _should_invalidate_cache(self, request: Request, response: Response) -> bool:
         """检查是否应该失效缓存
@@ -349,6 +359,7 @@ class CacheInvalidationMiddleware(BaseHTTPMiddleware):
                 return True
 
         return False
+
 
     async def _invalidate_cache(self, request: Request, response: Response):
         """失效相关缓存
@@ -399,7 +410,7 @@ class CacheInvalidationMiddleware(BaseHTTPMiddleware):
             logger.error(f"Error in cache invalidation: {e}")
 
 
-def create_cache_middleware(cache_config: dict[str, Any] | None = None):
+def create_cache_middleware(cache_config: Union[dict[str, Any], None] = None):
     """创建缓存中间件实例
 
     Args:
@@ -411,7 +422,7 @@ def create_cache_middleware(cache_config: dict[str, Any] | None = None):
     return lambda app: CacheMiddleware(app, cache_config)
 
 
-def create_invalidation_middleware(invalidation_config: dict[str, Any] | None = None):
+def create_invalidation_middleware(invalidation_config: Union[dict[str, Any], None] = None):
     """创建缓存失效中间件实例
 
     Args:
