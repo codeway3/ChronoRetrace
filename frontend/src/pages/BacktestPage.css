@@ -116,16 +116,16 @@
     .ant-row .ant-col {
         margin-bottom: 16px;
     }
-    
+
     .ant-form-item-label {
         padding-bottom: 8px;
     }
-    
+
     /* Stack range inputs vertically on small screens */
     .ant-row .ant-col .ant-row .ant-col {
         margin-bottom: 12px;
     }
-    
+
     .ant-row .ant-col .ant-row .ant-col:last-child {
         margin-bottom: 0;
     }
@@ -136,7 +136,7 @@
     .ant-form-item .ant-form-item {
         margin-bottom: 20px;
     }
-    
+
     .ant-row .ant-col .ant-form-item-label {
         padding-bottom: 6px;
     }
@@ -189,12 +189,12 @@
     .ant-table {
         font-size: 12px;
     }
-    
+
     .ant-table-thead > tr > th,
     .ant-table-tbody > tr > td {
         padding: 8px 12px;
     }
-    
+
     .ant-pagination {
         text-align: center;
     }

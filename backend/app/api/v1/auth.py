@@ -37,8 +37,6 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 @router.post(
     "/register", response_model=ApiResponse, status_code=status.HTTP_201_CREATED
 )
-
-
 async def register(
     user_data: UserCreate, request: Request, db: Session = Depends(get_db)
 ):

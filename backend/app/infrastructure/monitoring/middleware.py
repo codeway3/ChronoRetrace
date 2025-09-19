@@ -13,8 +13,6 @@ Date: 2024
 """
 
 
-
-
 import logging
 import time
 from collections.abc import Callable
@@ -62,7 +60,6 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         ]
         self.include_request_body = include_request_body
         self.include_response_body = include_response_body
-
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
@@ -147,7 +144,6 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
             # 重新抛出异常
             raise
 
-
     def _should_exclude_path(self, path: str) -> bool:
         """
         检查路径是否应该被排除
@@ -159,7 +155,6 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
             bool: 是否排除
         """
         return any(excluded in path for excluded in self.exclude_paths)
-
 
     def _extract_endpoint(self, request: Request) -> str:
         """
@@ -187,7 +182,6 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         path = re.sub(r"/[a-f0-9-]{36}", "/{uuid}", path)  # UUID
 
         return path
-
 
     def _record_detailed_metrics(
         self,
@@ -292,7 +286,6 @@ class CacheMonitoringMiddleware(BaseHTTPMiddleware):
         """
         super().__init__(app)
 
-
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
         处理请求并监控缓存使用情况
@@ -316,7 +309,6 @@ class CacheMonitoringMiddleware(BaseHTTPMiddleware):
         self._analyze_cache_response(request, response)
 
         return response
-
 
     def _analyze_cache_response(self, request: Request, response: Response):
         """
@@ -351,7 +343,6 @@ class CacheMonitoringMiddleware(BaseHTTPMiddleware):
 
         except Exception as e:
             logger.error(f"分析缓存响应失败: {e}")
-
 
     def _extract_endpoint(self, request: Request) -> str:
         """

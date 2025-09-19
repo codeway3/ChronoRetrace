@@ -9,6 +9,7 @@ from ..core.config import settings
 
 from typing import Union
 
+
 class UserBase(BaseModel):
     """用户基础模型"""
 

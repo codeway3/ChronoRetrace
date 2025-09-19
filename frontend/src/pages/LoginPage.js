@@ -38,7 +38,7 @@ const LoginPage = () => {
         username: values.username,
         password: values.password
       });
-      
+
       if (result.success) {
         const from = location.state?.from?.pathname || '/a-share';
         navigate(from, { replace: true });
@@ -59,7 +59,7 @@ const LoginPage = () => {
         email: values.email,
         password: values.password
       });
-      
+
       if (result.success) {
         setIsRegisterMode(false);
         form.resetFields();
@@ -83,7 +83,7 @@ const LoginPage = () => {
       <div className="login-background">
         <div className="login-overlay"></div>
       </div>
-      
+
       <Card className="login-card">
         <div className="login-header">
           <Title level={2} className="login-title">

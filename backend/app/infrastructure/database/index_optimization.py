@@ -41,7 +41,6 @@ class DatabaseIndexOptimizer:
         self.engine = engine or engine
         self.optimization_history: list[dict] = []
 
-
     def analyze_query_patterns(self, session: Session) -> dict[str, Any]:
         """
         分析查询模式，识别需要优化的查询
@@ -110,7 +109,6 @@ class DatabaseIndexOptimizer:
         except Exception as e:
             logger.error(f"查询模式分析失败: {e}")
             raise
-
 
     def create_optimized_indexes(self, session: Session) -> dict[str, bool]:
         """
@@ -191,7 +189,6 @@ class DatabaseIndexOptimizer:
 
         return results
 
-
     def _create_index(self, session: Session, index_config: dict) -> bool:
         """
         创建单个索引
@@ -235,7 +232,6 @@ class DatabaseIndexOptimizer:
                 return False
             raise
 
-
     def _index_exists(self, session: Session, index_name: str) -> bool:
         """
         检查索引是否存在
@@ -258,7 +254,6 @@ class DatabaseIndexOptimizer:
             return result is not None
         except Exception:
             return False
-
 
     def analyze_index_usage(self, session: Session) -> dict[str, Any]:
         """
@@ -324,7 +319,6 @@ class DatabaseIndexOptimizer:
             logger.error(f"索引使用分析失败: {e}")
             raise
 
-
     def optimize_database(self, session: Session) -> dict[str, Any]:
         """
         执行完整的数据库优化
@@ -385,7 +379,6 @@ class DatabaseIndexOptimizer:
             raise
 
         return optimization_report
-
 
     def get_optimization_recommendations(self, session: Session) -> list[str]:
         """

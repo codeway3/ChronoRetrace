@@ -591,11 +591,11 @@
     gap: 40px;
     text-align: center;
   }
-  
+
   .hero-visual {
     height: 300px;
   }
-  
+
   .gradient-text {
     font-size: 3rem !important;
   }
@@ -605,57 +605,57 @@
   .homepage-header {
     padding: 0 16px;
   }
-  
+
   .header-content {
     height: 56px;
   }
-  
+
   .logo-text {
     font-size: 20px;
   }
-  
+
   .auth-buttons .auth-btn {
     height: 36px;
     padding: 0 16px;
     font-size: 14px;
   }
-  
+
   .homepage-content {
     padding-top: 56px;
   }
-  
+
   .hero-section {
     padding: 0 16px;
     min-height: 80vh;
   }
-  
+
   .gradient-text {
     font-size: 2.5rem !important;
   }
-  
+
   .hero-description {
     font-size: 16px;
   }
-  
+
   .hero-actions {
     flex-direction: column;
     align-items: center;
   }
-  
+
   .cta-button,
   .secondary-button {
     width: 100%;
     max-width: 280px;
   }
-  
+
   .features-section {
     padding: 60px 16px;
   }
-  
+
   .cta-section {
     padding: 60px 16px;
   }
-  
+
   .floating-card {
     padding: 16px;
     font-size: 14px;
@@ -669,24 +669,24 @@
     padding: 12px 0;
     gap: 12px;
   }
-  
+
   .homepage-content {
     padding-top: 80px;
   }
-  
+
   .gradient-text {
     font-size: 2rem !important;
   }
-  
+
   .hero-visual {
     height: 200px;
   }
-  
+
   .floating-card {
     padding: 12px;
     font-size: 12px;
   }
-  
+
   .feature-card {
     padding: 24px 16px;
   }
@@ -697,20 +697,20 @@
   .features-section {
     background: #1f2937;
   }
-  
+
   .feature-card {
     background: #374151;
     border-color: #4b5563;
   }
-  
+
   .feature-title {
     color: white !important;
   }
-  
+
   .feature-description {
     color: #d1d5db;
   }
-  
+
   .section-title {
     color: white;
   }

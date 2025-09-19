@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 from typing import Union
 
+
 class FundamentalDataBase(BaseModel):
     symbol: str
     market_cap: Union[float, None] = None

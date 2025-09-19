@@ -139,14 +139,14 @@ metadata:
 data:
   redis.conf: |
     # Redis Configuration for ChronoRetrace
-    
+
     # Network
     bind 0.0.0.0
     port 6379
     tcp-backlog 511
     timeout 0
     tcp-keepalive 300
-    
+
     # General
     daemonize no
     supervised no
@@ -154,15 +154,15 @@ data:
     loglevel notice
     logfile ""
     databases 16
-    
+
     # Security
     requirepass ${REDIS_PASSWORD}
-    
+
     # Memory Management
     maxmemory 512mb
     maxmemory-policy allkeys-lru
     maxmemory-samples 5
-    
+
     # Persistence
     save 900 1
     save 300 10
@@ -172,7 +172,7 @@ data:
     rdbchecksum yes
     dbfilename dump.rdb
     dir /data
-    
+
     # AOF (Append Only File)
     appendonly yes
     appendfilename "appendonly.aof"
@@ -182,17 +182,17 @@ data:
     auto-aof-rewrite-min-size 64mb
     aof-load-truncated yes
     aof-use-rdb-preamble yes
-    
+
     # Slow Log
     slowlog-log-slower-than 10000
     slowlog-max-len 128
-    
+
     # Latency Monitoring
     latency-monitor-threshold 100
-    
+
     # Event Notification
     notify-keyspace-events ""
-    
+
     # Advanced Config
     hash-max-ziplist-entries 512
     hash-max-ziplist-value 64
@@ -273,16 +273,16 @@ data:
     # Redis Sentinel Configuration
     port 26379
     dir /tmp
-    
+
     # Monitor the master Redis instance
     sentinel monitor chronoretrace-master redis 6379 2
     sentinel auth-pass chronoretrace-master ${REDIS_PASSWORD}
-    
+
     # Timeouts and thresholds
     sentinel down-after-milliseconds chronoretrace-master 5000
     sentinel parallel-syncs chronoretrace-master 1
     sentinel failover-timeout chronoretrace-master 10000
-    
+
     # Logging
     logfile ""
     loglevel notice

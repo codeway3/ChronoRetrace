@@ -28,20 +28,20 @@ apiClient.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      
+
       const refreshToken = localStorage.getItem('refresh_token');
       if (refreshToken) {
         try {
           const response = await axios.post('http://127.0.0.1:8000/api/v1/auth/refresh', {
             refresh_token: refreshToken
           });
-          
+
           const { access_token } = response.data;
           localStorage.setItem('access_token', access_token);
-          
+
           // 重试原请求
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
           return apiClient(originalRequest);
@@ -58,7 +58,7 @@ apiClient.interceptors.response.use(
         window.location.href = '/login';
       }
     }
-    
+
     return Promise.reject(error);
   }
 );

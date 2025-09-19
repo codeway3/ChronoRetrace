@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from enum import Enum
 
+
 class AssetType(str, Enum):
     A_SHARE = "A_SHARE"
     US_STOCK = "US_STOCK"
@@ -18,6 +19,7 @@ class AssetConfigStatus(str, Enum):
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
     MAINTENANCE = "MAINTENANCE"
+
 
 # Asset Config Schemas
 class AssetConfigBase(BaseModel):
@@ -56,9 +58,9 @@ class AssetConfigResponse(AssetConfigBase):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 
-
     class Config:
         from_attributes = True
+
 
 # Asset Symbol Schemas
 class AssetSymbolBase(BaseModel):
@@ -72,7 +74,9 @@ class AssetSymbolBase(BaseModel):
     market_cap: Optional[str] = Field(None, max_length=50, description="市值")
     currency: Optional[str] = Field(None, max_length=10, description="交易货币")
     lot_size: Optional[int] = Field(None, description="最小交易单位")
-    tick_size: Optional[str] = Field(None, max_length=20, description="最小价格变动单位")
+    tick_size: Optional[str] = Field(
+        None, max_length=20, description="最小价格变动单位"
+    )
     is_active: bool = Field(True, description="是否活跃")
     is_tradable: bool = Field(True, description="是否可交易")
     listing_date: Optional[datetime] = Field(None, description="上市日期")
@@ -106,9 +110,9 @@ class AssetSymbolResponse(AssetSymbolBase):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 
-
     class Config:
         from_attributes = True
+
 
 # Asset Market Data Schemas
 class AssetMarketDataBase(BaseModel):
@@ -133,9 +137,13 @@ class AssetMarketDataBase(BaseModel):
     dividend_yield: Optional[str] = Field(None, max_length=10, description="股息率")
     open_interest: Optional[str] = Field(None, max_length=30, description="持仓量")
     settlement_price: Optional[str] = Field(None, max_length=20, description="结算价")
-    implied_volatility: Optional[str] = Field(None, max_length=10, description="隐含波动率")
+    implied_volatility: Optional[str] = Field(
+        None, max_length=10, description="隐含波动率"
+    )
     market_cap_rank: Optional[int] = Field(None, description="市值排名")
-    circulating_supply: Optional[str] = Field(None, max_length=30, description="流通供应量")
+    circulating_supply: Optional[str] = Field(
+        None, max_length=30, description="流通供应量"
+    )
     total_supply: Optional[str] = Field(None, max_length=30, description="总供应量")
     trade_date: datetime = Field(..., description="交易日期")
     data_timestamp: Optional[datetime] = Field(None, description="数据时间戳")
@@ -177,9 +185,9 @@ class AssetMarketDataResponse(AssetMarketDataBase):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 
-
     class Config:
         from_attributes = True
+
 
 # Asset Screener Template Schemas
 class AssetScreenerTemplateBase(BaseModel):
@@ -210,9 +218,9 @@ class AssetScreenerTemplateResponse(AssetScreenerTemplateBase):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 
-
     class Config:
         from_attributes = True
+
 
 # Asset Backtest Template Schemas
 class AssetBacktestTemplateBase(BaseModel):
@@ -246,7 +254,6 @@ class AssetBacktestTemplateResponse(AssetBacktestTemplateBase):
     id: int
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
-
 
     class Config:
         from_attributes = True

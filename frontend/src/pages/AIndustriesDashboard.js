@@ -82,7 +82,7 @@ export default function AIndustriesDashboard(){
   const [window, setWindow] = useState('20D');
   const [overview, setOverview] = useState([]);
   const [loading, setLoading] = useState(false);
-  
+
   const [expandedRowKey, setExpandedRowKey] = useState(null);
   const [constituentData, setConstituentData] = useState([]);
   const [constituentLoading, setConstituentLoading] = useState(false);
@@ -164,7 +164,7 @@ export default function AIndustriesDashboard(){
               onExpand: handleExpand,
               expandRowByClick: true,
               // Only allow one row to be expanded at a time
-              rowExpandable: record => true, 
+              rowExpandable: record => true,
             }}
           />
         ) : (

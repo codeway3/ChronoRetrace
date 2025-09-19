@@ -23,11 +23,11 @@ const ScreenerPage = () => {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    
+
     // Use ref to track current page to avoid dependency issues
     const currentPageRef = useRef(1);
     const pageSizeRef = useRef(20);
-    
+
     // Update refs when pagination changes
     useEffect(() => {
         currentPageRef.current = pagination.current;
@@ -95,10 +95,10 @@ const ScreenerPage = () => {
         { title: '代码', dataIndex: 'code', key: 'code', sorter: (a, b) => a.code.localeCompare(b.code) },
         { title: '名称', dataIndex: 'name', key: 'name', sorter: (a, b) => a.name.localeCompare(b.name) },
         { title: '市盈率', dataIndex: 'pe_ratio', key: 'pe_ratio', sorter: (a, b) => (a.pe_ratio || 0) - (b.pe_ratio || 0), render: val => val ? val.toFixed(2) : 'N/A' },
-        { 
-            title: '总市值', 
-            dataIndex: 'market_cap', 
-            key: 'market_cap', 
+        {
+            title: '总市值',
+            dataIndex: 'market_cap',
+            key: 'market_cap',
             sorter: (a, b) => (a.market_cap || 0) - (b.market_cap || 0),
             render: (cap) => cap ? (cap / 100000000).toFixed(2) + ' 亿' : 'N/A'
         },
@@ -112,7 +112,7 @@ const ScreenerPage = () => {
                     通过组合不同的筛选条件来发现符合您投资策略的股票。所有条件将以“与”(AND)的逻辑进行组合。
                 </Paragraph>
             </Card>
-            
+
             <Card title="筛选条件" style={{ marginBottom: '20px' }}>
                 <FilterBuilder onConditionsChange={handleConditionsChange} />
             </Card>

@@ -33,7 +33,7 @@ const authReducer = (state, action) => {
         isLoading: true,
         error: null
       };
-    
+
     case AUTH_ACTIONS.LOGIN_SUCCESS:
     case AUTH_ACTIONS.LOAD_USER_SUCCESS:
       return {
@@ -43,7 +43,7 @@ const authReducer = (state, action) => {
         isLoading: false,
         error: null
       };
-    
+
     case AUTH_ACTIONS.LOGIN_FAILURE:
     case AUTH_ACTIONS.LOAD_USER_FAILURE:
       return {
@@ -53,7 +53,7 @@ const authReducer = (state, action) => {
         isLoading: false,
         error: action.payload
       };
-    
+
     case AUTH_ACTIONS.LOGOUT:
       return {
         ...state,
@@ -62,19 +62,19 @@ const authReducer = (state, action) => {
         isLoading: false,
         error: null
       };
-    
+
     case AUTH_ACTIONS.UPDATE_USER:
       return {
         ...state,
         user: { ...state.user, ...action.payload }
       };
-    
+
     case AUTH_ACTIONS.CLEAR_ERROR:
       return {
         ...state,
         error: null
       };
-    
+
     default:
       return state;
   }
@@ -98,7 +98,7 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: AUTH_ACTIONS.LOAD_USER_START });
       const response = await authApi.getCurrentUser();
       const user = response.data;
-      
+
       authUtils.saveUserInfo(user);
       dispatch({ type: AUTH_ACTIONS.LOAD_USER_SUCCESS, payload: user });
     } catch (error) {
@@ -114,20 +114,20 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
       const response = await authApi.login(credentials);
       const { access_token, refresh_token, user } = response.data;
-      
+
       authUtils.saveTokens(access_token, refresh_token);
       authUtils.saveUserInfo(user);
-      
+
       dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: user });
       message.success('登录成功！');
-      
+
       return { success: true };
     } catch (error) {
       let errorMessage = '登录失败，请检查用户名和密码';
-      
+
       if (error.response?.data) {
         const errorData = error.response.data;
-        
+
         // 处理Pydantic验证错误
         if (Array.isArray(errorData.detail)) {
           // 格式化验证错误信息
@@ -142,10 +142,10 @@ export const AuthProvider = ({ children }) => {
           errorMessage = errorData.message;
         }
       }
-      
+
       dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: errorMessage });
       message.error(errorMessage);
-      
+
       return { success: false, error: errorMessage };
     }
   };
@@ -158,10 +158,10 @@ export const AuthProvider = ({ children }) => {
       return { success: true, data: response.data };
     } catch (error) {
       let errorMessage = '注册失败，请稍后重试';
-      
+
       if (error.response?.data) {
         const errorData = error.response.data;
-        
+
         // 处理Pydantic验证错误
         if (Array.isArray(errorData.detail)) {
           // 格式化验证错误信息
@@ -176,7 +176,7 @@ export const AuthProvider = ({ children }) => {
           errorMessage = errorData.message;
         }
       }
-      
+
       message.error(errorMessage);
       return { success: false, error: errorMessage };
     }
@@ -200,11 +200,11 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authApi.updateProfile(userData);
       const updatedUser = response.data;
-      
+
       authUtils.saveUserInfo(updatedUser);
       dispatch({ type: AUTH_ACTIONS.UPDATE_USER, payload: updatedUser });
       message.success('资料更新成功！');
-      
+
       return { success: true, data: updatedUser };
     } catch (error) {
       const errorMessage = error.response?.data?.detail || '更新失败，请稍后重试';

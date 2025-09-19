@@ -24,10 +24,10 @@ const ProtectedRoute = ({ children }) => {
   // 如果用户未登录，重定向到登录页面
   if (!user) {
     return (
-      <Navigate 
-        to="/login" 
-        state={{ from: location }} 
-        replace 
+      <Navigate
+        to="/login"
+        state={{ from: location }}
+        replace
       />
     );
   }

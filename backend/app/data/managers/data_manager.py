@@ -79,7 +79,6 @@ class StockDataFetcher:
         self.start_date = (datetime.now() - timedelta(days=15 * 365)).date()
         self.end_date = datetime.now().date()
 
-
     def fetch_stock_data(self):
         """
         Main method to fetch stock data, implementing the cache-aside pattern.
@@ -119,7 +118,6 @@ class StockDataFetcher:
 
         return api_data_df
 
-
     def _fetch_from_db(self):
         """Fetches stock K-line data from the local SQLite database."""
         logger.info(
@@ -144,7 +142,6 @@ class StockDataFetcher:
             df = df.drop(columns=["id"])
         return df
 
-
     def _fetch_from_api(self):
         """Fetches stock data from the appropriate external API based on market type."""
         if self.market_type == "A_share":
@@ -160,7 +157,6 @@ class StockDataFetcher:
             )
         else:
             raise ValueError(f"Unsupported market type: {self.market_type}")
-
 
     def _store_in_db(self, df: pd.DataFrame):
         """Stores the fetched DataFrame into the stock_data table."""
@@ -178,7 +174,10 @@ class StockDataFetcher:
 
 
 def fetch_stock_data(
-    stock_code: str, interval: str, market_type: str, trade_date: Union[date, None] = None
+    stock_code: str,
+    interval: str,
+    market_type: str,
+    trade_date: Union[date, None] = None,
 ):
     """
     Main entry point for fetching stock data.

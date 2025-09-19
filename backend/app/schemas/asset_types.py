@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 class AssetType(str, Enum):
     """投资标的类型枚举"""
+
     A_SHARE = "a-share"
     US_STOCK = "us-stock"
     CRYPTO = "crypto"
@@ -23,26 +24,28 @@ class AssetType(str, Enum):
 
 class AssetCategory(str, Enum):
     """资产功能分类枚举"""
+
     QUOTES = "quotes"  # 行情数据
-    TOOLS = "tools"    # 分析工具
+    TOOLS = "tools"  # 分析工具
 
 
 class AssetFunction(str, Enum):
     """具体功能枚举"""
-    REALTIME = "realtime"      # 实时行情
-    INDUSTRIES = "industries"   # 行业分析（仅A股）
-    SCREENER = "screener"      # 筛选器
-    BACKTEST = "backtest"      # 回溯测试
+
+    REALTIME = "realtime"  # 实时行情
+    INDUSTRIES = "industries"  # 行业分析（仅A股）
+    SCREENER = "screener"  # 筛选器
+    BACKTEST = "backtest"  # 回溯测试
 
 
 class AssetTypeConfig(BaseModel):
     """资产类型配置"""
+
     code: AssetType
     name: str
     description: str
     enabled: bool = True
     supported_functions: List[AssetFunction] = Field(default_factory=list)
-
 
     class Config:
         from_attributes = True
@@ -50,6 +53,7 @@ class AssetTypeConfig(BaseModel):
 
 class AssetTypeResponse(BaseModel):
     """资产类型响应模型"""
+
     asset_types: List[AssetTypeConfig]
     total: int
 
@@ -65,8 +69,8 @@ ASSET_TYPE_CONFIGS: Dict[AssetType, AssetTypeConfig] = {
             AssetFunction.REALTIME,
             AssetFunction.INDUSTRIES,
             AssetFunction.SCREENER,
-            AssetFunction.BACKTEST
-        ]
+            AssetFunction.BACKTEST,
+        ],
     ),
     AssetType.US_STOCK: AssetTypeConfig(
         code=AssetType.US_STOCK,
@@ -76,8 +80,8 @@ ASSET_TYPE_CONFIGS: Dict[AssetType, AssetTypeConfig] = {
         supported_functions=[
             AssetFunction.REALTIME,
             AssetFunction.SCREENER,
-            AssetFunction.BACKTEST
-        ]
+            AssetFunction.BACKTEST,
+        ],
     ),
     AssetType.CRYPTO: AssetTypeConfig(
         code=AssetType.CRYPTO,
@@ -87,8 +91,8 @@ ASSET_TYPE_CONFIGS: Dict[AssetType, AssetTypeConfig] = {
         supported_functions=[
             AssetFunction.REALTIME,
             AssetFunction.SCREENER,
-            AssetFunction.BACKTEST
-        ]
+            AssetFunction.BACKTEST,
+        ],
     ),
     AssetType.COMMODITIES: AssetTypeConfig(
         code=AssetType.COMMODITIES,
@@ -98,8 +102,8 @@ ASSET_TYPE_CONFIGS: Dict[AssetType, AssetTypeConfig] = {
         supported_functions=[
             AssetFunction.REALTIME,
             AssetFunction.SCREENER,
-            AssetFunction.BACKTEST
-        ]
+            AssetFunction.BACKTEST,
+        ],
     ),
     AssetType.FUTURES: AssetTypeConfig(
         code=AssetType.FUTURES,
@@ -109,8 +113,8 @@ ASSET_TYPE_CONFIGS: Dict[AssetType, AssetTypeConfig] = {
         supported_functions=[
             AssetFunction.REALTIME,
             AssetFunction.SCREENER,
-            AssetFunction.BACKTEST
-        ]
+            AssetFunction.BACKTEST,
+        ],
     ),
     AssetType.OPTIONS: AssetTypeConfig(
         code=AssetType.OPTIONS,
@@ -120,9 +124,9 @@ ASSET_TYPE_CONFIGS: Dict[AssetType, AssetTypeConfig] = {
         supported_functions=[
             AssetFunction.REALTIME,
             AssetFunction.SCREENER,
-            AssetFunction.BACKTEST
-        ]
-    )
+            AssetFunction.BACKTEST,
+        ],
+    ),
 }
 
 

@@ -72,7 +72,6 @@ class PerformanceMetrics:
     error_count: int = 0
     warnings_count: int = 0
 
-
     def calculate_metrics(self):
         """计算性能指标"""
         if self.end_time and self.start_time:
@@ -88,25 +87,21 @@ class MemoryManager:
         self.memory_limit_mb = memory_limit_mb
         self.logger = logging.getLogger(__name__)
 
-
     def check_memory_usage(self) -> float:
         """检查当前内存使用量 (MB)"""
         process = psutil.Process()
         memory_info = process.memory_info()
         return float(memory_info.rss) / 1024 / 1024
 
-
     def is_memory_available(self, required_mb: float = 0) -> bool:
         """检查是否有足够内存"""
         current_usage = self.check_memory_usage()
         return (current_usage + required_mb) < self.memory_limit_mb
 
-
     def force_garbage_collection(self) -> None:
         """强制垃圾回收"""
         gc.collect()
         self.logger.debug("执行垃圾回收")
-
 
     def memory_monitor(self, threshold_percent: float = 80.0) -> bool:
         """内存监控，返回是否需要清理"""
@@ -130,7 +125,6 @@ class CacheManager:
         self.miss_count = 0
         self.logger = logging.getLogger(__name__)
 
-
     def get_cached_value(self, key: str) -> Union[Any, None]:
         """获取缓存值"""
         if key in self.cache:
@@ -141,7 +135,6 @@ class CacheManager:
             self.miss_count += 1
             return None
 
-
     def set_cached_value(self, key: str, value: Any) -> None:
         """设置缓存值"""
         if len(self.cache) >= self.max_size:
@@ -149,7 +142,6 @@ class CacheManager:
 
         self.cache[key] = value
         self.access_times[key] = datetime.now()
-
 
     def _evict_oldest(self) -> None:
         """淘汰最旧的缓存项"""
@@ -160,12 +152,10 @@ class CacheManager:
         del self.cache[oldest_key]
         del self.access_times[oldest_key]
 
-
     def get_hit_rate(self) -> float:
         """获取缓存命中率"""
         total = self.hit_count + self.miss_count
         return self.hit_count / total if total > 0 else 0.0
-
 
     def clear(self) -> None:
         """清空缓存"""
@@ -212,7 +202,9 @@ def performance_monitor(func: Callable) -> Callable:
 class PerformanceOptimizationService:
     """性能优化服务类"""
 
-    def __init__(self, db_session: Session, config: Union[PerformanceConfig, None] = None):
+    def __init__(
+        self, db_session: Session, config: Union[PerformanceConfig, None] = None
+    ):
         self.db_session = db_session
         self.config = config or PerformanceConfig()
         self.logger = logging.getLogger(__name__)
@@ -255,7 +247,6 @@ class PerformanceOptimizationService:
         else:
             return self._batch_validate(data_list, market_type)  # 默认批量处理
 
-
     def _sequential_validate(
         self, data_list: list[dict[str, Any]], market_type: str
     ) -> list[ValidationReport]:
@@ -286,7 +277,6 @@ class PerformanceOptimizationService:
         self.metrics.calculate_metrics()
 
         return reports
-
 
     def _batch_validate(
         self, data_list: list[dict[str, Any]], market_type: str
@@ -325,7 +315,6 @@ class PerformanceOptimizationService:
 
         return reports
 
-
     def _parallel_validate(
         self, data_list: list[dict[str, Any]], market_type: str
     ) -> list[ValidationReport]:
@@ -360,7 +349,6 @@ class PerformanceOptimizationService:
         self.metrics.calculate_metrics()
 
         return reports
-
 
     def _validate_chunk(
         self, chunk: list[dict[str, Any]], market_type: str
@@ -425,7 +413,6 @@ class PerformanceOptimizationService:
         else:
             return self._batch_deduplicate(dedup_service, duplicate_groups)
 
-
     def _batch_deduplicate(
         self, dedup_service: DataDeduplicationService, duplicate_groups: list
     ) -> DeduplicationReport:
@@ -462,7 +449,6 @@ class PerformanceOptimizationService:
             execution_time=execution_time,
             processed_at=datetime.now(),
         )
-
 
     def _parallel_deduplicate(
         self, dedup_service: DataDeduplicationService, duplicate_groups: list
@@ -503,7 +489,6 @@ class PerformanceOptimizationService:
             processed_at=datetime.now(),
         )
 
-
     def _deduplicate_chunk(self, chunk: list) -> int:
         """去重数据块"""
         # 为每个线程创建独立的数据库会话
@@ -516,7 +501,6 @@ class PerformanceOptimizationService:
             return dedup_service.remove_database_duplicates(chunk)
         finally:
             session.close()
-
 
     async def async_process_data(
         self, data_list: list[dict[str, Any]], operation_type: str = "validation"
@@ -531,7 +515,6 @@ class PerformanceOptimizationService:
             List[Any]: 处理结果列表
         """
         semaphore = asyncio.Semaphore(self.config.max_workers)
-
 
         async def process_item(data: dict[str, Any]) -> Any:
             async with semaphore:
@@ -562,7 +545,6 @@ class PerformanceOptimizationService:
 
         return valid_results
 
-
     def optimize_database_queries(self) -> None:
         """优化数据库查询"""
         try:
@@ -576,7 +558,6 @@ class PerformanceOptimizationService:
 
         except Exception as e:
             self.logger.error(f"数据库查询优化失败: {str(e)}")
-
 
     def get_performance_report(self) -> dict[str, Any]:
         """获取性能报告"""
@@ -609,7 +590,6 @@ class PerformanceOptimizationService:
             "recommendations": self._generate_optimization_recommendations(),
         }
 
-
     def _generate_optimization_recommendations(self) -> list[str]:
         """生成优化建议"""
         recommendations = []
@@ -632,7 +612,6 @@ class PerformanceOptimizationService:
 
         return recommendations
 
-
     def cleanup_resources(self) -> None:
         """清理资源"""
         try:
@@ -645,7 +624,6 @@ class PerformanceOptimizationService:
 
         except Exception as e:
             self.logger.error(f"资源清理失败: {str(e)}")
-
 
     def __del__(self):
         """析构函数"""

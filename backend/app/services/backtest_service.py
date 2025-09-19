@@ -16,7 +16,6 @@ class BacktestService:
     def __init__(self):
         pass
 
-
     async def create_backtest(
         self,
         user: User,
@@ -24,7 +23,7 @@ class BacktestService:
         start_date: datetime,
         end_date: datetime,
         initial_capital: float,
-        db: Session
+        db: Session,
     ) -> Dict[str, Any]:
         """
         创建回测任务
@@ -53,15 +52,11 @@ class BacktestService:
             "total_return": 0.1,
             "max_drawdown": 0.05,
             "sharpe_ratio": 1.2,
-            "trades": []
+            "trades": [],
         }
 
-
     async def get_backtest_results(
-        self,
-        backtest_id: str,
-        user: User,
-        db: Session
+        self, backtest_id: str, user: User, db: Session
     ) -> Optional[Dict[str, Any]]:
         """
         获取回测结果
@@ -77,13 +72,8 @@ class BacktestService:
         # 这里是获取回测结果的占位符
         return None
 
-
     async def list_user_backtests(
-        self,
-        user: User,
-        page: int = 1,
-        size: int = 20,
-        db: Session = None
+        self, user: User, page: int = 1, size: int = 20, db: Session = None
     ) -> Dict[str, Any]:
         """
         获取用户的回测列表
@@ -98,21 +88,9 @@ class BacktestService:
             回测列表
         """
         # 这里是获取用户回测列表的占位符
-        return {
-            "items": [],
-            "total": 0,
-            "page": page,
-            "size": size,
-            "pages": 0
-        }
+        return {"items": [], "total": 0, "page": page, "size": size, "pages": 0}
 
-
-    async def delete_backtest(
-        self,
-        backtest_id: str,
-        user: User,
-        db: Session
-    ) -> bool:
+    async def delete_backtest(self, backtest_id: str, user: User, db: Session) -> bool:
         """
         删除回测
 
@@ -127,11 +105,8 @@ class BacktestService:
         # 这里是删除回测的占位符
         return True
 
-
     async def get_backtest_templates(
-        self,
-        asset_type: Optional[str] = None,
-        db: Session = None
+        self, asset_type: Optional[str] = None, db: Session = None
     ) -> List[AssetBacktestTemplateResponse]:
         """
         获取回测模板列表

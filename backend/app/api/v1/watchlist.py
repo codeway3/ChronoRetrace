@@ -35,7 +35,9 @@ class WatchlistCreate(BaseModel):
 class WatchlistUpdate(BaseModel):
     """更新自选股列表请求"""
 
-    name: Union[str, None] = Field(None, min_length=1, max_length=100, description="列表名称")
+    name: Union[str, None] = Field(
+        None, min_length=1, max_length=100, description="列表名称"
+    )
     description: Union[str, None] = Field(None, max_length=500, description="列表描述")
     is_public: Union[bool, None] = Field(None, description="是否公开")
 

@@ -92,7 +92,6 @@ class CachedStockService:
                 status_code=500, detail=f"Failed to fetch stock list: {str(e)}"
             ) from e
 
-
     async def refresh_stock_list(
         self, db: Session, market_type: str = "A_share"
     ) -> dict[str, Any]:
@@ -131,7 +130,6 @@ class CachedStockService:
             raise HTTPException(
                 status_code=500, detail=f"Failed to refresh stock list: {str(e)}"
             ) from e
-
 
     async def get_stock_data(
         self,
@@ -195,9 +193,12 @@ class CachedStockService:
                 status_code=500, detail=f"Failed to fetch stock data: {str(e)}"
             ) from e
 
-
     async def _fetch_stock_data_direct(
-        self, stock_code: str, interval: str, market_type: str, trade_date: Union[date, None]
+        self,
+        stock_code: str,
+        interval: str,
+        market_type: str,
+        trade_date: Union[date, None],
     ) -> list[StockDataBase]:
         """直接从数据源获取股票数据
 
@@ -345,7 +346,6 @@ class CachedStockService:
                 status_code=500, detail=f"Failed to fetch annual earnings: {str(e)}"
             ) from e
 
-
     async def invalidate_stock_cache(
         self, stock_code: str, market_type: str = "A_share"
     ):
@@ -378,7 +378,6 @@ class CachedStockService:
 
         except Exception as e:
             logger.error(f"Error invalidating cache for {stock_code}: {e}")
-
 
     async def preload_hot_stocks(
         self, db: Session, market_type: str = "A_share", limit: int = 100
@@ -422,7 +421,6 @@ class CachedStockService:
         except Exception as e:
             logger.error(f"Error during hot stocks preload: {e}")
 
-
     async def get_cache_stats(self) -> dict[str, Any]:
         """获取缓存统计信息
 
@@ -444,7 +442,6 @@ class CachedStockService:
         except Exception as e:
             logger.error(f"Error getting cache stats: {e}")
             return {"error": str(e)}
-
 
     async def health_check(self) -> dict[str, Any]:
         """服务健康检查

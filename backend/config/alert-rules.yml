@@ -18,7 +18,7 @@ groups:
           description: "节点 {{ $labels.instance }} 已经宕机超过1分钟"
           runbook_url: "https://runbooks.chronoretrace.com/node-down"
           dashboard_url: "https://grafana.chronoretrace.com/d/node-overview"
-      
+
       # CPU使用率过高
       - alert: HighCPUUsage
         expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
@@ -30,7 +30,7 @@ groups:
           summary: "节点 {{ $labels.instance }} CPU使用率过高"
           description: "节点 {{ $labels.instance }} CPU使用率已超过80%，当前值: {{ $value }}%"
           runbook_url: "https://runbooks.chronoretrace.com/high-cpu"
-      
+
       # CPU使用率严重过高
       - alert: CriticalCPUUsage
         expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
@@ -41,7 +41,7 @@ groups:
         annotations:
           summary: "节点 {{ $labels.instance }} CPU使用率严重过高"
           description: "节点 {{ $labels.instance }} CPU使用率已超过95%，当前值: {{ $value }}%"
-      
+
       # 内存使用率过高
       - alert: HighMemoryUsage
         expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
@@ -52,7 +52,7 @@ groups:
         annotations:
           summary: "节点 {{ $labels.instance }} 内存使用率过高"
           description: "节点 {{ $labels.instance }} 内存使用率已超过85%，当前值: {{ $value }}%"
-      
+
       # 内存使用率严重过高
       - alert: CriticalMemoryUsage
         expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
@@ -63,7 +63,7 @@ groups:
         annotations:
           summary: "节点 {{ $labels.instance }} 内存使用率严重过高"
           description: "节点 {{ $labels.instance }} 内存使用率已超过95%，当前值: {{ $value }}%"
-      
+
       # 磁盘空间不足
       - alert: DiskSpaceLow
         expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 85
@@ -74,7 +74,7 @@ groups:
         annotations:
           summary: "节点 {{ $labels.instance }} 磁盘空间不足"
           description: "节点 {{ $labels.instance }} 挂载点 {{ $labels.mountpoint }} 磁盘使用率已超过85%，当前值: {{ $value }}%"
-      
+
       # 磁盘空间严重不足
       - alert: DiskSpaceCritical
         expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 95
@@ -85,7 +85,7 @@ groups:
         annotations:
           summary: "节点 {{ $labels.instance }} 磁盘空间严重不足"
           description: "节点 {{ $labels.instance }} 挂载点 {{ $labels.mountpoint }} 磁盘使用率已超过95%，当前值: {{ $value }}%"
-      
+
       # 磁盘IO等待时间过长
       - alert: HighDiskIOWait
         expr: irate(node_cpu_seconds_total{mode="iowait"}[5m]) * 100 > 20
@@ -112,7 +112,7 @@ groups:
           summary: "服务 {{ $labels.job }} 已宕机"
           description: "服务 {{ $labels.job }} 实例 {{ $labels.instance }} 已经宕机超过30秒"
           runbook_url: "https://runbooks.chronoretrace.com/service-down"
-      
+
       # API响应时间过长
       - alert: HighAPIResponseTime
         expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="chronoretrace-backend"}[5m])) by (le)) > 2
@@ -123,7 +123,7 @@ groups:
         annotations:
           summary: "API响应时间过长"
           description: "API 95%分位响应时间已超过2秒，当前值: {{ $value }}秒"
-      
+
       # API响应时间严重过长
       - alert: CriticalAPIResponseTime
         expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="chronoretrace-backend"}[5m])) by (le)) > 5
@@ -134,7 +134,7 @@ groups:
         annotations:
           summary: "API响应时间严重过长"
           description: "API 95%分位响应时间已超过5秒，当前值: {{ $value }}秒"
-      
+
       # API错误率过高
       - alert: HighAPIErrorRate
         expr: sum(rate(http_requests_total{job="chronoretrace-backend",status=~"5.."}[5m])) / sum(rate(http_requests_total{job="chronoretrace-backend"}[5m])) * 100 > 5
@@ -145,7 +145,7 @@ groups:
         annotations:
           summary: "API错误率过高"
           description: "API 5xx错误率已超过5%，当前值: {{ $value }}%"
-      
+
       # API错误率严重过高
       - alert: CriticalAPIErrorRate
         expr: sum(rate(http_requests_total{job="chronoretrace-backend",status=~"5.."}[5m])) / sum(rate(http_requests_total{job="chronoretrace-backend"}[5m])) * 100 > 15
@@ -156,7 +156,7 @@ groups:
         annotations:
           summary: "API错误率严重过高"
           description: "API 5xx错误率已超过15%，当前值: {{ $value }}%"
-      
+
       # API请求量异常下降
       - alert: LowAPIRequestRate
         expr: sum(rate(http_requests_total{job="chronoretrace-backend"}[5m])) < 1
@@ -167,7 +167,7 @@ groups:
         annotations:
           summary: "API请求量异常下降"
           description: "API请求量已降至每秒1次以下，当前值: {{ $value }}次/秒"
-      
+
       # 应用内存使用过高
       - alert: HighApplicationMemory
         expr: process_resident_memory_bytes{job="chronoretrace-backend"} / 1024 / 1024 > 1024
@@ -195,7 +195,7 @@ groups:
           summary: "PostgreSQL数据库 {{ $labels.instance }} 已宕机"
           description: "PostgreSQL数据库 {{ $labels.instance }} 已经宕机超过1分钟"
           runbook_url: "https://runbooks.chronoretrace.com/postgres-down"
-      
+
       # 数据库连接数过高
       - alert: HighDatabaseConnections
         expr: pg_stat_activity_count / pg_settings_max_connections * 100 > 80
@@ -206,7 +206,7 @@ groups:
         annotations:
           summary: "数据库连接数过高"
           description: "数据库 {{ $labels.instance }} 连接数使用率已超过80%，当前值: {{ $value }}%"
-      
+
       # 数据库连接数严重过高
       - alert: CriticalDatabaseConnections
         expr: pg_stat_activity_count / pg_settings_max_connections * 100 > 95
@@ -217,7 +217,7 @@ groups:
         annotations:
           summary: "数据库连接数严重过高"
           description: "数据库 {{ $labels.instance }} 连接数使用率已超过95%，当前值: {{ $value }}%"
-      
+
       # 数据库复制延迟
       - alert: PostgreSQLReplicationLag
         expr: pg_replication_lag_seconds > 30
@@ -228,7 +228,7 @@ groups:
         annotations:
           summary: "PostgreSQL复制延迟过高"
           description: "PostgreSQL复制延迟已超过30秒，当前值: {{ $value }}秒"
-      
+
       # 数据库复制严重延迟
       - alert: PostgreSQLReplicationLagCritical
         expr: pg_replication_lag_seconds > 300
@@ -239,7 +239,7 @@ groups:
         annotations:
           summary: "PostgreSQL复制严重延迟"
           description: "PostgreSQL复制延迟已超过5分钟，当前值: {{ $value }}秒"
-      
+
       # 数据库慢查询过多
       - alert: HighSlowQueries
         expr: rate(pg_stat_database_tup_returned[5m]) / rate(pg_stat_database_tup_fetched[5m]) < 0.1
@@ -250,7 +250,7 @@ groups:
         annotations:
           summary: "数据库慢查询过多"
           description: "数据库 {{ $labels.instance }} 查询效率低下，返回行数/获取行数比例: {{ $value }}"
-      
+
       # 数据库锁等待时间过长
       - alert: DatabaseLockWait
         expr: pg_locks_count{mode="AccessExclusiveLock"} > 10
@@ -278,7 +278,7 @@ groups:
           summary: "Redis缓存 {{ $labels.instance }} 已宕机"
           description: "Redis缓存 {{ $labels.instance }} 已经宕机超过1分钟"
           runbook_url: "https://runbooks.chronoretrace.com/redis-down"
-      
+
       # Redis内存使用过高
       - alert: HighRedisMemoryUsage
         expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 85
@@ -289,7 +289,7 @@ groups:
         annotations:
           summary: "Redis内存使用过高"
           description: "Redis {{ $labels.instance }} 内存使用率已超过85%，当前值: {{ $value }}%"
-      
+
       # Redis内存使用严重过高
       - alert: CriticalRedisMemoryUsage
         expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 95
@@ -300,7 +300,7 @@ groups:
         annotations:
           summary: "Redis内存使用严重过高"
           description: "Redis {{ $labels.instance }} 内存使用率已超过95%，当前值: {{ $value }}%"
-      
+
       # Redis连接数过高
       - alert: HighRedisConnections
         expr: redis_connected_clients > 1000
@@ -311,7 +311,7 @@ groups:
         annotations:
           summary: "Redis连接数过高"
           description: "Redis {{ $labels.instance }} 连接数已超过1000，当前值: {{ $value }}"
-      
+
       # Redis命令执行延迟
       - alert: RedisSlowCommands
         expr: redis_slowlog_length > 100
@@ -337,7 +337,7 @@ groups:
         annotations:
           summary: "Nginx负载均衡器 {{ $labels.instance }} 已宕机"
           description: "Nginx负载均衡器 {{ $labels.instance }} 已经宕机超过1分钟"
-      
+
       # HAProxy后端服务不可用
       - alert: HAProxyBackendDown
         expr: haproxy_backend_up == 0
@@ -348,7 +348,7 @@ groups:
         annotations:
           summary: "HAProxy后端服务 {{ $labels.backend }}/{{ $labels.server }} 不可用"
           description: "HAProxy后端服务 {{ $labels.backend }}/{{ $labels.server }} 已经不可用超过1分钟"
-      
+
       # Nginx连接数过高
       - alert: HighNginxConnections
         expr: nginx_connections_active > 1000
@@ -359,7 +359,7 @@ groups:
         annotations:
           summary: "Nginx活跃连接数过高"
           description: "Nginx {{ $labels.instance }} 活跃连接数已超过1000，当前值: {{ $value }}"
-      
+
       # HAProxy队列长度过长
       - alert: HAProxyHighQueue
         expr: haproxy_backend_current_queue > 50
@@ -385,7 +385,7 @@ groups:
         annotations:
           summary: "用户登录失败率过高"
           description: "用户登录失败率已超过20%，当前值: {{ $value }}%"
-      
+
       # 股票数据更新延迟
       - alert: StockDataUpdateLag
         expr: chronoretrace_stock_data_lag_seconds > 300
@@ -396,7 +396,7 @@ groups:
         annotations:
           summary: "股票数据更新延迟"
           description: "股票数据更新延迟已超过5分钟，当前值: {{ $value }}秒"
-      
+
       # 回测任务失败率过高
       - alert: HighBacktestFailureRate
         expr: sum(rate(chronoretrace_backtest_failures_total[10m])) / sum(rate(chronoretrace_backtest_jobs_total[10m])) * 100 > 10
@@ -407,7 +407,7 @@ groups:
         annotations:
           summary: "回测任务失败率过高"
           description: "回测任务失败率已超过10%，当前值: {{ $value }}%"
-      
+
       # 活跃用户数异常下降
       - alert: LowActiveUsers
         expr: chronoretrace_active_users_total < 10
@@ -418,7 +418,7 @@ groups:
         annotations:
           summary: "活跃用户数异常下降"
           description: "活跃用户数已降至10以下，当前值: {{ $value }}"
-      
+
       # 数据质量问题
       - alert: DataQualityIssue
         expr: chronoretrace_data_quality_score < 0.95
@@ -444,7 +444,7 @@ groups:
         annotations:
           summary: "检测到异常登录尝试"
           description: "来自IP {{ $labels.source_ip }} 的登录尝试频率异常，当前值: {{ $value }}次/分钟"
-      
+
       # 暴力破解攻击
       - alert: BruteForceAttack
         expr: sum(rate(chronoretrace_login_failures_total[5m])) by (source_ip) > 20
@@ -455,7 +455,7 @@ groups:
         annotations:
           summary: "检测到暴力破解攻击"
           description: "来自IP {{ $labels.source_ip }} 的登录失败次数异常，疑似暴力破解攻击，当前值: {{ $value }}次/5分钟"
-      
+
       # 异常API调用
       - alert: SuspiciousAPIUsage
         expr: sum(rate(http_requests_total{status="403"}[5m])) by (source_ip) > 50
@@ -466,7 +466,7 @@ groups:
         annotations:
           summary: "检测到异常API调用"
           description: "来自IP {{ $labels.source_ip }} 的403错误频率异常，当前值: {{ $value }}次/5分钟"
-      
+
       # SSL证书即将过期
       - alert: SSLCertificateExpiringSoon
         expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 7
@@ -477,7 +477,7 @@ groups:
         annotations:
           summary: "SSL证书即将过期"
           description: "域名 {{ $labels.instance }} 的SSL证书将在7天内过期"
-      
+
       # SSL证书已过期
       - alert: SSLCertificateExpired
         expr: probe_ssl_earliest_cert_expiry - time() < 0
@@ -503,7 +503,7 @@ groups:
         annotations:
           summary: "Pod重启过于频繁"
           description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} 在过去1小时内重启了{{ $value }}次"
-      
+
       # Pod处于Pending状态
       - alert: PodStuckInPending
         expr: kube_pod_status_phase{phase="Pending"} == 1
@@ -514,7 +514,7 @@ groups:
         annotations:
           summary: "Pod长时间处于Pending状态"
           description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} 已处于Pending状态超过5分钟"
-      
+
       # 节点资源不足
       - alert: NodeResourceExhaustion
         expr: kube_node_status_condition{condition="Ready",status="false"} == 1
@@ -525,7 +525,7 @@ groups:
         annotations:
           summary: "Kubernetes节点资源不足"
           description: "节点 {{ $labels.node }} 处于NotReady状态"
-      
+
       # PVC存储空间不足
       - alert: PVCStorageRunningLow
         expr: (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) * 100 > 85

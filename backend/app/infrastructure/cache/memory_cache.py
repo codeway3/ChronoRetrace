@@ -30,17 +30,14 @@ class CacheItem:
     access_count: int = 0
     last_accessed: float = 0
 
-
     def __post_init__(self):
         self.last_accessed = self.created_at
-
 
     def is_expired(self) -> bool:
         """检查是否过期"""
         if self.expires_at is None:
             return False
         return time.time() > self.expires_at
-
 
     def touch(self):
         """更新访问时间和计数"""
@@ -79,7 +76,6 @@ class LRUMemoryCache:
         self._stop_cleanup = threading.Event()
         self._start_cleanup_thread()
 
-
     def _start_cleanup_thread(self):
         """启动后台清理线程"""
 
@@ -90,7 +86,6 @@ class LRUMemoryCache:
         self._cleanup_thread = threading.Thread(target=cleanup_worker, daemon=True)
         self._cleanup_thread.start()
         logger.debug("Memory cache cleanup thread started")
-
 
     def _cleanup_expired(self):
         """清理过期项"""
@@ -107,14 +102,12 @@ class LRUMemoryCache:
             if expired_keys:
                 logger.debug(f"Cleaned up {len(expired_keys)} expired cache items")
 
-
     def _evict_lru(self):
         """淘汰最少使用的项"""
         if self._cache:
             evicted_key, _ = self._cache.popitem(last=False)
             self.stats["evictions"] += 1
             logger.debug(f"Evicted LRU item: {evicted_key}")
-
 
     def get(self, key: str) -> Union[Any, None]:
         """获取缓存值
@@ -145,7 +138,6 @@ class LRUMemoryCache:
             self.stats["hits"] += 1
 
             return item.value
-
 
     def set(self, key: str, value: Any, ttl: Union[int, None] = None) -> bool:
         """设置缓存值
@@ -191,7 +183,6 @@ class LRUMemoryCache:
                 logger.error(f"Failed to set cache item {key}: {e}")
                 return False
 
-
     def delete(self, key: str) -> bool:
         """删除缓存项
 
@@ -207,7 +198,6 @@ class LRUMemoryCache:
                 self.stats["deletes"] += 1
                 return True
             return False
-
 
     def exists(self, key: str) -> bool:
         """检查缓存是否存在且未过期
@@ -230,14 +220,12 @@ class LRUMemoryCache:
 
             return True
 
-
     def clear(self):
         """清空所有缓存"""
         with self._lock:
             cleared_count = len(self._cache)
             self._cache.clear()
             logger.info(f"Cleared {cleared_count} cache items")
-
 
     def get_stats(self) -> dict[str, Any]:
         """获取缓存统计信息
@@ -266,7 +254,6 @@ class LRUMemoryCache:
                 "utilization": round((cache_size / self.max_size * 100), 2),
                 "last_updated": datetime.now().isoformat(),
             }
-
 
     def get_item_info(self, key: str) -> Union[dict[str, Any], None]:
         """获取缓存项详细信息
@@ -301,7 +288,6 @@ class LRUMemoryCache:
                 "age_seconds": int(current_time - item.created_at),
             }
 
-
     def get_hot_keys(self, limit: int = 10) -> list[tuple[str, int]]:
         """获取热点键（按访问次数排序）
 
@@ -316,7 +302,6 @@ class LRUMemoryCache:
             items.sort(key=lambda x: x[1], reverse=True)
             return items[:limit]
 
-
     def cleanup_and_stats(self) -> dict[str, Any]:
         """执行清理并返回统计信息
 
@@ -325,7 +310,6 @@ class LRUMemoryCache:
         """
         self._cleanup_expired()
         return self.get_stats()
-
 
     def shutdown(self):
         """关闭缓存，停止后台线程"""
@@ -360,7 +344,6 @@ class MultiLevelCache:
             "l1_to_l2_promotions": 0,
         }
 
-
     async def get(self, key: str) -> Union[Any, None]:
         """多级缓存获取
 
@@ -392,9 +375,12 @@ class MultiLevelCache:
         self.stats["total_misses"] += 1
         return None
 
-
     async def set(
-        self, key: str, value: Any, ttl: Union[int, None] = None, l1_ttl: Union[int, None] = None
+        self,
+        key: str,
+        value: Any,
+        ttl: Union[int, None] = None,
+        l1_ttl: Union[int, None] = None,
     ) -> bool:
         """多级缓存设置
 
@@ -420,7 +406,6 @@ class MultiLevelCache:
 
         return l2_success and l1_success
 
-
     def delete(self, key: str) -> bool:
         """多级缓存删除
 
@@ -436,7 +421,6 @@ class MultiLevelCache:
         l2_success = self.l2_cache.delete(key)
 
         return l1_success or l2_success
-
 
     def exists(self, key: str) -> bool:
         """检查多级缓存中是否存在指定键
@@ -455,7 +439,6 @@ class MultiLevelCache:
 
         # 再检查L2缓存
         return self.l2_cache.exists(key)
-
 
     def get_combined_stats(self) -> dict[str, Any]:
         """获取多级缓存统计信息

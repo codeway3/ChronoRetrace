@@ -84,8 +84,8 @@ const CryptoPage = () => {
               title="恐慌贪婪指数"
               value={marketData.fearGreedIndex}
               suffix="/100"
-              valueStyle={{ 
-                color: marketData.fearGreedIndex > 50 ? '#f5222d' : '#52c41a' 
+              valueStyle={{
+                color: marketData.fearGreedIndex > 50 ? '#f5222d' : '#52c41a'
               }}
             />
           </Col>
@@ -147,13 +147,13 @@ const CryptoPage = () => {
                     value={crypto.price}
                     precision={crypto.symbol === 'BTC' ? 2 : crypto.price < 1 ? 4 : 2}
                     prefix="$"
-                    valueStyle={{ 
+                    valueStyle={{
                       fontSize: '14px',
                       color: crypto.change >= 0 ? '#f5222d' : '#52c41a'
                     }}
                   />
-                  <div style={{ 
-                    fontSize: '12px', 
+                  <div style={{
+                    fontSize: '12px',
                     color: crypto.change >= 0 ? '#f5222d' : '#52c41a',
                     marginTop: 4
                   }}>
@@ -246,7 +246,7 @@ const CryptoPage = () => {
           >
             {renderDashboard()}
           </TabPane>
-          
+
           <TabPane
             tab={
               <span>
@@ -261,7 +261,7 @@ const CryptoPage = () => {
               title="加密货币筛选器"
             />
           </TabPane>
-          
+
           <TabPane
             tab={
               <span>

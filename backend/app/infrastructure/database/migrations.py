@@ -52,7 +52,6 @@ class DatabaseMigration:
             },
         ]
 
-
     def _ensure_migration_table(self, session: Session) -> None:
         """
         确保迁移记录表存在
@@ -77,7 +76,6 @@ class DatabaseMigration:
             logger.error(f"创建迁移表失败: {e}")
             raise
 
-
     def _is_migration_applied(self, session: Session, version: str) -> bool:
         """
         检查迁移是否已应用
@@ -90,7 +88,6 @@ class DatabaseMigration:
             return result is not None
         except Exception:
             return False
-
 
     def _record_migration(
         self, session: Session, migration: dict, execution_time_ms: int
@@ -119,7 +116,6 @@ class DatabaseMigration:
             logger.error(f"记录迁移失败: {e}")
             raise
 
-
     def _migration_001_up(self, session: Session) -> None:
         """
         迁移001: 创建性能优化索引
@@ -132,7 +128,6 @@ class DatabaseMigration:
 
         success_count = sum(1 for result in index_results.values() if result)
         logger.info(f"迁移001完成: 成功创建 {success_count} 个索引")
-
 
     def _migration_001_down(self, session: Session) -> None:
         """
@@ -157,7 +152,6 @@ class DatabaseMigration:
                 logger.warning(f"删除索引失败 {index_name}: {e}")
 
         session.commit()
-
 
     def _migration_002_up(self, session: Session) -> None:
         """
@@ -210,7 +204,6 @@ class DatabaseMigration:
         session.commit()
         logger.info("缓存元数据表创建完成")
 
-
     def _migration_002_down(self, session: Session) -> None:
         """
         回滚迁移002: 删除缓存元数据表
@@ -219,7 +212,6 @@ class DatabaseMigration:
 
         session.execute(text("DROP TABLE IF EXISTS cache_metadata"))
         session.commit()
-
 
     def migrate_up(self, target_version: Union[str, None] = None) -> dict[str, Any]:
         """
@@ -296,7 +288,6 @@ class DatabaseMigration:
             raise
         finally:
             db.close()
-
 
     def get_migration_status(self) -> dict[str, Any]:
         """

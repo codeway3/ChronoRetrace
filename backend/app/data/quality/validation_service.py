@@ -77,7 +77,6 @@ class ValidationReport:
     errors: Union[list[str], None] = None
     warnings: Union[list[str], None] = None
 
-
     def __post_init__(self):
         if self.errors is None:
             self.errors = [
@@ -122,7 +121,6 @@ class DataValidationService:
             "min_volume": 0,
             "max_volume": 1e12,  # 1万亿
         }
-
 
     def validate_stock_data(
         self, data: Union[dict[str, Any], None], market_type: str = "A_share"
@@ -195,7 +193,6 @@ class DataValidationService:
             validated_at=datetime.now(),
         )
 
-
     def _validate_required_field(
         self, data: dict[str, Any], field_name: str
     ) -> Union[ValidationResult, None]:
@@ -209,7 +206,6 @@ class DataValidationService:
                 error_code="REQUIRED_FIELD_MISSING",
             )
         return None
-
 
     def _validate_stock_code(self, code: Any, market_type: str) -> ValidationResult:
         """校验股票代码格式"""
@@ -239,7 +235,6 @@ class DataValidationService:
             message=f"股票代码 '{code}' 格式正确",
             severity=ValidationSeverity.INFO,
         )
-
 
     def _validate_date(self, date_value: Any) -> ValidationResult:
         """校验日期格式"""
@@ -279,7 +274,6 @@ class DataValidationService:
             message="日期格式正确",
             severity=ValidationSeverity.INFO,
         )
-
 
     def _validate_price(self, price: Any, field_name: str) -> ValidationResult:
         """校验价格数据"""
@@ -350,7 +344,6 @@ class DataValidationService:
             severity=ValidationSeverity.INFO,
         )
 
-
     def _validate_price_logic(self, data: dict[str, Any]) -> list[ValidationResult]:
         """校验价格逻辑关系"""
         results: list[ValidationResult] = []
@@ -369,7 +362,6 @@ class DataValidationService:
         results.append(price_relationship_result)
 
         return results
-
 
     def _validate_price_relationships(self, data: dict[str, Any]) -> ValidationResult:
         """校验价格关系逻辑"""
@@ -414,7 +406,6 @@ class DataValidationService:
             message="价格关系逻辑正确",
             severity=ValidationSeverity.INFO,
         )
-
 
     def _validate_volume(self, volume: Any) -> ValidationResult:
         """校验成交量数据"""
@@ -465,7 +456,6 @@ class DataValidationService:
             severity=ValidationSeverity.INFO,
         )
 
-
     def _validate_change_percent(
         self, pct_chg: Any, market_type: str = "A_share"
     ) -> ValidationResult:
@@ -508,7 +498,6 @@ class DataValidationService:
             error_code="VALID_PCT_CHG",
         )
 
-
     def _calculate_quality_score(
         self, results: list[ValidationResult]
     ) -> tuple[bool, float]:
@@ -529,7 +518,6 @@ class DataValidationService:
         quality_score = max(0.0, 1.0 - total_deduction)
 
         return is_valid, quality_score
-
 
     def get_validation_rules(
         self, table_name: Union[str, None] = None
@@ -573,7 +561,6 @@ class DataValidationService:
 
         return rules
 
-
     def log_validation_result(
         self, record_id: int, table_name: str, validation_report: ValidationReport
     ) -> None:
@@ -596,8 +583,9 @@ class DataValidationService:
             self.logger.error(f"记录校验日志失败: {str(e)}")
             self.db_session.rollback()
 
-
-    def _format_validation_errors(self, results: list[ValidationResult]) -> Union[str, None]:
+    def _format_validation_errors(
+        self, results: list[ValidationResult]
+    ) -> Union[str, None]:
         """格式化校验错误信息"""
         if not results:
             return None
@@ -608,7 +596,6 @@ class DataValidationService:
                 error_messages.append(f"{result.field_name}: {result.message}")
 
         return "; ".join(error_messages) if error_messages else None
-
 
     def batch_validate_data(
         self, data_list: list[dict[str, Any]], data_type: str = "stock_data"

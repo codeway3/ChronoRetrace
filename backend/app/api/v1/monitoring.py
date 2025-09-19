@@ -359,7 +359,9 @@ async def clear_cache(
 
 @router.get("/alerts")
 async def get_alerts(
-    severity: Union[str, None] = Query(None, description="告警级别: info, warning, error"),
+    severity: Union[str, None] = Query(
+        None, description="告警级别: info, warning, error"
+    ),
 ):
     """
     获取系统告警信息

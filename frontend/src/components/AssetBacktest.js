@@ -46,7 +46,7 @@ const AssetBacktest = ({ assetType, title }) => {
   useEffect(() => {
     const fetchSupportedStrategies = async () => {
       if (!assetType) return;
-      
+
       try {
         setStrategiesLoading(true);
         const response = await assetBacktestApi.getSupportedStrategies(assetType);
@@ -132,7 +132,7 @@ const AssetBacktest = ({ assetType, title }) => {
       message.warning('没有可导出的回测结果');
       return;
     }
-    
+
     // 这里可以实现导出功能
     message.info('导出功能开发中...');
   };
@@ -161,7 +161,7 @@ const AssetBacktest = ({ assetType, title }) => {
             <RangePicker style={{ width: '100%' }} />
           </Form.Item>
         </Col>
-        
+
         <Col xs={24} sm={12} md={8}>
           <Form.Item
             label="标的代码"
@@ -269,7 +269,7 @@ const AssetBacktest = ({ assetType, title }) => {
           </Form.Item>
         </Col>
       </Row>
-      
+
       <Row justify="center" style={{ marginTop: 24 }}>
         <Space size="middle">
           <Button
@@ -371,8 +371,8 @@ const AssetBacktest = ({ assetType, title }) => {
             <Col xs={12} sm={8} md={6}>
               <div className="performance-metric">
                 <div className="metric-label">总收益率</div>
-                <div className="metric-value" style={{ 
-                  color: performance?.total_return >= 0 ? '#f5222d' : '#52c41a' 
+                <div className="metric-value" style={{
+                  color: performance?.total_return >= 0 ? '#f5222d' : '#52c41a'
                 }}>
                   {performance?.total_return?.toFixed(2)}%
                 </div>
@@ -477,11 +477,11 @@ const AssetBacktest = ({ assetType, title }) => {
           <TabPane tab="策略配置" key="config" icon={<SettingOutlined />}>
             {renderConfigForm()}
           </TabPane>
-          
+
           <TabPane tab="回测结果" key="results" icon={<BarChartOutlined />}>
             {renderBacktestResults()}
           </TabPane>
-          
+
           <TabPane tab="策略优化" key="optimization" icon={<SettingOutlined />}>
             {renderOptimizationResults()}
           </TabPane>

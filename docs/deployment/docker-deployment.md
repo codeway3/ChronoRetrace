@@ -241,7 +241,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-  
+
   backend:
     volumes:
       - app_logs:/app/logs
@@ -575,18 +575,18 @@ services:
   backend:
     # 使用非 root 用户
     user: "1000:1000"
-    
+
     # 只读文件系统
     read_only: true
     tmpfs:
       - /tmp
-    
+
     # 限制能力
     cap_drop:
       - ALL
     cap_add:
       - NET_BIND_SERVICE
-    
+
     # 安全选项
     security_opt:
       - no-new-privileges:true

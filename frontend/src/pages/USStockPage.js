@@ -255,7 +255,7 @@ const USStockPage = () => {
           >
             {renderDashboard()}
           </TabPane>
-          
+
           <TabPane
             tab={
               <span>
@@ -270,7 +270,7 @@ const USStockPage = () => {
               title="美股筛选器"
             />
           </TabPane>
-          
+
           <TabPane
             tab={
               <span>

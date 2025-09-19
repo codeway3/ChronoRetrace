@@ -69,23 +69,23 @@ class JWTConfig:
         self.algorithm = 'RS256'
         self.access_token_expire = datetime.timedelta(minutes=15)
         self.refresh_token_expire = datetime.timedelta(days=7)
-        
+
         # 生成 RSA 密钥对
         self.private_key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=2048
         )
         self.public_key = self.private_key.public_key()
-    
+
     def generate_token(self, user_id, permissions=None, token_type='access'):
         """生成 JWT 令牌"""
         now = datetime.datetime.utcnow()
-        
+
         if token_type == 'access':
             expire = now + self.access_token_expire
         else:
             expire = now + self.refresh_token_expire
-        
+
         payload = {
             'user_id': user_id,
             'permissions': permissions or [],
@@ -94,15 +94,15 @@ class JWTConfig:
             'exp': expire,
             'jti': str(uuid.uuid4())  # JWT ID，用于令牌撤销
         }
-        
+
         private_pem = self.private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,
             encryption_algorithm=serialization.NoEncryption()
         )
-        
+
         return jwt.encode(payload, private_pem, algorithm=self.algorithm)
-    
+
     def verify_token(self, token):
         """验证 JWT 令牌"""
         try:
@@ -110,13 +110,13 @@ class JWTConfig:
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PublicFormat.SubjectPublicKeyInfo
             )
-            
+
             payload = jwt.decode(token, public_pem, algorithms=[self.algorithm])
-            
+
             # 检查令牌是否在黑名单中
             if self.is_token_blacklisted(payload.get('jti')):
                 raise jwt.InvalidTokenError('Token is blacklisted')
-            
+
             return payload
         except jwt.ExpiredSignatureError:
             raise jwt.InvalidTokenError('Token has expired')
@@ -176,10 +176,10 @@ def require_permission(permission):
         def wrapper(*args, **kwargs):
             # 从请求中获取用户权限
             user_permissions = get_current_user_permissions()
-            
+
             if permission.value not in user_permissions:
                 raise PermissionError(f'Required permission: {permission.value}')
-            
+
             return func(*args, **kwargs)
         return wrapper
     return decorator
@@ -192,10 +192,10 @@ def require_role(role):
             user_role = get_current_user_role()
             required_permissions = ROLE_PERMISSIONS.get(role, [])
             user_permissions = get_current_user_permissions()
-            
+
             if not all(perm.value in user_permissions for perm in required_permissions):
                 raise PermissionError(f'Required role: {role.value}')
-            
+
             return func(*args, **kwargs)
         return wrapper
     return decorator
@@ -215,64 +215,64 @@ from cryptography.fernet import Fernet
 class MFAManager:
     def __init__(self, encryption_key):
         self.cipher = Fernet(encryption_key)
-    
+
     def generate_secret(self, user_id):
         """为用户生成 TOTP 密钥"""
         secret = pyotp.random_base32()
-        
+
         # 加密存储密钥
         encrypted_secret = self.cipher.encrypt(secret.encode())
-        
+
         # 保存到数据库
         self.save_user_mfa_secret(user_id, encrypted_secret)
-        
+
         return secret
-    
+
     def generate_qr_code(self, user_email, secret):
         """生成 QR 码"""
         totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
             name=user_email,
             issuer_name='ChronoRetrace'
         )
-        
+
         qr = qrcode.QRCode(version=1, box_size=10, border=5)
         qr.add_data(totp_uri)
         qr.make(fit=True)
-        
+
         img = qr.make_image(fill_color='black', back_color='white')
-        
+
         # 转换为 base64
         buffer = io.BytesIO()
         img.save(buffer, format='PNG')
         img_str = base64.b64encode(buffer.getvalue()).decode()
-        
+
         return f'data:image/png;base64,{img_str}'
-    
+
     def verify_totp(self, user_id, token):
         """验证 TOTP 令牌"""
         # 获取用户的加密密钥
         encrypted_secret = self.get_user_mfa_secret(user_id)
         if not encrypted_secret:
             return False
-        
+
         # 解密密钥
         secret = self.cipher.decrypt(encrypted_secret).decode()
-        
+
         # 验证令牌
         totp = pyotp.TOTP(secret)
         return totp.verify(token, valid_window=1)  # 允许前后30秒的时间窗口
-    
+
     def generate_backup_codes(self, user_id):
         """生成备用恢复码"""
         codes = []
         for _ in range(10):
             code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
             codes.append(code)
-        
+
         # 加密存储备用码
         encrypted_codes = [self.cipher.encrypt(code.encode()) for code in codes]
         self.save_user_backup_codes(user_id, encrypted_codes)
-        
+
         return codes
 ```
 
@@ -414,28 +414,28 @@ SecAction "id:1004,phase:1,initcol:IP=%{REMOTE_ADDR},setvar:IP.REQUEST_COUNT=+1"
 server {
     listen 443 ssl http2;
     server_name chronoretrace.com;
-    
+
     # SSL 证书
     ssl_certificate /etc/ssl/certs/chronoretrace.crt;
     ssl_certificate_key /etc/ssl/private/chronoretrace.key;
-    
+
     # SSL 协议和加密套件
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
     ssl_prefer_server_ciphers off;
-    
+
     # SSL 会话
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
     ssl_session_tickets off;
-    
+
     # OCSP Stapling
     ssl_stapling on;
     ssl_stapling_verify on;
     ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
     resolver 8.8.8.8 8.8.4.4 valid=300s;
     resolver_timeout 5s;
-    
+
     # 安全头
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -443,17 +443,17 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';" always;
-    
+
     # 隐藏服务器信息
     server_tokens off;
-    
+
     location / {
         proxy_pass http://backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         # 安全头
         proxy_hide_header X-Powered-By;
         proxy_hide_header Server;
@@ -516,7 +516,7 @@ VALUES (
 );
 
 -- 查询解密数据
-SELECT 
+SELECT
     username,
     email,
     decrypt_sensitive_data(phone_encrypted) AS phone,
@@ -541,7 +541,7 @@ class DataEncryption:
         else:
             self.key = Fernet.generate_key()
         self.cipher = Fernet(self.key)
-    
+
     def _derive_key(self, password):
         """从密码派生加密密钥"""
         salt = os.urandom(16)
@@ -553,35 +553,35 @@ class DataEncryption:
         )
         key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
         return key
-    
+
     def encrypt(self, data):
         """加密数据"""
         if isinstance(data, str):
             data = data.encode()
         return self.cipher.encrypt(data)
-    
+
     def decrypt(self, encrypted_data):
         """解密数据"""
         decrypted = self.cipher.decrypt(encrypted_data)
         return decrypted.decode()
-    
+
     def encrypt_file(self, file_path):
         """加密文件"""
         with open(file_path, 'rb') as file:
             file_data = file.read()
-        
+
         encrypted_data = self.cipher.encrypt(file_data)
-        
+
         with open(f"{file_path}.encrypted", 'wb') as file:
             file.write(encrypted_data)
-    
+
     def decrypt_file(self, encrypted_file_path, output_path):
         """解密文件"""
         with open(encrypted_file_path, 'rb') as file:
             encrypted_data = file.read()
-        
+
         decrypted_data = self.cipher.decrypt(encrypted_data)
-        
+
         with open(output_path, 'wb') as file:
             file.write(decrypted_data)
 
@@ -611,15 +611,15 @@ class DataMasking:
         """邮箱脱敏"""
         if '@' not in email:
             return email
-        
+
         local, domain = email.split('@', 1)
         if len(local) <= 2:
             masked_local = '*' * len(local)
         else:
             masked_local = local[0] + '*' * (len(local) - 2) + local[-1]
-        
+
         return f"{masked_local}@{domain}"
-    
+
     @staticmethod
     def mask_phone(phone):
         """手机号脱敏"""
@@ -627,14 +627,14 @@ class DataMasking:
         if len(phone) >= 7:
             return phone[:3] + '*' * (len(phone) - 6) + phone[-3:]
         return '*' * len(phone)
-    
+
     @staticmethod
     def mask_id_card(id_card):
         """身份证号脱敏"""
         if len(id_card) >= 8:
             return id_card[:4] + '*' * (len(id_card) - 8) + id_card[-4:]
         return '*' * len(id_card)
-    
+
     @staticmethod
     def mask_credit_card(card_number):
         """信用卡号脱敏"""
@@ -642,16 +642,16 @@ class DataMasking:
         if len(card_number) >= 8:
             return card_number[:4] + '*' * (len(card_number) - 8) + card_number[-4:]
         return '*' * len(card_number)
-    
+
     @staticmethod
     def hash_sensitive_data(data, salt=None):
         """敏感数据哈希化"""
         if salt is None:
             salt = 'default_salt'
-        
+
         combined = f"{data}{salt}"
         return hashlib.sha256(combined.encode()).hexdigest()
-    
+
     @staticmethod
     def mask_ip_address(ip):
         """IP 地址脱敏"""
@@ -691,43 +691,43 @@ class InputValidator:
             'url': r'^https?://[^\s/$.?#].[^\s]*$',
             'ip': r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
         }
-    
+
     def validate_email(self, email: str) -> bool:
         """验证邮箱格式"""
         return bool(re.match(self.patterns['email'], email))
-    
+
     def validate_password(self, password: str) -> Dict[str, Any]:
         """验证密码强度"""
         result = {
             'valid': False,
             'errors': []
         }
-        
+
         if len(password) < 8:
             result['errors'].append('密码长度至少8位')
-        
+
         if not re.search(r'[a-z]', password):
             result['errors'].append('密码必须包含小写字母')
-        
+
         if not re.search(r'[A-Z]', password):
             result['errors'].append('密码必须包含大写字母')
-        
+
         if not re.search(r'\d', password):
             result['errors'].append('密码必须包含数字')
-        
+
         if not re.search(r'[@$!%*?&]', password):
             result['errors'].append('密码必须包含特殊字符')
-        
+
         result['valid'] = len(result['errors']) == 0
         return result
-    
+
     def sanitize_html(self, html_content: str) -> str:
         """清理 HTML 内容"""
         allowed_tags = ['p', 'br', 'strong', 'em', 'u', 'ol', 'ul', 'li']
         allowed_attributes = {}
-        
+
         return bleach.clean(html_content, tags=allowed_tags, attributes=allowed_attributes)
-    
+
     def escape_sql(self, value: str) -> str:
         """SQL 注入防护"""
         # 使用参数化查询是更好的选择，这里只是额外的防护
@@ -735,26 +735,26 @@ class InputValidator:
         for char in dangerous_chars:
             value = value.replace(char, '')
         return value
-    
+
     def validate_file_upload(self, filename: str, content: bytes) -> Dict[str, Any]:
         """文件上传验证"""
         result = {
             'valid': False,
             'errors': []
         }
-        
+
         # 检查文件扩展名
         allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx']
         file_ext = filename.lower().split('.')[-1] if '.' in filename else ''
-        
+
         if f'.{file_ext}' not in allowed_extensions:
             result['errors'].append(f'不允许的文件类型: {file_ext}')
-        
+
         # 检查文件大小（10MB 限制）
         max_size = 10 * 1024 * 1024
         if len(content) > max_size:
             result['errors'].append('文件大小超过限制')
-        
+
         # 检查文件头（魔数）
         file_signatures = {
             b'\xff\xd8\xff': 'jpg',
@@ -763,16 +763,16 @@ class InputValidator:
             b'GIF89a': 'gif',
             b'%PDF': 'pdf'
         }
-        
+
         file_type_detected = None
         for signature, file_type in file_signatures.items():
             if content.startswith(signature):
                 file_type_detected = file_type
                 break
-        
+
         if file_type_detected != file_ext:
             result['errors'].append('文件类型与扩展名不匹配')
-        
+
         result['valid'] = len(result['errors']) == 0
         return result
 ```
@@ -792,29 +792,29 @@ class RateLimiter:
     def __init__(self):
         self.requests = defaultdict(list)
         self.blocked_ips = set()
-    
+
     def is_rate_limited(self, identifier, limit=100, window=3600):
         """检查是否超过速率限制"""
         now = time.time()
-        
+
         # 清理过期记录
         self.requests[identifier] = [
             req_time for req_time in self.requests[identifier]
             if now - req_time < window
         ]
-        
+
         # 检查请求数量
         if len(self.requests[identifier]) >= limit:
             return True
-        
+
         # 记录当前请求
         self.requests[identifier].append(now)
         return False
-    
+
     def block_ip(self, ip, duration=3600):
         """封禁 IP"""
         self.blocked_ips.add((ip, time.time() + duration))
-    
+
     def is_ip_blocked(self, ip):
         """检查 IP 是否被封禁"""
         now = time.time()
@@ -823,7 +823,7 @@ class RateLimiter:
             (blocked_ip, expire_time) for blocked_ip, expire_time in self.blocked_ips
             if expire_time > now
         }
-        
+
         return any(blocked_ip == ip for blocked_ip, _ in self.blocked_ips)
 
 class APISecurityMiddleware:
@@ -835,27 +835,27 @@ class APISecurityMiddleware:
             r'\.\./',                     # 路径遍历
             r'eval\s*\(',                 # 代码注入
         ]
-    
+
     def check_request_security(self, request):
         """检查请求安全性"""
         client_ip = request.remote_addr
-        
+
         # 检查 IP 封禁
         if self.rate_limiter.is_ip_blocked(client_ip):
             return {'blocked': True, 'reason': 'IP blocked'}
-        
+
         # 检查速率限制
         if self.rate_limiter.is_rate_limited(client_ip):
             self.rate_limiter.block_ip(client_ip, 1800)  # 封禁30分钟
             return {'blocked': True, 'reason': 'Rate limit exceeded'}
-        
+
         # 检查恶意模式
         request_data = str(request.get_data())
         for pattern in self.suspicious_patterns:
             if re.search(pattern, request_data, re.IGNORECASE):
                 self.rate_limiter.block_ip(client_ip, 3600)  # 封禁1小时
                 return {'blocked': True, 'reason': 'Malicious pattern detected'}
-        
+
         return {'blocked': False}
 
 def require_api_key(f):
@@ -863,14 +863,14 @@ def require_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         api_key = request.headers.get('X-API-Key')
-        
+
         if not api_key:
             return jsonify({'error': 'API key required'}), 401
-        
+
         # 验证 API 密钥
         if not validate_api_key(api_key):
             return jsonify({'error': 'Invalid API key'}), 401
-        
+
         return f(*args, **kwargs)
     return decorated_function
 
@@ -878,15 +878,15 @@ def validate_api_key(api_key):
     """验证 API 密钥"""
     # 从数据库或配置中获取有效的 API 密钥
     valid_keys = get_valid_api_keys()
-    
+
     # 使用哈希比较避免时序攻击
     api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-    
+
     for valid_key in valid_keys:
         valid_key_hash = hashlib.sha256(valid_key.encode()).hexdigest()
         if api_key_hash == valid_key_hash:
             return True
-    
+
     return False
 ```
 
@@ -1183,25 +1183,25 @@ class SecurityMonitor:
             'failed_login_window': 300,  # 5分钟
             'suspicious_ip_threshold': 10
         }
-    
+
     def monitor_failed_login(self, ip_address, username, timestamp=None):
         """监控失败登录尝试"""
         if timestamp is None:
             timestamp = time.time()
-        
+
         # 记录失败登录
         self.failed_logins[ip_address].append({
             'username': username,
             'timestamp': timestamp
         })
-        
+
         # 清理过期记录
         window = self.alert_thresholds['failed_login_window']
         self.failed_logins[ip_address] = [
             attempt for attempt in self.failed_logins[ip_address]
             if timestamp - attempt['timestamp'] < window
         ]
-        
+
         # 检查是否超过阈值
         if len(self.failed_logins[ip_address]) >= self.alert_thresholds['failed_login_attempts']:
             self.trigger_alert('brute_force_attack', {
@@ -1209,7 +1209,7 @@ class SecurityMonitor:
                 'attempts': len(self.failed_logins[ip_address]),
                 'usernames': [attempt['username'] for attempt in self.failed_logins[ip_address]]
             })
-    
+
     def monitor_suspicious_activity(self, activity_type, details):
         """监控可疑活动"""
         event = {
@@ -1217,9 +1217,9 @@ class SecurityMonitor:
             'details': details,
             'timestamp': time.time()
         }
-        
+
         self.suspicious_activities.append(event)
-        
+
         # 触发相应的告警
         if activity_type == 'sql_injection_attempt':
             self.trigger_alert('sql_injection', details)
@@ -1227,7 +1227,7 @@ class SecurityMonitor:
             self.trigger_alert('xss_attack', details)
         elif activity_type == 'privilege_escalation':
             self.trigger_alert('privilege_escalation', details)
-    
+
     def trigger_alert(self, alert_type, details):
         """触发安全告警"""
         alert = {
@@ -1236,13 +1236,13 @@ class SecurityMonitor:
             'timestamp': datetime.now().isoformat(),
             'severity': self.get_alert_severity(alert_type)
         }
-        
+
         # 记录告警
         self.log_security_alert(alert)
-        
+
         # 发送通知
         self.send_security_notification(alert)
-    
+
     def get_alert_severity(self, alert_type):
         """获取告警严重级别"""
         severity_map = {
@@ -1254,7 +1254,7 @@ class SecurityMonitor:
             'unauthorized_access': 'high'
         }
         return severity_map.get(alert_type, 'medium')
-    
+
     def log_security_alert(self, alert):
         """记录安全告警"""
         log_entry = {
@@ -1264,11 +1264,11 @@ class SecurityMonitor:
             'severity': alert['severity'],
             'details': alert['details']
         }
-        
+
         # 写入安全日志
         with open('/var/log/chronoretrace/security.log', 'a') as f:
             f.write(json.dumps(log_entry) + '\n')
-    
+
     def send_security_notification(self, alert):
         """发送安全通知"""
         if alert['severity'] in ['critical', 'high']:
@@ -1277,7 +1277,7 @@ class SecurityMonitor:
         else:
             # 发送常规通知
             self.send_regular_notification(alert)
-    
+
     def analyze_log_patterns(self, log_file):
         """分析日志模式"""
         patterns = {
@@ -1287,7 +1287,7 @@ class SecurityMonitor:
             'command_injection': r'(;|\||&|`|\$\()',
             'brute_force': r'authentication failed|invalid password|login failed'
         }
-        
+
         with open(log_file, 'r') as f:
             for line in f:
                 for pattern_name, pattern in patterns.items():
@@ -1312,7 +1312,7 @@ from flask import request, g
 class AuditLogger:
     def __init__(self, log_file='/var/log/chronoretrace/audit.log'):
         self.log_file = log_file
-    
+
     def log_event(self, event_type, details, user_id=None, ip_address=None):
         """记录审计事件"""
         audit_entry = {
@@ -1323,10 +1323,10 @@ class AuditLogger:
             'details': details,
             'session_id': getattr(g, 'session_id', None)
         }
-        
+
         with open(self.log_file, 'a') as f:
             f.write(json.dumps(audit_entry) + '\n')
-    
+
     def get_client_ip(self):
         """获取客户端 IP"""
         if request:
@@ -1339,10 +1339,10 @@ def audit_action(action_type):
         @wraps(func)
         def wrapper(*args, **kwargs):
             start_time = time.time()
-            
+
             try:
                 result = func(*args, **kwargs)
-                
+
                 # 记录成功的操作
                 audit_logger.log_event(
                     event_type=f'{action_type}_success',
@@ -1354,9 +1354,9 @@ def audit_action(action_type):
                     },
                     user_id=getattr(g, 'user_id', None)
                 )
-                
+
                 return result
-                
+
             except Exception as e:
                 # 记录失败的操作
                 audit_logger.log_event(
@@ -1371,7 +1371,7 @@ def audit_action(action_type):
                     user_id=getattr(g, 'user_id', None)
                 )
                 raise
-        
+
         return wrapper
     return decorator
 
@@ -1413,7 +1413,7 @@ class GDPRCompliance:
             'session_data': 30,        # 30天
             'analytics_data': 365 * 3  # 3年
         }
-    
+
     def handle_data_subject_request(self, request_type, user_id, details=None):
         """处理数据主体请求"""
         if request_type == 'access':
@@ -1428,7 +1428,7 @@ class GDPRCompliance:
             return self.restrict_data_processing(user_id)
         else:
             raise ValueError(f'Unknown request type: {request_type}')
-    
+
     def export_user_data(self, user_id):
         """导出用户数据（GDPR 第15条）"""
         user_data = {
@@ -1440,59 +1440,59 @@ class GDPRCompliance:
             'data_source': self.get_data_source(user_id),
             'automated_decision_making': self.get_automated_decisions(user_id)
         }
-        
+
         # 记录数据导出请求
         self.log_gdpr_request('data_export', user_id, user_data)
-        
+
         return user_data
-    
+
     def delete_user_data(self, user_id):
         """删除用户数据（GDPR 第17条）"""
         try:
             # 删除个人数据
             self.delete_personal_data(user_id)
-            
+
             # 删除关联数据
             self.delete_user_sessions(user_id)
             self.delete_user_logs(user_id)
             self.anonymize_user_analytics(user_id)
-            
+
             # 记录删除操作
             self.log_gdpr_request('data_erasure', user_id, {'status': 'completed'})
-            
+
             return {'status': 'success', 'message': 'User data deleted successfully'}
-            
+
         except Exception as e:
             self.log_gdpr_request('data_erasure', user_id, {'status': 'failed', 'error': str(e)})
             raise
-    
+
     def check_data_retention(self):
         """检查数据保留期限"""
         expired_data = []
-        
+
         for data_type, retention_days in self.data_retention_periods.items():
             cutoff_date = datetime.now() - timedelta(days=retention_days)
             expired_records = self.find_expired_data(data_type, cutoff_date)
-            
+
             if expired_records:
                 expired_data.append({
                     'data_type': data_type,
                     'count': len(expired_records),
                     'cutoff_date': cutoff_date.isoformat()
                 })
-        
+
         return expired_data
-    
+
     def auto_delete_expired_data(self):
         """自动删除过期数据"""
         expired_data = self.check_data_retention()
-        
+
         for data_info in expired_data:
             data_type = data_info['data_type']
             cutoff_date = datetime.fromisoformat(data_info['cutoff_date'])
-            
+
             deleted_count = self.delete_expired_data(data_type, cutoff_date)
-            
+
             self.log_gdpr_request('auto_deletion', None, {
                  'data_type': data_type,
                  'deleted_count': deleted_count,
@@ -1532,7 +1532,7 @@ class IncidentResponse:
             'communications': 'pr@chronoretrace.com',
             'legal': 'legal@chronoretrace.com'
         }
-        
+
         self.escalation_matrix = {
             IncidentSeverity.CRITICAL: {
                 'response_time': 15,  # 分钟
@@ -1551,7 +1551,7 @@ class IncidentResponse:
                 'notification_list': ['security_team']
             }
         }
-    
+
     def create_incident(self, incident_type, severity, description, affected_systems=None):
         """创建安全事件"""
         incident = {
@@ -1565,22 +1565,22 @@ class IncidentResponse:
             'assigned_to': None,
             'timeline': []
         }
-        
+
         # 立即响应
         self.initiate_response(incident)
-        
+
         return incident
-    
+
     def initiate_response(self, incident):
         """启动事件响应"""
         severity = IncidentSeverity(incident['severity'])
-        
+
         # 发送通知
         self.send_incident_notifications(incident, severity)
-        
+
         # 执行自动响应
         self.execute_automated_response(incident)
-        
+
         # 记录响应开始
          self.add_timeline_entry(incident, 'response_initiated', {
              'responder': 'system',
@@ -1642,7 +1642,7 @@ class SecurityScanner:
     def __init__(self, target_url):
         self.target_url = target_url
         self.vulnerabilities = []
-    
+
     def scan_sql_injection(self):
         """SQL 注入扫描"""
         payloads = [
@@ -1652,18 +1652,18 @@ class SecurityScanner:
             "1' AND 1=1 --",
             "1' AND 1=2 --"
         ]
-        
+
         test_endpoints = [
             '/api/users',
             '/api/search',
             '/login',
             '/api/data'
         ]
-        
+
         for endpoint in test_endpoints:
             for payload in payloads:
                 url = urljoin(self.target_url, endpoint)
-                
+
                 # GET 参数测试
                 response = requests.get(url, params={'q': payload})
                 if self.detect_sql_error(response.text):
@@ -1674,7 +1674,7 @@ class SecurityScanner:
                         'payload': payload,
                         'method': 'GET'
                     })
-                
+
                 # POST 数据测试
                 response = requests.post(url, data={'input': payload})
                 if self.detect_sql_error(response.text):
@@ -1685,7 +1685,7 @@ class SecurityScanner:
                         'payload': payload,
                         'method': 'POST'
                     })
-    
+
     def scan_xss(self):
         """XSS 扫描"""
         payloads = [
@@ -1694,13 +1694,13 @@ class SecurityScanner:
             "javascript:alert('XSS')",
             "<svg onload=alert('XSS')>"
         ]
-        
+
         for payload in payloads:
             response = requests.post(
                 urljoin(self.target_url, '/api/comment'),
                 data={'content': payload}
             )
-            
+
             if payload in response.text and 'text/html' in response.headers.get('content-type', ''):
                 self.vulnerabilities.append({
                     'type': 'XSS',
@@ -1708,7 +1708,7 @@ class SecurityScanner:
                     'payload': payload,
                     'reflected': True
                 })
-    
+
     def scan_directory_traversal(self):
         """目录遍历扫描"""
         payloads = [
@@ -1718,13 +1718,13 @@ class SecurityScanner:
             '/proc/version',
             '/etc/shadow'
         ]
-        
+
         for payload in payloads:
             response = requests.get(
                 urljoin(self.target_url, '/api/file'),
                 params={'path': payload}
             )
-            
+
             if 'root:' in response.text or 'daemon:' in response.text:
                 self.vulnerabilities.append({
                     'type': 'Directory Traversal',
@@ -1732,7 +1732,7 @@ class SecurityScanner:
                     'payload': payload,
                     'file_accessed': True
                 })
-    
+
     def detect_sql_error(self, response_text):
         """检测 SQL 错误"""
         error_patterns = [
@@ -1743,9 +1743,9 @@ class SecurityScanner:
             'SQLite error',
             'syntax error'
         ]
-        
+
         return any(pattern.lower() in response_text.lower() for pattern in error_patterns)
-    
+
     def generate_report(self):
         """生成扫描报告"""
         report = {
@@ -1760,7 +1760,7 @@ class SecurityScanner:
                 'low': len([v for v in self.vulnerabilities if v['severity'] == 'Low'])
             }
         }
-        
+
         return report
 ```
 

@@ -9,10 +9,10 @@ global:
   smtp_auth_username: 'alerts@chronoretrace.com'
   smtp_auth_password: 'your-app-password'
   smtp_require_tls: true
-  
+
   # Slack配置
   slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
-  
+
   # 其他全局设置
   resolve_timeout: 5m
   http_config:
@@ -27,13 +27,13 @@ templates:
 route:
   # 默认接收器
   receiver: 'default-receiver'
-  
+
   # 分组配置
   group_by: ['alertname', 'cluster', 'service']
   group_wait: 10s
   group_interval: 10s
   repeat_interval: 1h
-  
+
   # 子路由
   routes:
     # 严重告警 - 立即通知
@@ -52,7 +52,7 @@ route:
         - match:
             service: chronoretrace-backend
           receiver: 'api-critical'
-    
+
     # 警告级别告警
     - match:
         severity: warning
@@ -60,7 +60,7 @@ route:
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 2h
-    
+
     # 信息级别告警
     - match:
         severity: info
@@ -68,7 +68,7 @@ route:
       group_wait: 1m
       group_interval: 10m
       repeat_interval: 24h
-    
+
     # 业务相关告警
     - match_re:
         alertname: '^ChronoRetrace.*'
@@ -76,7 +76,7 @@ route:
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 1h
-    
+
     # 基础设施告警
     - match_re:
         alertname: '^(Node|Container|Kubernetes).*'
@@ -84,7 +84,7 @@ route:
       group_wait: 1m
       group_interval: 10m
       repeat_interval: 4h
-    
+
     # 安全相关告警
     - match:
         category: security
@@ -92,7 +92,7 @@ route:
       group_wait: 0s
       group_interval: 1m
       repeat_interval: 30m
-    
+
     # 维护时间静默
     - match:
         maintenance: 'true'
@@ -106,14 +106,14 @@ inhibit_rules:
     target_match_re:
       instance: '.*'
     equal: ['instance']
-  
+
   # 服务宕机时抑制该服务的其他告警
   - source_match:
       alertname: 'ServiceDown'
     target_match_re:
       service: '.*'
     equal: ['service']
-  
+
   # 数据库主节点故障时抑制副本告警
   - source_match:
       alertname: 'PostgreSQLDown'
@@ -121,7 +121,7 @@ inhibit_rules:
     target_match:
       alertname: 'PostgreSQLReplicationLag'
     equal: ['cluster']
-  
+
   # 高级别告警抑制低级别告警
   - source_match:
       severity: 'critical'
@@ -143,7 +143,7 @@ receivers:
           标签: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
           时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
           {{ end }}
-  
+
   # 严重告警接收器
   - name: 'critical-alerts'
     slack_configs:
@@ -160,24 +160,24 @@ receivers:
           {{ end }}
         color: 'danger'
         send_resolved: true
-    
+
     email_configs:
       - to: 'oncall@chronoretrace.com, cto@chronoretrace.com'
         subject: '🚨 [CRITICAL] {{ .GroupLabels.alertname }}'
         body: |
           严重告警触发，需要立即处理！
-          
+
           {{ range .Alerts }}
           告警名称: {{ .Annotations.summary }}
           详细描述: {{ .Annotations.description }}
           影响服务: {{ .Labels.service }}
           问题实例: {{ .Labels.instance }}
           告警时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
-          
+
           Runbook: {{ .Annotations.runbook_url }}
           Dashboard: {{ .Annotations.dashboard_url }}
           {{ end }}
-    
+
     # 短信通知（需要配置SMS网关）
     webhook_configs:
       - url: 'https://sms-gateway.chronoretrace.com/send'
@@ -186,7 +186,7 @@ receivers:
             username: 'alertmanager'
             password: 'sms-gateway-password'
         send_resolved: false
-  
+
   # 数据库严重告警
   - name: 'database-critical'
     slack_configs:
@@ -201,11 +201,11 @@ receivers:
           *实例:* {{ .Labels.instance }}
           {{ end }}
         color: 'danger'
-    
+
     email_configs:
       - to: 'dba@chronoretrace.com, devops@chronoretrace.com'
         subject: '🗄️ [DB-CRITICAL] {{ .GroupLabels.alertname }}'
-  
+
   # API服务严重告警
   - name: 'api-critical'
     slack_configs:
@@ -213,7 +213,7 @@ receivers:
         channel: '#api-alerts'
         title: '🔌 API严重告警 - {{ .GroupLabels.alertname }}'
         color: 'danger'
-    
+
     # PagerDuty集成
     pagerduty_configs:
       - routing_key: 'your-pagerduty-integration-key'
@@ -221,7 +221,7 @@ receivers:
         severity: 'critical'
         client: 'ChronoRetrace Alertmanager'
         client_url: 'https://alertmanager.chronoretrace.com'
-  
+
   # 警告级别告警
   - name: 'warning-alerts'
     slack_configs:
@@ -230,11 +230,11 @@ receivers:
         title: '⚠️ 警告告警 - {{ .GroupLabels.alertname }}'
         color: 'warning'
         send_resolved: true
-    
+
     email_configs:
       - to: 'devops@chronoretrace.com'
         subject: '⚠️ [WARNING] {{ .GroupLabels.alertname }}'
-  
+
   # 信息级别告警
   - name: 'info-alerts'
     slack_configs:
@@ -243,7 +243,7 @@ receivers:
         title: 'ℹ️ 信息告警 - {{ .GroupLabels.alertname }}'
         color: 'good'
         send_resolved: true
-  
+
   # 业务告警
   - name: 'business-alerts'
     slack_configs:
@@ -251,11 +251,11 @@ receivers:
         channel: '#business-alerts'
         title: '📊 业务告警 - {{ .GroupLabels.alertname }}'
         color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
-    
+
     email_configs:
       - to: 'product@chronoretrace.com, business@chronoretrace.com'
         subject: '📊 [BUSINESS] {{ .GroupLabels.alertname }}'
-  
+
   # 基础设施告警
   - name: 'infrastructure-alerts'
     slack_configs:
@@ -263,7 +263,7 @@ receivers:
         channel: '#infrastructure'
         title: '🏗️ 基础设施告警 - {{ .GroupLabels.alertname }}'
         color: '{{ if eq .Status "firing" }}warning{{ else }}good{{ end }}'
-  
+
   # 安全告警
   - name: 'security-alerts'
     slack_configs:
@@ -271,17 +271,17 @@ receivers:
         channel: '#security-alerts'
         title: '🔒 安全告警 - {{ .GroupLabels.alertname }}'
         color: 'danger'
-    
+
     email_configs:
       - to: 'security@chronoretrace.com, ciso@chronoretrace.com'
         subject: '🔒 [SECURITY] {{ .GroupLabels.alertname }}'
-    
+
     # 安全事件webhook
     webhook_configs:
       - url: 'https://security-siem.chronoretrace.com/webhook'
         http_config:
           bearer_token: 'security-webhook-token'
-  
+
   # 空接收器（用于静默）
   - name: 'null'
 
@@ -295,7 +295,7 @@ time_intervals:
             end_time: '18:00'
         weekdays: ['monday:friday']
         location: 'Asia/Shanghai'
-  
+
   # 维护窗口
   - name: 'maintenance-window'
     time_intervals:
@@ -304,7 +304,7 @@ time_intervals:
             end_time: '04:00'
         weekdays: ['sunday']
         location: 'Asia/Shanghai'
-  
+
   # 节假日
   - name: 'holidays'
     time_intervals:
@@ -323,7 +323,7 @@ silences: []
 web:
   listen-address: '0.0.0.0:9093'
   external-url: 'https://alertmanager.chronoretrace.com'
-  
+
 # 存储配置
 storage:
   path: '/alertmanager/data'

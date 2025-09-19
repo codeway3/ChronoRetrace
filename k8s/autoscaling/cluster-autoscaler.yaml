@@ -259,7 +259,7 @@ data:
         node-type: worker
         workload: general
       taints: []
-      
+
     # 计算密集型节点组
     - name: chronoretrace-compute
       minSize: 0
@@ -273,7 +273,7 @@ data:
       - key: workload
         value: compute
         effect: NoSchedule
-        
+
     # 内存密集型节点组
     - name: chronoretrace-memory
       minSize: 0
@@ -287,7 +287,7 @@ data:
       - key: workload
         value: memory
         effect: NoSchedule
-        
+
     # GPU节点组（如果需要）
     - name: chronoretrace-gpu
       minSize: 0

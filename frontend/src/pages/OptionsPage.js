@@ -34,29 +34,29 @@ const OptionsPage = () => {
 
   // ETF期权数据
   const etfOptions = [
-    { 
-      symbol: '510050', 
-      name: '50ETF期权', 
-      underlyingPrice: 2.856, 
-      change: 1.2, 
+    {
+      symbol: '510050',
+      name: '50ETF期权',
+      underlyingPrice: 2.856,
+      change: 1.2,
       volume: '125万张',
       openInterest: '245万张',
       iv: 18.5
     },
-    { 
-      symbol: '510300', 
-      name: '300ETF期权', 
-      underlyingPrice: 4.234, 
-      change: -0.8, 
+    {
+      symbol: '510300',
+      name: '300ETF期权',
+      underlyingPrice: 4.234,
+      change: -0.8,
       volume: '89万张',
       openInterest: '178万张',
       iv: 21.2
     },
-    { 
-      symbol: '159919', 
-      name: '300ETF期权', 
-      underlyingPrice: 4.567, 
-      change: 0.5, 
+    {
+      symbol: '159919',
+      name: '300ETF期权',
+      underlyingPrice: 4.567,
+      change: 0.5,
       volume: '67万张',
       openInterest: '134万张',
       iv: 19.8
@@ -65,20 +65,20 @@ const OptionsPage = () => {
 
   // 股票期权数据
   const stockOptions = [
-    { 
-      symbol: '600036', 
-      name: '招商银行期权', 
-      underlyingPrice: 35.67, 
-      change: 2.1, 
+    {
+      symbol: '600036',
+      name: '招商银行期权',
+      underlyingPrice: 35.67,
+      change: 2.1,
       volume: '45万张',
       openInterest: '89万张',
       iv: 25.3
     },
-    { 
-      symbol: '000858', 
-      name: '五粮液期权', 
-      underlyingPrice: 156.78, 
-      change: -1.5, 
+    {
+      symbol: '000858',
+      name: '五粮液期权',
+      underlyingPrice: 156.78,
+      change: -1.5,
       volume: '32万张',
       openInterest: '67万张',
       iv: 28.7
@@ -132,8 +132,8 @@ const OptionsPage = () => {
               title="PCR比率"
               value={marketData.putCallRatio}
               precision={2}
-              valueStyle={{ 
-                color: marketData.putCallRatio > 1 ? '#52c41a' : '#f5222d' 
+              valueStyle={{
+                color: marketData.putCallRatio > 1 ? '#52c41a' : '#f5222d'
               }}
             />
           </Col>
@@ -207,8 +207,8 @@ const OptionsPage = () => {
                   <Row gutter={[8, 8]}>
                     <Col span={12}>
                       <div style={{ fontSize: '12px', color: '#666' }}>标的价格</div>
-                      <div style={{ 
-                        fontSize: '14px', 
+                      <div style={{
+                        fontSize: '14px',
                         fontWeight: 'bold',
                         color: option.change >= 0 ? '#f5222d' : '#52c41a'
                       }}>
@@ -217,8 +217,8 @@ const OptionsPage = () => {
                     </Col>
                     <Col span={12}>
                       <div style={{ fontSize: '12px', color: '#666' }}>涨跌幅</div>
-                      <div style={{ 
-                        fontSize: '14px', 
+                      <div style={{
+                        fontSize: '14px',
                         fontWeight: 'bold',
                         color: option.change >= 0 ? '#f5222d' : '#52c41a'
                       }}>
@@ -254,8 +254,8 @@ const OptionsPage = () => {
                   <Row gutter={[8, 8]}>
                     <Col span={12}>
                       <div style={{ fontSize: '12px', color: '#666' }}>标的价格</div>
-                      <div style={{ 
-                        fontSize: '14px', 
+                      <div style={{
+                        fontSize: '14px',
                         fontWeight: 'bold',
                         color: option.change >= 0 ? '#f5222d' : '#52c41a'
                       }}>
@@ -264,8 +264,8 @@ const OptionsPage = () => {
                     </Col>
                     <Col span={12}>
                       <div style={{ fontSize: '12px', color: '#666' }}>涨跌幅</div>
-                      <div style={{ 
-                        fontSize: '14px', 
+                      <div style={{
+                        fontSize: '14px',
                         fontWeight: 'bold',
                         color: option.change >= 0 ? '#f5222d' : '#52c41a'
                       }}>
@@ -401,7 +401,7 @@ const OptionsPage = () => {
           >
             {renderDashboard()}
           </TabPane>
-          
+
           <TabPane
             tab={
               <span>
@@ -416,7 +416,7 @@ const OptionsPage = () => {
               title="期权合约筛选器"
             />
           </TabPane>
-          
+
           <TabPane
             tab={
               <span>

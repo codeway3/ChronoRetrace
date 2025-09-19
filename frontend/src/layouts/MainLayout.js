@@ -34,7 +34,7 @@ const MainLayout = ({ children }) => {
 
   useEffect(() => {
     const path = location.pathname;
-    
+
     // 根据路径设置选中的菜单项和展开的子菜单
     if (path.startsWith('/a-share/industries')) {
       setSelectedKeys(['a-share-industries']);

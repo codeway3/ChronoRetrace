@@ -24,9 +24,9 @@ function App() {
           {/* 公开路由 */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
-          
+
           {/* 受保护的路由 - 按投资标的分类的二级层次化导航 */}
-          
+
           {/* A股相关路由 */}
           <Route path="/a-share" element={
             <ProtectedRoute>
@@ -48,7 +48,7 @@ function App() {
               <MainLayout><AIndustriesDashboard /></MainLayout>
             </ProtectedRoute>
           } />
-          
+
           {/* 美股相关路由 */}
           <Route path="/us-stock" element={
             <ProtectedRoute>
@@ -65,7 +65,7 @@ function App() {
               <MainLayout><BacktestPage assetType="us-stock" /></MainLayout>
             </ProtectedRoute>
           } />
-          
+
           {/* 加密货币相关路由 */}
           <Route path="/crypto" element={
             <ProtectedRoute>
@@ -82,7 +82,7 @@ function App() {
               <MainLayout><BacktestPage assetType="crypto" /></MainLayout>
             </ProtectedRoute>
           } />
-          
+
           {/* 大宗商品相关路由 */}
           <Route path="/commodities" element={
             <ProtectedRoute>
@@ -99,7 +99,7 @@ function App() {
               <MainLayout><BacktestPage assetType="commodities" /></MainLayout>
             </ProtectedRoute>
           } />
-          
+
           {/* 期货相关路由 */}
           <Route path="/futures" element={
             <ProtectedRoute>
@@ -116,7 +116,7 @@ function App() {
               <MainLayout><BacktestPage assetType="futures" /></MainLayout>
             </ProtectedRoute>
           } />
-          
+
           {/* 期权相关路由 */}
           <Route path="/options" element={
             <ProtectedRoute>
@@ -133,7 +133,7 @@ function App() {
               <MainLayout><BacktestPage assetType="options" /></MainLayout>
             </ProtectedRoute>
           } />
-          
+
           {/* 通用功能路由（保持向后兼容） */}
           <Route path="/screener" element={
             <ProtectedRoute>
@@ -145,7 +145,7 @@ function App() {
               <MainLayout><BacktestPage /></MainLayout>
             </ProtectedRoute>
           } />
-          
+
           {/* 用户相关路由 */}
           <Route path="/profile" element={
             <ProtectedRoute>

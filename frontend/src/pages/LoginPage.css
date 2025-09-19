@@ -167,16 +167,16 @@
   .login-container {
     padding: 16px;
   }
-  
+
   .login-card {
     padding: 24px;
     max-width: 100%;
   }
-  
+
   .login-title {
     font-size: 24px;
   }
-  
+
   .login-subtitle {
     font-size: 14px;
   }
@@ -186,7 +186,7 @@
   .login-card {
     padding: 20px;
   }
-  
+
   .login-options {
     flex-direction: column;
     gap: 12px;

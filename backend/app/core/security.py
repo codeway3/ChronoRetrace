@@ -134,7 +134,6 @@ class RateLimiter:
         self.window_seconds = window_seconds
         self.requests = {}  # 在生产环境中应使用Redis
 
-
     def is_allowed(self, key: str) -> bool:
         """检查是否允许请求"""
         now = datetime.utcnow().timestamp()

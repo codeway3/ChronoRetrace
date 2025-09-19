@@ -13,22 +13,22 @@ import uvicorn
 
 class ColoredFormatter(logging.Formatter):
     """自定义彩色日志格式化器"""
-    
+
     # ANSI颜色代码
     COLORS = {
-        'DEBUG': '\033[36m',     # 青色
-        'INFO': '\033[32m',      # 绿色
-        'WARNING': '\033[33m',   # 黄色
-        'ERROR': '\033[31m',     # 红色
-        'CRITICAL': '\033[41m',  # 红色背景
-        'RESET': '\033[0m'       # 重置
+        "DEBUG": "\033[36m",  # 青色
+        "INFO": "\033[32m",  # 绿色
+        "WARNING": "\033[33m",  # 黄色
+        "ERROR": "\033[31m",  # 红色
+        "CRITICAL": "\033[41m",  # 红色背景
+        "RESET": "\033[0m",  # 重置
     }
-    
+
     def format(self, record):
         # 获取颜色
-        color = self.COLORS.get(record.levelname, self.COLORS['RESET'])
-        reset = self.COLORS['RESET']
-        
+        color = self.COLORS.get(record.levelname, self.COLORS["RESET"])
+        reset = self.COLORS["RESET"]
+
         # 格式化消息
         formatted = super().format(record)
         return f"{color}{formatted}{reset}"
@@ -37,18 +37,20 @@ class ColoredFormatter(logging.Formatter):
 if __name__ == "__main__":
     # Configure colorful logging with timestamp
     handler = logging.StreamHandler()
-    handler.setFormatter(ColoredFormatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    ))
-    
+    handler.setFormatter(
+        ColoredFormatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
+
     # Configure root logger
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     # 清除现有的处理器
     logger.handlers.clear()
     logger.addHandler(handler)
-    
+
     # Get the backend directory path
     backend_dir = Path(__file__).parent.absolute()
 
@@ -90,7 +92,11 @@ if __name__ == "__main__":
             "loggers": {
                 "uvicorn": {"handlers": ["default"], "level": "INFO"},
                 "uvicorn.error": {"level": "INFO"},
-                "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
+                "uvicorn.access": {
+                    "handlers": ["access"],
+                    "level": "INFO",
+                    "propagate": False,
+                },
             },
             "root": {
                 "level": "INFO",

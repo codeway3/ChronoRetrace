@@ -166,7 +166,7 @@ LOG_FILE="/var/log/chronoretrace/health_check.log"
 check_api_health() {
     local endpoint="$1"
     local response=$(curl -s -o /dev/null -w "%{http_code}" "$endpoint/health")
-    
+
     if [ "$response" = "200" ]; then
         echo "$(date): API health check passed - $endpoint" >> "$LOG_FILE"
         return 0
@@ -182,7 +182,7 @@ check_database() {
     local db_port="$2"
     local db_user="$3"
     local db_name="$4"
-    
+
     if pg_isready -h "$db_host" -p "$db_port" -U "$db_user" -d "$db_name" > /dev/null 2>&1; then
         echo "$(date): Database health check passed" >> "$LOG_FILE"
         return 0
@@ -196,7 +196,7 @@ check_database() {
 check_redis() {
     local redis_host="$1"
     local redis_port="$2"
-    
+
     if redis-cli -h "$redis_host" -p "$redis_port" ping > /dev/null 2>&1; then
         echo "$(date): Redis health check passed" >> "$LOG_FILE"
         return 0
@@ -209,12 +209,12 @@ check_redis() {
 # 主检查循环
 while true; do
     echo "$(date): Starting health checks..." >> "$LOG_FILE"
-    
+
     # 检查各个组件
     check_api_health "http://localhost:8000" || echo "API check failed"
     check_database "localhost" "5432" "chronoretrace" "chronoretrace" || echo "Database check failed"
     check_redis "localhost" "6379" || echo "Redis check failed"
-    
+
     sleep "$CHECK_INTERVAL"
 done
 ```
@@ -232,11 +232,11 @@ kubectl get pods -n "$NAMESPACE" --no-headers | while read line; do
     pod_name=$(echo $line | awk '{print $1}')
     status=$(echo $line | awk '{print $3}')
     ready=$(echo $line | awk '{print $2}')
-    
+
     if [ "$status" != "Running" ]; then
         echo "WARNING: Pod $pod_name is not running (Status: $status)"
     fi
-    
+
     if [[ "$ready" != *"/"* ]] || [[ "$ready" == *"0/"* ]]; then
         echo "WARNING: Pod $pod_name is not ready (Ready: $ready)"
     fi
@@ -247,7 +247,7 @@ echo "Checking Service endpoints..."
 kubectl get endpoints -n "$NAMESPACE" --no-headers | while read line; do
     service_name=$(echo $line | awk '{print $1}')
     endpoints=$(echo $line | awk '{print $2}')
-    
+
     if [ "$endpoints" = "<none>" ]; then
         echo "WARNING: Service $service_name has no endpoints"
     fi
@@ -258,7 +258,7 @@ echo "Checking PVC status..."
 kubectl get pvc -n "$NAMESPACE" --no-headers | while read line; do
     pvc_name=$(echo $line | awk '{print $1}')
     status=$(echo $line | awk '{print $2}')
-    
+
     if [ "$status" != "Bound" ]; then
         echo "WARNING: PVC $pvc_name is not bound (Status: $status)"
     fi
@@ -295,7 +295,7 @@ done
   port 9200
   index_name chronoretrace-${tag_parts[1]}
   type_name _doc
-  
+
   <buffer>
     @type file
     path /var/log/fluentd-buffers/chronoretrace
@@ -540,7 +540,7 @@ CREATE INDEX CONCURRENTLY idx_active_users ON users(created_at) WHERE status = '
 ANALYZE users;
 
 -- 查看索引使用情况
-SELECT 
+SELECT
     schemaname,
     tablename,
     indexname,
@@ -567,16 +567,16 @@ def cache_result(expiration=3600):
         def wrapper(*args, **kwargs):
             # 生成缓存键
             cache_key = f"{func.__name__}:{hash(str(args) + str(kwargs))}"
-            
+
             # 尝试从缓存获取
             cached_result = redis_client.get(cache_key)
             if cached_result:
                 return json.loads(cached_result)
-            
+
             # 执行函数并缓存结果
             result = func(*args, **kwargs)
             redis_client.setex(cache_key, expiration, json.dumps(result))
-            
+
             return result
         return wrapper
     return decorator
@@ -771,18 +771,18 @@ HEALTH_URL="http://localhost:8000/health"
 # 检查服务状态
 if ! curl -f "$HEALTH_URL" > /dev/null 2>&1; then
     echo "Service is not responding, attempting recovery..."
-    
+
     # 检查进程
     if pgrep -f "$SERVICE_NAME" > /dev/null; then
         echo "Process exists, checking resources..."
-        
+
         # 检查内存使用
         MEMORY_USAGE=$(ps -o pid,ppid,cmd,%mem,%cpu --sort=-%mem -C python | head -2 | tail -1 | awk '{print $4}')
         if (( $(echo "$MEMORY_USAGE > 90" | bc -l) )); then
             echo "High memory usage detected, restarting service..."
             systemctl restart "$SERVICE_NAME"
         fi
-        
+
         # 检查 CPU 使用
         CPU_USAGE=$(ps -o pid,ppid,cmd,%mem,%cpu --sort=-%cpu -C python | head -2 | tail -1 | awk '{print $5}')
         if (( $(echo "$CPU_USAGE > 95" | bc -l) )); then
@@ -793,10 +793,10 @@ if ! curl -f "$HEALTH_URL" > /dev/null 2>&1; then
         echo "Process not found, starting service..."
         systemctl start "$SERVICE_NAME"
     fi
-    
+
     # 等待服务启动
     sleep 30
-    
+
     # 验证恢复
     if curl -f "$HEALTH_URL" > /dev/null 2>&1; then
         echo "Service recovery successful"
@@ -819,23 +819,23 @@ DB_USER="chronoretrace"
 # 检查数据库连接
 if ! pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" > /dev/null 2>&1; then
     echo "Database connection failed, checking..."
-    
+
     # 检查 PostgreSQL 服务
     if ! systemctl is-active postgresql > /dev/null 2>&1; then
         echo "PostgreSQL service is not running, starting..."
         systemctl start postgresql
         sleep 10
     fi
-    
+
     # 检查连接数
     CONNECTIONS=$(psql -h "$DB_HOST" -U postgres -t -c "SELECT count(*) FROM pg_stat_activity;" 2>/dev/null || echo "0")
     MAX_CONNECTIONS=$(psql -h "$DB_HOST" -U postgres -t -c "SHOW max_connections;" 2>/dev/null || echo "100")
-    
+
     if [ "$CONNECTIONS" -ge "$MAX_CONNECTIONS" ]; then
         echo "Too many connections, terminating idle connections..."
         psql -h "$DB_HOST" -U postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state = 'idle' AND state_change < now() - interval '1 hour';"
     fi
-    
+
     # 检查磁盘空间
     DISK_USAGE=$(df /var/lib/postgresql | tail -1 | awk '{print $5}' | sed 's/%//')
     if [ "$DISK_USAGE" -gt 90 ]; then
@@ -971,7 +971,7 @@ kubectl rollout status deployment/chronoretrace-backend -n "$NAMESPACE" --timeou
 # 验证更新
 if kubectl rollout status deployment/chronoretrace-backend -n "$NAMESPACE" | grep -q "successfully rolled out"; then
     echo "Rolling update completed successfully"
-    
+
     # 运行健康检查
     sleep 30
     if curl -f http://localhost:8000/health > /dev/null 2>&1; then
@@ -1020,11 +1020,11 @@ psql -U chronoretrace -d chronoretrace -f "$MIGRATION_FILE"
 
 if [ $? -eq 0 ]; then
     echo "Migration completed successfully"
-    
+
     # 验证数据完整性
     echo "Verifying data integrity..."
     psql -U chronoretrace -d chronoretrace -c "SELECT COUNT(*) FROM users;"
-    
+
 else
     echo "Migration failed, restoring backup..."
     LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/*.sql | head -1)
@@ -1054,12 +1054,12 @@ contacts:
     name: "张三"
     phone: "+86-138-0000-0001"
     email: "zhang.san@company.com"
-    
+
   - role: "运维工程师"
     name: "李四"
     phone: "+86-138-0000-0002"
     email: "li.si@company.com"
-    
+
   - role: "数据库管理员"
     name: "王五"
     phone: "+86-138-0000-0003"
@@ -1069,11 +1069,11 @@ escalation:
   - level: 1
     timeout: 15  # 分钟
     contacts: ["运维工程师"]
-    
+
   - level: 2
     timeout: 30
     contacts: ["技术负责人", "数据库管理员"]
-    
+
   - level: 3
     timeout: 60
     contacts: ["所有人"]
@@ -1093,7 +1093,7 @@ case "$INCIDENT_TYPE" in
         systemctl restart chronoretrace-backend
         systemctl restart chronoretrace-frontend
         ;;
-        
+
     "database_down")
         echo "Database down detected, executing recovery..."
         systemctl restart postgresql
@@ -1101,12 +1101,12 @@ case "$INCIDENT_TYPE" in
         # 验证数据库恢复
         pg_isready -h localhost -p 5432
         ;;
-        
+
     "high_load")
         echo "High load detected, scaling up..."
         kubectl scale deployment chronoretrace-backend --replicas=5
         ;;
-        
+
     "disk_full")
         echo "Disk full detected, cleaning up..."
         # 清理临时文件
@@ -1114,7 +1114,7 @@ case "$INCIDENT_TYPE" in
         # 清理日志文件
         find /var/log -name "*.log" -mtime +7 -delete
         ;;
-        
+
     *)
         echo "Unknown incident type: $INCIDENT_TYPE"
         exit 1

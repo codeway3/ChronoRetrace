@@ -133,13 +133,13 @@ const FuturesPage = () => {
                   <Statistic
                     value={future.price}
                     precision={2}
-                    valueStyle={{ 
+                    valueStyle={{
                       fontSize: '14px',
                       color: future.change >= 0 ? '#f5222d' : '#52c41a'
                     }}
                   />
-                  <div style={{ 
-                    fontSize: '12px', 
+                  <div style={{
+                    fontSize: '12px',
                     color: future.change >= 0 ? '#f5222d' : '#52c41a',
                     marginTop: 4
                   }}>
@@ -174,13 +174,13 @@ const FuturesPage = () => {
                   <Statistic
                     value={future.price}
                     precision={0}
-                    valueStyle={{ 
+                    valueStyle={{
                       fontSize: '14px',
                       color: future.change >= 0 ? '#f5222d' : '#52c41a'
                     }}
                   />
-                  <div style={{ 
-                    fontSize: '12px', 
+                  <div style={{
+                    fontSize: '12px',
                     color: future.change >= 0 ? '#f5222d' : '#52c41a',
                     marginTop: 4
                   }}>
@@ -270,7 +270,7 @@ const FuturesPage = () => {
           >
             {renderDashboard()}
           </TabPane>
-          
+
           <TabPane
             tab={
               <span>
@@ -285,7 +285,7 @@ const FuturesPage = () => {
               title="期货合约筛选器"
             />
           </TabPane>
-          
+
           <TabPane
             tab={
               <span>

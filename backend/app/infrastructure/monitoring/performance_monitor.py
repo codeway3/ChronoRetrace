@@ -57,7 +57,6 @@ class CacheStats:
     avg_response_time_ms: float = 0.0
     last_updated: datetime = field(default_factory=datetime.utcnow)
 
-
     def update_hit_rate(self):
         """更新命中率"""
         self.total_requests = self.hits + self.misses
@@ -84,7 +83,6 @@ class APIMetrics:
     max_response_time_ms: float = 0.0
     response_times: deque = field(default_factory=lambda: deque(maxlen=1000))
     last_updated: datetime = field(default_factory=datetime.utcnow)
-
 
     def add_request(self, response_time_ms: float, success: bool = True):
         """添加请求记录"""
@@ -134,7 +132,6 @@ class PerformanceMonitor:
         self._stop_monitoring = threading.Event()
         self.start_monitoring()
 
-
     def start_monitoring(self):
         """
         启动后台监控
@@ -147,7 +144,6 @@ class PerformanceMonitor:
             self._monitoring_thread.start()
             logger.info("性能监控已启动")
 
-
     def stop_monitoring(self):
         """
         停止后台监控
@@ -156,7 +152,6 @@ class PerformanceMonitor:
         if self._monitoring_thread:
             self._monitoring_thread.join(timeout=5)
         logger.info("性能监控已停止")
-
 
     def _background_monitoring(self):
         """
@@ -173,7 +168,6 @@ class PerformanceMonitor:
             except Exception as e:
                 logger.error(f"后台监控出错: {e}")
                 self._stop_monitoring.wait(10)  # 出错后等待10秒
-
 
     def _collect_system_metrics(self):
         """
@@ -229,7 +223,6 @@ class PerformanceMonitor:
         except Exception as e:
             logger.error(f"收集系统指标失败: {e}")
 
-
     def record_metric(
         self,
         name: str,
@@ -260,7 +253,6 @@ class PerformanceMonitor:
         with self._lock:
             self.metrics_history.append(metric)
 
-
     def record_cache_hit(self, cache_name: str, response_time_ms: float = 0.0):
         """
         记录缓存命中
@@ -290,7 +282,6 @@ class PerformanceMonitor:
             f"cache.{cache_name}.hits", 1, {"cache_name": cache_name, "type": "cache"}
         )
 
-
     def record_cache_miss(self, cache_name: str, response_time_ms: float = 0.0):
         """
         记录缓存未命中
@@ -311,7 +302,6 @@ class PerformanceMonitor:
         self.record_metric(
             f"cache.{cache_name}.misses", 1, {"cache_name": cache_name, "type": "cache"}
         )
-
 
     def record_api_request(
         self, endpoint: str, method: str, response_time_ms: float, success: bool = True
@@ -342,7 +332,9 @@ class PerformanceMonitor:
         )
 
     @contextmanager
-    def measure_time(self, operation_name: str, tags: Union[dict[str, str], None] = None):
+    def measure_time(
+        self, operation_name: str, tags: Union[dict[str, str], None] = None
+    ):
         """
         测量操作耗时的上下文管理器
 
@@ -361,8 +353,9 @@ class PerformanceMonitor:
                 tags or {"type": "operation"},
             )
 
-
-    def get_cache_stats(self, cache_name: Union[str, None] = None) -> dict[str, CacheStats]:
+    def get_cache_stats(
+        self, cache_name: Union[str, None] = None
+    ) -> dict[str, CacheStats]:
         """
         获取缓存统计信息
 
@@ -379,8 +372,9 @@ class PerformanceMonitor:
                 }
             return self.cache_stats.copy()
 
-
-    def get_api_metrics(self, endpoint: Union[str, None] = None) -> dict[str, APIMetrics]:
+    def get_api_metrics(
+        self, endpoint: Union[str, None] = None
+    ) -> dict[str, APIMetrics]:
         """
         获取API性能指标
 
@@ -395,7 +389,6 @@ class PerformanceMonitor:
                 return {k: v for k, v in self.api_metrics.items() if endpoint in k}
             return self.api_metrics.copy()
 
-
     def get_system_metrics(self) -> dict[str, Any]:
         """
         获取系统性能指标
@@ -405,7 +398,6 @@ class PerformanceMonitor:
         """
         with self._lock:
             return self.system_metrics.copy()
-
 
     def get_metrics_summary(self, time_range_minutes: int = 60) -> dict[str, Any]:
         """
@@ -452,7 +444,6 @@ class PerformanceMonitor:
 
             return summary
 
-
     def _get_cache_summary(self) -> dict[str, Any]:
         """
         获取缓存摘要
@@ -477,7 +468,6 @@ class PerformanceMonitor:
                 else None
             ),
         }
-
 
     def _get_api_summary(self) -> dict[str, Any]:
         """
@@ -520,8 +510,9 @@ class PerformanceMonitor:
             ),
         }
 
-
-    def reset_stats(self, cache_name: Union[str, None] = None, endpoint: Union[str, None] = None):
+    def reset_stats(
+        self, cache_name: Union[str, None] = None, endpoint: Union[str, None] = None
+    ):
         """
         重置统计信息
 
@@ -545,7 +536,6 @@ class PerformanceMonitor:
                 self.metrics_history.clear()
 
         logger.info(f"统计信息已重置: cache={cache_name}, endpoint={endpoint}")
-
 
     def export_metrics(self, format_type: str = "json") -> str:
         """

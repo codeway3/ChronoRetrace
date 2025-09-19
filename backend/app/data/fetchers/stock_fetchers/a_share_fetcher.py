@@ -322,7 +322,6 @@ def update_stock_list_from_akshare(db: Session):
         # Standardize ETF column names
         etf_df.rename(columns={"代码": "代码", "名称": "name"}, inplace=True)
 
-
         def get_etf_suffix(code):
             """Determines the market suffix for an ETF code."""
             code_str = str(code)

@@ -14,17 +14,17 @@ metadata:
   annotations:
     # Ingress Controller
     kubernetes.io/ingress.class: "nginx"
-    
+
     # SSL Configuration
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    
+
     # Rate Limiting
     nginx.ingress.kubernetes.io/rate-limit: "100"
     nginx.ingress.kubernetes.io/rate-limit-window: "1m"
     nginx.ingress.kubernetes.io/rate-limit-connections: "10"
-    
+
     # Security Headers
     nginx.ingress.kubernetes.io/configuration-snippet: |
       add_header X-Frame-Options "SAMEORIGIN" always;
@@ -32,26 +32,26 @@ metadata:
       add_header X-XSS-Protection "1; mode=block" always;
       add_header Referrer-Policy "strict-origin-when-cross-origin" always;
       add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-    
+
     # CORS Configuration
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-origin: "https://chronoretrace.com,https://www.chronoretrace.com"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
     nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
-    
+
     # Performance
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    
+
     # Load Balancing
     nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
     nginx.ingress.kubernetes.io/session-cookie-name: "chronoretrace-session"
     nginx.ingress.kubernetes.io/session-cookie-expires: "86400"
     nginx.ingress.kubernetes.io/session-cookie-max-age: "86400"
     nginx.ingress.kubernetes.io/session-cookie-path: "/"
-    
+
     # Monitoring
     nginx.ingress.kubernetes.io/enable-access-log: "true"
     nginx.ingress.kubernetes.io/enable-rewrite-log: "false"
@@ -73,7 +73,7 @@ spec:
                 name: nginx
                 port:
                   number: 80
-          
+
           # WebSocket Routes
           - path: /ws
             pathType: Prefix
@@ -82,7 +82,7 @@ spec:
                 name: nginx
                 port:
                   number: 80
-          
+
           # Health Check
           - path: /health
             pathType: Exact
@@ -91,7 +91,7 @@ spec:
                 name: nginx
                 port:
                   number: 80
-          
+
           # Frontend Routes (catch-all)
           - path: /
             pathType: Prefix
@@ -100,7 +100,7 @@ spec:
                 name: nginx
                 port:
                   number: 80
-    
+
     - host: www.chronoretrace.com
       http:
         paths:
@@ -112,7 +112,7 @@ spec:
                 name: nginx
                 port:
                   number: 80
-          
+
           # WebSocket Routes
           - path: /ws
             pathType: Prefix
@@ -121,7 +121,7 @@ spec:
                 name: nginx
                 port:
                   number: 80
-          
+
           # Health Check
           - path: /health
             pathType: Exact
@@ -130,7 +130,7 @@ spec:
                 name: nginx
                 port:
                   number: 80
-          
+
           # Frontend Routes (catch-all)
           - path: /
             pathType: Prefix
@@ -154,20 +154,20 @@ metadata:
     kubernetes.io/ingress.class: "nginx"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    
+
     # Stricter rate limiting for API
     nginx.ingress.kubernetes.io/rate-limit: "50"
     nginx.ingress.kubernetes.io/rate-limit-window: "1m"
     nginx.ingress.kubernetes.io/rate-limit-connections: "5"
-    
+
     # API-specific configuration
     nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/use-regex: "true"
-    
+
     # Request buffering
     nginx.ingress.kubernetes.io/proxy-buffering: "on"
     nginx.ingress.kubernetes.io/proxy-buffer-size: "4k"
-    
+
     # Timeout configuration
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
@@ -203,12 +203,12 @@ metadata:
     kubernetes.io/ingress.class: "nginx"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    
+
     # Very strict rate limiting for auth endpoints
     nginx.ingress.kubernetes.io/rate-limit: "10"
     nginx.ingress.kubernetes.io/rate-limit-window: "1m"
     nginx.ingress.kubernetes.io/rate-limit-connections: "2"
-    
+
     # Additional security for auth
     nginx.ingress.kubernetes.io/configuration-snippet: |
       add_header X-Frame-Options "DENY" always;
@@ -248,7 +248,7 @@ spec:
                 name: backend
                 port:
                   number: 8000
-    
+
     - host: www.chronoretrace.com
       http:
         paths:

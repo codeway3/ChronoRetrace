@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 from typing import Union
 
+
 class ConstituentStock(BaseModel):
     """
     Represents a single constituent stock within an industry.

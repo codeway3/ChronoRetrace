@@ -13,7 +13,7 @@ from app.schemas.screener import (
     ScreenerTemplateCreate,
     ScreenerTemplateUpdate,
     ScreenerTemplateResponse,
-    ScreenerStats
+    ScreenerStats,
 )
 
 
@@ -23,12 +23,8 @@ class ScreenerService:
     def __init__(self):
         pass
 
-
     async def screen_assets(
-        self,
-        request: ScreenerRequest,
-        user: User,
-        db: Session
+        self, request: ScreenerRequest, user: User, db: Session
     ) -> ScreenerResponse:
         """
         执行资产筛选
@@ -58,7 +54,7 @@ class ScreenerService:
                 pe_ratio=5.2,
                 pb_ratio=0.8,
                 dividend_yield=3.2,
-                additional_data=None
+                additional_data=None,
             ),
             ScreenerResultItem(
                 symbol="000002.SZ",
@@ -72,8 +68,8 @@ class ScreenerService:
                 pe_ratio=8.5,
                 pb_ratio=1.1,
                 dividend_yield=2.8,
-                additional_data=None
-            )
+                additional_data=None,
+            ),
         ]
 
         total = len(sample_items)
@@ -85,15 +81,11 @@ class ScreenerService:
             page=request.page,
             size=request.size,
             pages=pages,
-            filters_applied=request.conditions
+            filters_applied=request.conditions,
         )
 
-
     async def get_screener_stats(
-        self,
-        asset_type: str,
-        user: User,
-        db: Session
+        self, asset_type: str, user: User, db: Session
     ) -> ScreenerStats:
         """
         获取筛选器统计信息
@@ -114,18 +106,14 @@ class ScreenerService:
             top_sectors=[
                 {"name": "银行", "count": 50},
                 {"name": "科技", "count": 30},
-                {"name": "医药", "count": 20}
+                {"name": "医药", "count": 20},
             ],
             price_range={"min": 1.0, "max": 500.0},
-            market_cap_range={"min": 1000000000, "max": 5000000000000}
+            market_cap_range={"min": 1000000000, "max": 5000000000000},
         )
 
-
     async def create_template(
-        self,
-        template_data: ScreenerTemplateCreate,
-        user: User,
-        db: Session
+        self, template_data: ScreenerTemplateCreate, user: User, db: Session
     ) -> ScreenerTemplateResponse:
         """
         创建筛选器模板
@@ -152,15 +140,11 @@ class ScreenerService:
             sort_order=template_data.sort_order,
             is_public=template_data.is_public,
             created_at=datetime.now(),
-            updated_at=datetime.now()
+            updated_at=datetime.now(),
         )
 
-
     async def get_user_templates(
-        self,
-        user: User,
-        asset_type: Optional[str] = None,
-        db: Session = None
+        self, user: User, asset_type: Optional[str] = None, db: Session = None
     ) -> List[ScreenerTemplateResponse]:
         """
         获取用户的筛选器模板
@@ -176,13 +160,12 @@ class ScreenerService:
         # 这里是获取用户模板的占位符
         return []
 
-
     async def update_template(
         self,
         template_id: int,
         template_data: ScreenerTemplateUpdate,
         user: User,
-        db: Session
+        db: Session,
     ) -> Optional[ScreenerTemplateResponse]:
         """
         更新筛选器模板
@@ -199,13 +182,7 @@ class ScreenerService:
         # 这里是更新模板的占位符
         return None
 
-
-    async def delete_template(
-        self,
-        template_id: int,
-        user: User,
-        db: Session
-    ) -> bool:
+    async def delete_template(self, template_id: int, user: User, db: Session) -> bool:
         """
         删除筛选器模板
 
@@ -220,11 +197,8 @@ class ScreenerService:
         # 这里是删除模板的占位符
         return True
 
-
     async def get_public_templates(
-        self,
-        asset_type: Optional[str] = None,
-        db: Session = None
+        self, asset_type: Optional[str] = None, db: Session = None
     ) -> List[ScreenerTemplateResponse]:
         """
         获取公开的筛选器模板

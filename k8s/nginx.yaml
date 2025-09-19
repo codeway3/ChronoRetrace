@@ -111,7 +111,7 @@ spec:
                 - SETGID
                 - SETUID
                 - NET_BIND_SERVICE
-        
+
         # Nginx Prometheus Exporter
         - name: nginx-exporter
           image: nginx/nginx-prometheus-exporter:0.11.0
@@ -135,7 +135,7 @@ spec:
             capabilities:
               drop:
                 - ALL
-      
+
       volumes:
         - name: nginx-config
           configMap:
@@ -149,7 +149,7 @@ spec:
         - name: tls-certs
           secret:
             secretName: chronoretrace-tls
-      
+
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -162,7 +162,7 @@ spec:
                       values:
                         - nginx
                 topologyKey: kubernetes.io/hostname
-      
+
       tolerations:
         - key: "node.kubernetes.io/not-ready"
           operator: "Exists"
@@ -224,33 +224,33 @@ metadata:
 data:
   nginx.conf: |
     # Nginx Load Balancer Configuration for ChronoRetrace
-    
+
     user nginx;
     worker_processes auto;
     worker_rlimit_nofile 65535;
-    
+
     error_log /var/log/nginx/error.log warn;
     pid /var/run/nginx.pid;
-    
+
     events {
         worker_connections 4096;
         use epoll;
         multi_accept on;
     }
-    
+
     http {
         include /etc/nginx/mime.types;
         default_type application/octet-stream;
-        
+
         # Logging
         log_format main '$remote_addr - $remote_user [$time_local] "$request" '
                         '$status $body_bytes_sent "$http_referer" '
                         '"$http_user_agent" "$http_x_forwarded_for" '
                         'rt=$request_time uct="$upstream_connect_time" '
                         'uht="$upstream_header_time" urt="$upstream_response_time"';
-        
+
         access_log /var/log/nginx/access.log main;
-        
+
         # Performance Optimizations
         sendfile on;
         tcp_nopush on;
@@ -259,7 +259,7 @@ data:
         keepalive_requests 1000;
         types_hash_max_size 2048;
         server_tokens off;
-        
+
         # Buffer Sizes
         client_body_buffer_size 128k;
         client_max_body_size 100m;
@@ -267,12 +267,12 @@ data:
         large_client_header_buffers 4 4k;
         output_buffers 1 32k;
         postpone_output 1460;
-        
+
         # Timeouts
         client_body_timeout 12;
         client_header_timeout 12;
         send_timeout 10;
-        
+
         # Gzip Compression
         gzip on;
         gzip_vary on;
@@ -289,44 +289,44 @@ data:
             application/xml+rss
             application/atom+xml
             image/svg+xml;
-        
+
         # Rate Limiting
         limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
         limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;
         limit_conn_zone $binary_remote_addr zone=conn_limit_per_ip:10m;
-        
+
         # Security Headers
         add_header X-Frame-Options "SAMEORIGIN" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-XSS-Protection "1; mode=block" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' wss: https:; frame-ancestors 'self';" always;
-        
+
         # Upstream Backend Servers
         upstream backend_servers {
             least_conn;
             server backend:8000 max_fails=3 fail_timeout=30s;
             keepalive 32;
         }
-        
+
         # Upstream Frontend Servers
         upstream frontend_servers {
             least_conn;
             server frontend:80 max_fails=3 fail_timeout=30s;
             keepalive 16;
         }
-        
+
         # Health Check Endpoint
         server {
             listen 80;
             server_name _;
-            
+
             location /health {
                 access_log off;
                 return 200 "healthy\n";
                 add_header Content-Type text/plain;
             }
-            
+
             location /nginx_status {
                 stub_status on;
                 access_log off;
@@ -337,26 +337,26 @@ data:
                 deny all;
             }
         }
-        
+
         # HTTPS Redirect Server
         server {
             listen 80;
             server_name chronoretrace.com www.chronoretrace.com;
-            
+
             location /.well-known/acme-challenge/ {
                 root /var/www/certbot;
             }
-            
+
             location / {
                 return 301 https://$server_name$request_uri;
             }
         }
-        
+
         # Main HTTPS Server
         server {
             listen 443 ssl http2;
             server_name chronoretrace.com www.chronoretrace.com;
-            
+
             # SSL Configuration
             ssl_certificate /etc/ssl/certs/tls.crt;
             ssl_certificate_key /etc/ssl/certs/tls.key;
@@ -367,14 +367,14 @@ data:
             ssl_session_timeout 10m;
             ssl_stapling on;
             ssl_stapling_verify on;
-            
+
             # Security Headers for HTTPS
             add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-            
+
             # Rate Limiting
             limit_req zone=api burst=20 nodelay;
             limit_conn conn_limit_per_ip 20;
-            
+
             # API Routes
             location /api/ {
                 proxy_pass http://backend_servers;
@@ -392,11 +392,11 @@ data:
                 proxy_buffering on;
                 proxy_buffer_size 4k;
                 proxy_buffers 8 4k;
-                
+
                 # Rate limiting for API
                 limit_req zone=api burst=50 nodelay;
             }
-            
+
             # WebSocket Routes
             location /ws/ {
                 proxy_pass http://backend_servers;
@@ -411,7 +411,7 @@ data:
                 proxy_send_timeout 7d;
                 proxy_read_timeout 7d;
             }
-            
+
             # Authentication Routes (stricter rate limiting)
             location ~ ^/api/(auth|login|register) {
                 limit_req zone=login burst=5 nodelay;
@@ -422,7 +422,7 @@ data:
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto $scheme;
             }
-            
+
             # Static Files with Caching
             location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
                 proxy_pass http://frontend_servers;
@@ -432,7 +432,7 @@ data:
                 add_header Cache-Control "public, immutable";
                 expires 1y;
             }
-            
+
             # Frontend Routes
             location / {
                 proxy_pass http://frontend_servers;
@@ -444,11 +444,11 @@ data:
                 proxy_connect_timeout 5s;
                 proxy_send_timeout 60s;
                 proxy_read_timeout 60s;
-                
+
                 # Handle client-side routing
                 try_files $uri $uri/ @fallback;
             }
-            
+
             location @fallback {
                 proxy_pass http://frontend_servers;
                 proxy_http_version 1.1;

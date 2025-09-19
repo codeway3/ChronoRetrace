@@ -87,7 +87,7 @@ const ProfilePage = () => {
         birth_date: values.birth_date ? values.birth_date.format('YYYY-MM-DD') : null,
         avatar_url: avatarUrl
       };
-      
+
       await updateProfile(updateData);
     } catch (error) {
       console.error('Update profile error:', error);

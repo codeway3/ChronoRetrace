@@ -117,31 +117,31 @@ data:
     host = chronoretrace-postgres
     port = 5432
     name = chronoretrace
-    
+
     [redis]
     host = chronoretrace-redis
     port = 6379
     db = 0
-    
+
     [logging]
     level = info
     format = json
-  
+
   nginx.conf: |
     upstream backend {
         server chronoretrace-backend:8000;
     }
-    
+
     server {
         listen 80;
         server_name _;
-        
+
         location /api/ {
             proxy_pass http://backend;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
         }
-        
+
         location / {
             proxy_pass http://chronoretrace-frontend:3000;
             proxy_set_header Host $host;
@@ -783,7 +783,7 @@ data:
       format json
       time_format %Y-%m-%dT%H:%M:%S.%NZ
     </source>
-    
+
     <match kubernetes.**>
       @type elasticsearch
       host elasticsearch.logging.svc.cluster.local

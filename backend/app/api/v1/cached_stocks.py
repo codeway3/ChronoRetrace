@@ -32,11 +32,11 @@ async def get_all_stock_list_cached(
 ):
     """
 
-from __future__ import annotations
+    from __future__ import annotations
 
-获取股票列表（带缓存）
+    获取股票列表（带缓存）
 
-    使用多级缓存提供高性能的股票列表查询
+        使用多级缓存提供高性能的股票列表查询
     """
     try:
         return await stock_service.get_stock_list(db, market_type)

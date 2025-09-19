@@ -146,28 +146,28 @@ metadata:
 data:
   postgresql.conf: |
     # PostgreSQL Configuration for ChronoRetrace
-    
+
     # Connection Settings
     listen_addresses = '*'
     port = 5432
     max_connections = 200
-    
+
     # Memory Settings
     shared_buffers = 256MB
     effective_cache_size = 1GB
     work_mem = 4MB
     maintenance_work_mem = 64MB
-    
+
     # WAL Settings
     wal_level = replica
     max_wal_size = 1GB
     min_wal_size = 80MB
     checkpoint_completion_target = 0.9
-    
+
     # Query Planner
     random_page_cost = 1.1
     effective_io_concurrency = 200
-    
+
     # Logging
     log_destination = 'stderr'
     logging_collector = on
@@ -178,12 +178,12 @@ data:
     log_min_duration_statement = 1000
     log_line_prefix = '%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
     log_statement = 'ddl'
-    
+
     # Performance
     shared_preload_libraries = 'pg_stat_statements'
     track_activity_query_size = 2048
     track_functions = all
-    
+
     # Security
     ssl = off  # Handled by Kubernetes TLS
     password_encryption = scram-sha-256
@@ -200,21 +200,21 @@ metadata:
 data:
   01-init-extensions.sql: |
     -- Initialize PostgreSQL extensions for ChronoRetrace
-    
+
     -- Create extensions
     CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
     CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
     CREATE EXTENSION IF NOT EXISTS "pg_trgm";
     CREATE EXTENSION IF NOT EXISTS "btree_gin";
-    
+
     -- Create indexes for better performance
     -- These will be created by Alembic migrations, but we ensure extensions are available
-    
+
   02-init-user.sql: |
     -- Additional user setup if needed
     -- Grant necessary permissions
     GRANT ALL PRIVILEGES ON DATABASE chronoretrace TO chronoretrace;
-    
+
     -- Create read-only user for monitoring
     CREATE USER chronoretrace_readonly WITH PASSWORD 'readonly_password';
     GRANT CONNECT ON DATABASE chronoretrace TO chronoretrace_readonly;

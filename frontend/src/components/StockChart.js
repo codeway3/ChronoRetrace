@@ -20,7 +20,7 @@ const createKlineOption = (data, stockCode, stockName, interval, corporateAction
   const dates = data.map(item => item.trade_date);
   const kData = data.map(item => [item.open, item.close, item.low, item.high]);
   const volumes = data.map((item, index) => [index, item.vol, item.open > item.close ? -1 : 1]);
-  
+
   const maData = {};
   const maColors = { ma5: '#f5a623', ma10: '#4a90e2', ma20: '#bd10e0', ma60: '#50e3c2' };
   ['ma5', 'ma10', 'ma20', 'ma60'].forEach(ma => {
@@ -57,22 +57,22 @@ const createKlineOption = (data, stockCode, stockName, interval, corporateAction
   const title = `${stockName} (${stockCode}) ${intervalMap[interval]} K线图`;
 
   const series = [
-    { 
-      name: 'K线', 
-      type: 'candlestick', 
-      data: kData, 
+    {
+      name: 'K线',
+      type: 'candlestick',
+      data: kData,
       itemStyle: { color: '#ef232a', color0: '#14b143', borderColor: '#ef232a', borderColor0: '#14b143' }
     },
     ...Object.keys(maData).map(ma => ({
       name: ma, type: 'line', data: maData[ma], smooth: true, showSymbol: false, lineStyle: { color: maColors[ma], width: 1 }
     })),
-    { 
-      name: '成交量', 
-      type: 'bar', 
-      xAxisIndex: 1, 
-      yAxisIndex: 1, 
-      data: volumes.map(item => item[1] ?? 0), 
-      itemStyle: { color: ({ dataIndex }) => volumes[dataIndex]?.[2] === 1 ? '#ef232a' : '#14b143' } 
+    {
+      name: '成交量',
+      type: 'bar',
+      xAxisIndex: 1,
+      yAxisIndex: 1,
+      data: volumes.map(item => item[1] ?? 0),
+      itemStyle: { color: ({ dataIndex }) => volumes[dataIndex]?.[2] === 1 ? '#ef232a' : '#14b143' }
     },
   ];
 

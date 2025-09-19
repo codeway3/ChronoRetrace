@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Typography, Row, Col, Card, Space } from 'antd';
-import { 
-  LineChartOutlined, 
-  BarChartOutlined, 
-  SearchOutlined, 
+import {
+  LineChartOutlined,
+  BarChartOutlined,
+  SearchOutlined,
   SafetyOutlined,
   RocketOutlined,
   LoginOutlined,
@@ -75,16 +75,16 @@ const HomePage = () => {
           </div>
           <div className="auth-buttons">
             <Space size="middle">
-              <Button 
-                type="default" 
+              <Button
+                type="default"
                 icon={<LoginOutlined />}
                 onClick={handleLogin}
                 className="auth-btn login-btn"
               >
                 登录
               </Button>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 icon={<UserAddOutlined />}
                 onClick={handleRegister}
                 className="auth-btn register-btn"
@@ -113,8 +113,8 @@ const HomePage = () => {
                 支持多市场数据获取、策略回测、智能筛选等功能，助您在投资路上更进一步。
               </Paragraph>
               <div className="hero-actions">
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   size="large"
                   icon={<ArrowRightOutlined />}
                   onClick={handleLogin}
@@ -122,8 +122,8 @@ const HomePage = () => {
                 >
                   立即开始
                 </Button>
-                <Button 
-                  type="default" 
+                <Button
+                  type="default"
                   size="large"
                   onClick={handleRegister}
                   className="secondary-button"
@@ -190,7 +190,7 @@ const HomePage = () => {
             <Row gutter={[32, 32]} className="features-grid">
               {features.map((feature, index) => (
                 <Col xs={24} sm={12} lg={6} key={index}>
-                  <Card 
+                  <Card
                     className="feature-card"
                     hoverable
                     variant="borderless"
@@ -221,8 +221,8 @@ const HomePage = () => {
               加入我们，体验专业的金融数据分析平台
             </Paragraph>
             <Space size="large">
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 size="large"
                 icon={<LoginOutlined />}
                 onClick={handleLogin}
@@ -230,8 +230,8 @@ const HomePage = () => {
               >
                 立即登录
               </Button>
-              <Button 
-                type="default" 
+              <Button
+                type="default"
                 size="large"
                 icon={<UserAddOutlined />}
                 onClick={handleRegister}

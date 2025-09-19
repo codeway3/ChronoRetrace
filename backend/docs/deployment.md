@@ -439,20 +439,20 @@ redis_pool = redis.ConnectionPool(
 
 ```sql
 -- 股票数据查询索引
-CREATE INDEX idx_daily_stock_metrics_ts_code_date 
+CREATE INDEX idx_daily_stock_metrics_ts_code_date
 ON daily_stock_metrics(ts_code, trade_date);
 
-CREATE INDEX idx_daily_stock_metrics_date 
+CREATE INDEX idx_daily_stock_metrics_date
 ON daily_stock_metrics(trade_date);
 
-CREATE INDEX idx_daily_stock_metrics_volume_date 
+CREATE INDEX idx_daily_stock_metrics_volume_date
 ON daily_stock_metrics(volume, trade_date);
 
 -- 股票信息索引
-CREATE INDEX idx_stock_info_industry 
+CREATE INDEX idx_stock_info_industry
 ON stock_info(industry);
 
-CREATE INDEX idx_stock_info_list_date 
+CREATE INDEX idx_stock_info_list_date
 ON stock_info(list_date);
 ```
 
@@ -465,8 +465,8 @@ CREATE TABLE daily_stock_metrics_partitioned (
 ) PARTITION BY RANGE (trade_date);
 
 -- 创建分区
-CREATE TABLE daily_stock_metrics_2024_01 
-PARTITION OF daily_stock_metrics_partitioned 
+CREATE TABLE daily_stock_metrics_2024_01
+PARTITION OF daily_stock_metrics_partitioned
 FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
 ```
 
@@ -483,18 +483,18 @@ class MultiLevelCache:
     def __init__(self):
         self.l1_cache = {}
         self.l2_cache = redis_client
-        
+
     async def get(self, key):
         # 先查 L1
         if key in self.l1_cache:
             return self.l1_cache[key]
-            
+
         # 再查 L2
         value = await self.l2_cache.get(key)
         if value:
             self.l1_cache[key] = value
             return value
-            
+
         return None
 ```
 
@@ -514,19 +514,19 @@ upstream chronoretrace_backend {
 server {
     listen 80;
     server_name api.chronoretrace.com;
-    
+
     location / {
         proxy_pass http://chronoretrace_backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         # 超时配置
         proxy_connect_timeout 30s;
         proxy_send_timeout 30s;
         proxy_read_timeout 30s;
-        
+
         # 缓存配置
         proxy_cache api_cache;
         proxy_cache_valid 200 5m;
@@ -549,10 +549,10 @@ async def health_check():
         "redis": await check_redis_health(),
         "cache_warming": await check_cache_warming_health()
     }
-    
+
     all_healthy = all(checks.values())
     status_code = 200 if all_healthy else 503
-    
+
     return JSONResponse(
         content={
             "status": "healthy" if all_healthy else "unhealthy",
@@ -831,26 +831,26 @@ SERVERS=("server1" "server2" "server3" "server4")
 
 for server in "${SERVERS[@]}"; do
     echo "Upgrading $server..."
-    
+
     # 从负载均衡器移除
     nginx_remove_server $server
-    
+
     # 等待现有连接完成
     sleep 30
-    
+
     # 停止应用
     ssh $server "sudo systemctl stop chronoretrace"
-    
+
     # 部署新版本
     ssh $server "cd /opt/chronoretrace && git pull && git checkout $NEW_VERSION"
     ssh $server "cd /opt/chronoretrace && pip install -r requirements.txt"
-    
+
     # 运行迁移
     ssh $server "cd /opt/chronoretrace && alembic upgrade head"
-    
+
     # 启动应用
     ssh $server "sudo systemctl start chronoretrace"
-    
+
     # 健康检查
     if health_check $server; then
         # 重新加入负载均衡器
@@ -861,7 +861,7 @@ for server in "${SERVERS[@]}"; do
         rollback $server
         exit 1
     fi
-    
+
     sleep 10
 done
 
@@ -904,11 +904,11 @@ class ConfigManager:
         self.config_file = config_file
         self.config = self.load_config()
         signal.signal(signal.SIGHUP, self.reload_config)
-    
+
     def load_config(self):
         with open(self.config_file, 'r') as f:
             return yaml.safe_load(f)
-    
+
     def reload_config(self, signum, frame):
         print("Reloading configuration...")
         self.config = self.load_config()

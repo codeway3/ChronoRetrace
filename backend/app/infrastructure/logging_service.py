@@ -101,7 +101,6 @@ class BatchOperationLog:
     sub_operations: Union[list[str], None] = None  # 子操作ID列表
     error_summary: Union[str, None] = None
 
-
     def __post_init__(self):
         if self.metrics is None:
             self.metrics = OperationMetrics()
@@ -127,7 +126,6 @@ class LoggingService:
         self.retention_days = 30
         self.max_log_entries = 100000
 
-
     def _setup_file_logging(self, log_file_path: str) -> None:
         """设置文件日志记录"""
         log_path = Path(log_file_path)
@@ -142,7 +140,6 @@ class LoggingService:
         file_handler.setFormatter(formatter)
 
         self.logger.addHandler(file_handler)
-
 
     def start_operation(
         self,
@@ -185,7 +182,6 @@ class LoggingService:
         )
 
         return operation_id
-
 
     def log_operation(
         self,
@@ -247,7 +243,6 @@ class LoggingService:
         if operation_id in self.active_operations:
             self._update_batch_operation(operation_id, log_entry)
 
-
     def log_validation_result(
         self,
         operation_id: str,
@@ -301,7 +296,6 @@ class LoggingService:
             metrics=metrics,
         )
 
-
     def log_deduplication_result(
         self,
         operation_id: str,
@@ -353,7 +347,6 @@ class LoggingService:
             metrics=metrics,
         )
 
-
     def finish_operation(
         self,
         operation_id: str,
@@ -398,7 +391,6 @@ class LoggingService:
 
         # 从活跃操作中移除
         del self.active_operations[operation_id]
-
 
     def get_operation_logs(
         self,
@@ -463,7 +455,6 @@ class LoggingService:
 
         return result
 
-
     def get_operation_statistics(
         self, operation_type: Union[OperationType, None] = None, days: int = 7
     ) -> dict[str, Any]:
@@ -523,7 +514,6 @@ class LoggingService:
             "operation_type_stats": operation_type_stats,
         }
 
-
     def cleanup_old_logs(self) -> int:
         """清理过期日志
 
@@ -566,7 +556,6 @@ class LoggingService:
             self.db_session.rollback()
             return 0
 
-
     def _log_to_file(self, log_entry: LogEntry) -> None:
         """记录到文件"""
         log_level = {
@@ -589,7 +578,6 @@ class LoggingService:
 
         self.logger.log(log_level, log_message, extra=extra_info)
 
-
     def _log_to_database(self, log_entry: LogEntry) -> None:
         """记录到数据库"""
         try:
@@ -609,7 +597,6 @@ class LoggingService:
         except Exception as e:
             self.logger.error(f"记录日志到数据库失败: {str(e)}")
             self.db_session.rollback()
-
 
     def _update_batch_operation(self, operation_id: str, log_entry: LogEntry) -> None:
         """更新批量操作状态"""

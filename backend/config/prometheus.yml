@@ -42,7 +42,7 @@ scrape_configs:
     scrape_interval: 15s
     metrics_path: /metrics
     scrape_timeout: 10s
-    
+
     # 标签
     relabel_configs:
       - source_labels: [__address__]
@@ -51,7 +51,7 @@ scrape_configs:
         regex: '(.*):(\d+)'
         target_label: __address__
         replacement: '${1}:${2}'
-    
+
     # 指标过滤
     metric_relabel_configs:
       - source_labels: [__name__]
@@ -76,7 +76,7 @@ scrape_configs:
       - targets:
           - 'postgres-exporter:9187'
     scrape_interval: 30s
-    
+
     # PostgreSQL特定配置
     relabel_configs:
       - source_labels: [__address__]
@@ -92,7 +92,7 @@ scrape_configs:
       - targets:
           - 'redis-exporter:9121'
     scrape_interval: 30s
-    
+
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -125,7 +125,7 @@ scrape_configs:
           - 'node-exporter-2:9100'
           - 'node-exporter-3:9100'
     scrape_interval: 30s
-    
+
     # 系统指标标签
     relabel_configs:
       - source_labels: [__address__]
@@ -142,7 +142,7 @@ scrape_configs:
           - 'cadvisor-3:8080'
     scrape_interval: 30s
     metrics_path: /metrics
-    
+
     # 容器指标过滤
     metric_relabel_configs:
       - source_labels: [container_label_com_docker_compose_service]
@@ -159,12 +159,12 @@ scrape_configs:
           names:
             - default
             - kube-system
-    
+
     scheme: https
     tls_config:
       ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
     bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-    
+
     relabel_configs:
       - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
         action: keep
@@ -174,12 +174,12 @@ scrape_configs:
   - job_name: 'kubernetes-nodes'
     kubernetes_sd_configs:
       - role: node
-    
+
     scheme: https
     tls_config:
       ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
     bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-    
+
     relabel_configs:
       - action: labelmap
         regex: __meta_kubernetes_node_label_(.+)
@@ -194,7 +194,7 @@ scrape_configs:
   - job_name: 'kubernetes-pods'
     kubernetes_sd_configs:
       - role: pod
-    
+
     relabel_configs:
       - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
         action: keep
@@ -225,11 +225,11 @@ scrape_configs:
           - 'backend-2:8000'
     scrape_interval: 60s
     metrics_path: /api/metrics/business
-    
+
     # 业务指标特定配置
     params:
       format: ['prometheus']
-    
+
     metric_relabel_configs:
       - source_labels: [__name__]
         regex: 'chronoretrace_.*'
@@ -242,13 +242,13 @@ scrape_configs:
           - 'blackbox-exporter:9115'
     scrape_interval: 60s
     metrics_path: /probe
-    
+
     params:
       module: [http_2xx]
       target:
         - 'https://api.example.com/health'
         - 'https://chronoretrace.com/health'
-    
+
     relabel_configs:
       - source_labels: [__param_target]
         target_label: instance
@@ -264,7 +264,7 @@ remote_write:
       max_samples_per_send: 1000
       max_shards: 200
       capacity: 2500
-    
+
     # 写入过滤
     write_relabel_configs:
       - source_labels: [__name__]
@@ -283,11 +283,11 @@ storage:
     retention.time: 30d
     retention.size: 50GB
     wal-compression: true
-    
+
     # 压缩配置
     min-block-duration: 2h
     max-block-duration: 25h
-    
+
     # 性能优化
     no-lockfile: false
     allow-overlapping-blocks: false
@@ -297,10 +297,10 @@ web:
   listen-address: '0.0.0.0:9090'
   max-connections: 512
   read-timeout: 30s
-  
+
   # 外部URL配置
   external-url: 'https://prometheus.chronoretrace.com'
-  
+
   # 控制台模板
   console.templates: '/etc/prometheus/consoles'
   console.libraries: '/etc/prometheus/console_libraries'

@@ -11,7 +11,7 @@ const BacktestChart = ({ klineData, portfolioData, transactions, stockCode, stoc
   const dates = klineData.map(item => item.trade_date);
   const ohlcData = klineData.map(item => [item.open, item.close, item.low, item.high]);
   const volumes = klineData.map((item, index) => [index, item.vol, item.open > item.close ? -1 : 1]);
-  
+
   const portfolioValues = portfolioData.map(item => item.portfolio_value.toFixed(2));
   const benchmarkValues = portfolioData.map(item => item.benchmark_value.toFixed(2));
 
@@ -19,7 +19,7 @@ const BacktestChart = ({ klineData, portfolioData, transactions, stockCode, stoc
   const tradeMarkers = transactions.map(tx => {
     const dateIndex = dates.indexOf(tx.trade_date);
     if (dateIndex === -1) return null;
-    
+
     const isBuy = tx.trade_type === 'buy';
     return {
       name: isBuy ? '买入' : '卖出',
@@ -76,33 +76,33 @@ const BacktestChart = ({ klineData, portfolioData, transactions, stockCode, stoc
     },
     grid: [
       { height: '50%', right: '8%', left: '8%' },
-      { top: '65%', height: '16%', right: '8%', left: '8%' } 
+      { top: '65%', height: '16%', right: '8%', left: '8%' }
     ],
     xAxis: [
       { type: 'category', data: dates, scale: true, boundaryGap: false, axisLine: { onZero: false }, splitLine: { show: false }, min: 'dataMin', max: 'dataMax' },
       { type: 'category', gridIndex: 1, data: dates, scale: true, boundaryGap: false, axisLine: { onZero: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false }, min: 'dataMin', max: 'dataMax' },
     ],
     yAxis: [
-      { 
-        name: '价格 (元)', 
-        scale: true, 
-        splitArea: { show: true }, 
+      {
+        name: '价格 (元)',
+        scale: true,
+        splitArea: { show: true },
         axisLabel: { formatter: val => val.toFixed(2) },
         position: 'left'
       },
-      { 
-        name: '成交量', 
-        scale: true, 
-        gridIndex: 1, 
-        splitNumber: 2, 
-        axisLabel: { show: false }, 
-        axisLine: { show: false }, 
-        axisTick: { show: false }, 
-        splitLine: { show: false } 
+      {
+        name: '成交量',
+        scale: true,
+        gridIndex: 1,
+        splitNumber: 2,
+        axisLabel: { show: false },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { show: false }
       },
-      { 
-        name: '投资组合价值 (元)', 
-        scale: true, 
+      {
+        name: '投资组合价值 (元)',
+        scale: true,
         splitArea: { show: false },
         axisLabel: { formatter: val => `${(val / 10000).toFixed(1)}万` },
         position: 'right'
@@ -113,41 +113,41 @@ const BacktestChart = ({ klineData, portfolioData, transactions, stockCode, stoc
       { show: true, type: 'slider', xAxisIndex: [0, 1], top: '90%', start: 0, end: 100 }
     ],
     series: [
-      { 
-        name: 'K线', 
-        type: 'candlestick', 
+      {
+        name: 'K线',
+        type: 'candlestick',
         yAxisIndex: 0,
-        data: ohlcData, 
+        data: ohlcData,
         itemStyle: { color: '#ef232a', color0: '#14b143', borderColor: '#ef232a', borderColor0: '#14b143' },
         markPoint: {
           data: tradeMarkers,
         }
       },
-      { 
-        name: '策略价值', 
-        type: 'line', 
+      {
+        name: '策略价值',
+        type: 'line',
         yAxisIndex: 2,
-        data: portfolioValues, 
-        smooth: true, 
-        showSymbol: false, 
+        data: portfolioValues,
+        smooth: true,
+        showSymbol: false,
         lineStyle: { color: '#f5a623', width: 2 }
       },
-      { 
-        name: '基准价值', 
-        type: 'line', 
+      {
+        name: '基准价值',
+        type: 'line',
         yAxisIndex: 2,
-        data: benchmarkValues, 
-        smooth: true, 
-        showSymbol: false, 
+        data: benchmarkValues,
+        smooth: true,
+        showSymbol: false,
         lineStyle: { color: '#4a90e2', width: 2, type: 'dashed' }
       },
-      { 
-        name: '成交量', 
-        type: 'bar', 
-        xAxisIndex: 1, 
-        yAxisIndex: 1, 
-        data: volumes.map(item => item[1] ?? 0), 
-        itemStyle: { color: ({ dataIndex }) => volumes[dataIndex]?.[2] === 1 ? '#ef232a' : '#14b143' } 
+      {
+        name: '成交量',
+        type: 'bar',
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        data: volumes.map(item => item[1] ?? 0),
+        itemStyle: { color: ({ dataIndex }) => volumes[dataIndex]?.[2] === 1 ? '#ef232a' : '#14b143' }
       },
     ]
   };

@@ -521,8 +521,10 @@ class UserActivityLog(Base):
 
 # Asset Configuration Models
 
+
 class AssetType(enum.Enum):
     """资产类型枚举"""
+
     A_SHARE = "A_SHARE"
     US_STOCK = "US_STOCK"
     HK_STOCK = "HK_STOCK"
@@ -535,6 +537,7 @@ class AssetType(enum.Enum):
 
 class AssetConfigStatus(enum.Enum):
     """资产配置状态枚举"""
+
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
     MAINTENANCE = "MAINTENANCE"
@@ -542,6 +545,7 @@ class AssetConfigStatus(enum.Enum):
 
 class AssetConfig(Base):
     """资产类型配置表"""
+
     __tablename__ = "asset_configs"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -551,7 +555,9 @@ class AssetConfig(Base):
     description = Column(Text, comment="资产类型描述")
 
     # 功能支持配置
-    supported_functions = Column(JSON, nullable=False, default=list, comment="支持的功能列表")
+    supported_functions = Column(
+        JSON, nullable=False, default=list, comment="支持的功能列表"
+    )
 
     # 筛选器配置
     screener_config = Column(JSON, comment="筛选器配置")
@@ -563,7 +569,9 @@ class AssetConfig(Base):
     data_source_config = Column(JSON, comment="数据源配置")
 
     # 状态和元数据
-    status = Column(SQLEnum(AssetConfigStatus), default=AssetConfigStatus.ACTIVE, nullable=False)
+    status = Column(
+        SQLEnum(AssetConfigStatus), default=AssetConfigStatus.ACTIVE, nullable=False
+    )
     is_enabled = Column(Boolean, default=True, nullable=False, comment="是否启用")
     sort_order = Column(Integer, default=0, comment="排序顺序")
 
@@ -571,13 +579,15 @@ class AssetConfig(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-
     def __repr__(self):
-        return "<AssetConfig(asset_type={}, name={})>".format(self.asset_type, self.name)
+        return "<AssetConfig(asset_type={}, name={})>".format(
+            self.asset_type, self.name
+        )
 
 
 class AssetSymbol(Base):
     """资产标的表"""
+
     __tablename__ = "asset_symbols"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -610,13 +620,15 @@ class AssetSymbol(Base):
         Index("idx_asset_symbols_tradable", "is_tradable"),
     )
 
-
     def __repr__(self):
-        return "<AssetSymbol(asset_type={}, symbol={}, name={})>".format(self.asset_type, self.symbol, self.name)
+        return "<AssetSymbol(asset_type={}, symbol={}, name={})>".format(
+            self.asset_type, self.symbol, self.name
+        )
 
 
 class AssetMarketData(Base):
     """资产市场数据表"""
+
     __tablename__ = "asset_market_data"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -653,18 +665,22 @@ class AssetMarketData(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     __table_args__ = (
-        UniqueConstraint("asset_type", "symbol", "trade_date", name="_asset_symbol_date_uc"),
+        UniqueConstraint(
+            "asset_type", "symbol", "trade_date", name="_asset_symbol_date_uc"
+        ),
         Index("idx_asset_market_data_date", "trade_date"),
         Index("idx_asset_market_data_symbol_date", "symbol", "trade_date"),
     )
 
-
     def __repr__(self):
-        return "<AssetMarketData(asset_type={}, symbol={}, trade_date={})>".format(self.asset_type, self.symbol, self.trade_date)
+        return "<AssetMarketData(asset_type={}, symbol={}, trade_date={})>".format(
+            self.asset_type, self.symbol, self.trade_date
+        )
 
 
 class AssetScreenerTemplate(Base):
     """资产筛选器模板表"""
+
     __tablename__ = "asset_screener_templates"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -675,7 +691,9 @@ class AssetScreenerTemplate(Base):
     is_public = Column(Boolean, default=False, nullable=False, comment="是否公开模板")
     is_system = Column(Boolean, default=False, nullable=False, comment="是否系统模板")
     usage_count = Column(Integer, default=0, nullable=False, comment="使用次数")
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=True, comment="创建者ID")
+    created_by = Column(
+        Integer, ForeignKey("users.id"), nullable=True, comment="创建者ID"
+    )
 
     # 时间戳
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -690,13 +708,15 @@ class AssetScreenerTemplate(Base):
         Index("idx_screener_templates_creator", "created_by"),
     )
 
-
     def __repr__(self):
-        return "<AssetScreenerTemplate(asset_type={}, name={})>".format(self.asset_type, self.name)
+        return "<AssetScreenerTemplate(asset_type={}, name={})>".format(
+            self.asset_type, self.name
+        )
 
 
 class AssetBacktestTemplate(Base):
     """资产回测模板表"""
+
     __tablename__ = "asset_backtest_templates"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -709,7 +729,9 @@ class AssetBacktestTemplate(Base):
     is_public = Column(Boolean, default=False, nullable=False, comment="是否公开模板")
     is_system = Column(Boolean, default=False, nullable=False, comment="是否系统模板")
     usage_count = Column(Integer, default=0, nullable=False, comment="使用次数")
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=True, comment="创建者ID")
+    created_by = Column(
+        Integer, ForeignKey("users.id"), nullable=True, comment="创建者ID"
+    )
 
     # 时间戳
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -725,6 +747,9 @@ class AssetBacktestTemplate(Base):
         Index("idx_backtest_templates_creator", "created_by"),
     )
 
-
     def __repr__(self):
-        return "<AssetBacktestTemplate(asset_type={}, name={}, strategy_type={})>".format(self.asset_type, self.name, self.strategy_type)
+        return (
+            "<AssetBacktestTemplate(asset_type={}, name={}, strategy_type={})>".format(
+                self.asset_type, self.name, self.strategy_type
+            )
+        )

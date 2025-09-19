@@ -461,6 +461,7 @@ app.include_router(health_v1.router, prefix="/api/v1/health", tags=["health"])
 
 # Import and include asset config router
 from app.api.v1 import asset_config as asset_config_v1
+
 app.include_router(
     asset_config_v1.router, prefix="/api/v1/asset-config", tags=["asset-config"]
 )

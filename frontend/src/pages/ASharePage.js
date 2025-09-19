@@ -162,7 +162,7 @@ const ASharePage = () => {
           >
             {renderDashboard()}
           </TabPane>
-          
+
           <TabPane
             tab={
               <span>
@@ -177,7 +177,7 @@ const ASharePage = () => {
               title="A股筛选器"
             />
           </TabPane>
-          
+
           <TabPane
             tab={
               <span>

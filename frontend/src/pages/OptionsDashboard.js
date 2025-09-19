@@ -27,11 +27,11 @@ const OptionsDashboard = () => {
   const [optionChain, setOptionChain] = useState([]);
   const [selectedOption, setSelectedOption] = useState(null);
   const [chartData, setChartData] = useState([]);
-  
+
   const [loadingExpirations, setLoadingExpirations] = useState(false);
   const [loadingChain, setLoadingChain] = useState(false);
   const [loadingChart, setLoadingChart] = useState(false);
-  
+
   const [selectedInterval, setSelectedInterval] = useState('daily');
   const [selectedWindow, setSelectedWindow] = useState('1Y');
   const [error, setError] = useState(null);
@@ -92,7 +92,7 @@ const OptionsDashboard = () => {
     if (!symbol) return;
     setLoadingChart(true);
     setChartData([]);
-    
+
     getOptionsData(symbol, interval, window)
       .then(response => {
         setChartData(response.data);
@@ -147,7 +147,7 @@ const OptionsDashboard = () => {
       <Title level={4}>期权链分析</Title>
       <Text type="secondary">输入美股代码查询期权链，并点击合约查看K线图。</Text>
       {error && <Text type="danger" style={{ display: 'block', marginTop: '10px' }}>{error}</Text>}
-      
+
       <Card style={{ margin: '20px 0' }}>
         <Row gutter={[16, 16]} align="bottom">
           <Col>

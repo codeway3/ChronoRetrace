@@ -21,13 +21,13 @@ const KpiCard = ({ title, value, format, market = 'US_stock', isDrawdown = false
                     return `${currencySymbol}${(value / 1000).toFixed(1)}K`;
                 }
                 return `${currencySymbol}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-            
+
             case 'percent':
                 return `${(value * 100).toFixed(2)}%`;
-            
+
             case 'number':
                 return value.toLocaleString();
-            
+
             default:
                 return value;
         }
@@ -38,7 +38,7 @@ const KpiCard = ({ title, value, format, market = 'US_stock', isDrawdown = false
         if (typeof value !== 'number' || value === 0) return className;
 
         const isPositive = value > 0;
-        
+
         if (isDrawdown) {
             className += market === 'A_share' ? ' negative-a' : ' negative-us';
             return className;

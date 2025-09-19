@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class ScreenerCondition(BaseModel):
     """筛选条件"""
+
     field: str = Field(..., description="筛选字段")
     operator: str = Field(..., description="操作符: >, <, >=, <=, =, !=, in, not_in")
     value: Any = Field(..., description="筛选值")
@@ -16,6 +17,7 @@ class ScreenerCondition(BaseModel):
 
 class ScreenerRequest(BaseModel):
     """筛选器请求"""
+
     asset_type: str = Field(..., description="资产类型")
     conditions: List[ScreenerCondition] = Field(default=[], description="筛选条件列表")
     sort_by: Optional[str] = Field(None, description="排序字段")
@@ -26,6 +28,7 @@ class ScreenerRequest(BaseModel):
 
 class ScreenerResultItem(BaseModel):
     """筛选结果项"""
+
     symbol: str = Field(..., description="标的代码")
     name: str = Field(..., description="标的名称")
     market: str = Field(..., description="市场")
@@ -42,6 +45,7 @@ class ScreenerResultItem(BaseModel):
 
 class ScreenerResponse(BaseModel):
     """筛选器响应"""
+
     items: List[ScreenerResultItem] = Field(..., description="筛选结果列表")
     total: int = Field(..., description="总数量")
     page: int = Field(..., description="当前页码")
@@ -52,6 +56,7 @@ class ScreenerResponse(BaseModel):
 
 class ScreenerTemplateBase(BaseModel):
     """筛选器模板基础模型"""
+
     name: str = Field(..., description="模板名称")
     description: Optional[str] = Field(None, description="模板描述")
     asset_type: str = Field(..., description="资产类型")
@@ -63,11 +68,13 @@ class ScreenerTemplateBase(BaseModel):
 
 class ScreenerTemplateCreate(ScreenerTemplateBase):
     """创建筛选器模板"""
+
     pass
 
 
 class ScreenerTemplateUpdate(BaseModel):
     """更新筛选器模板"""
+
     name: Optional[str] = Field(None, description="模板名称")
     description: Optional[str] = Field(None, description="模板描述")
     conditions: Optional[List[ScreenerCondition]] = Field(None, description="筛选条件")
@@ -78,11 +85,11 @@ class ScreenerTemplateUpdate(BaseModel):
 
 class ScreenerTemplateResponse(ScreenerTemplateBase):
     """筛选器模板响应"""
+
     id: int = Field(..., description="模板ID")
     user_id: int = Field(..., description="创建用户ID")
     created_at: datetime = Field(..., description="创建时间")
     updated_at: datetime = Field(..., description="更新时间")
-
 
     class Config:
         from_attributes = True
@@ -90,6 +97,7 @@ class ScreenerTemplateResponse(ScreenerTemplateBase):
 
 class ScreenerStats(BaseModel):
     """筛选器统计信息"""
+
     total_assets: int = Field(..., description="总资产数量")
     filtered_count: int = Field(..., description="筛选后数量")
     filter_ratio: float = Field(..., description="筛选比例")

@@ -61,13 +61,13 @@ const BacktestPage = () => {
             } else {
                 config.upper_price = values.upper_price;
             }
-            
+
             if (values.lower_price_enable) {
                 config.lower_price = [values.lower_price_start, values.lower_price_end, values.lower_price_step];
             } else {
                 config.lower_price = values.lower_price;
             }
-            
+
             if (values.grid_count_enable) {
                 config.grid_count = [values.grid_count_start, values.grid_count_end, values.grid_count_step];
             } else {
@@ -79,7 +79,7 @@ const BacktestPage = () => {
         setError(null);
         setResults(null);
         setOptimizationResults(null);
-        
+
         try {
             let response;
             if (mode === 'optimize') {
@@ -96,7 +96,7 @@ const BacktestPage = () => {
             setIsLoading(false);
         }
     };
-    
+
     const handleStockChange = (value, option) => {
         const isAShare = value.includes('.SH') || value.includes('.SZ');
         const market = isAShare ? 'A_share' : 'US_stock';
@@ -140,9 +140,9 @@ const BacktestPage = () => {
         const startField = `${paramName}_start`;
         const endField = `${paramName}_end`;
         const stepField = `${paramName}_step`;
-        
+
         return (
-            <Form.Item 
+            <Form.Item
                 label={<span>{label} <Tooltip title={tooltip}><QuestionCircleOutlined /></Tooltip></span>}
                 required
             >
@@ -152,62 +152,62 @@ const BacktestPage = () => {
                         <Radio value={true}>范围优化</Radio>
                     </Radio.Group>
                 </Form.Item>
-                
-                <Form.Item shouldUpdate={(prevValues, currentValues) => 
+
+                <Form.Item shouldUpdate={(prevValues, currentValues) =>
                     prevValues[enableField] !== currentValues[enableField]
                 } noStyle>
                     {({ getFieldValue }) => {
                         const enableRange = getFieldValue(enableField);
-                        
+
                         if (enableRange) {
                             return (
                                 <div style={{ marginTop: 8 }}>
                                     <Row gutter={16}>
                                         <Col xs={24} sm={8}>
-                                            <Form.Item 
-                                                name={startField} 
-                                                label="起始值" 
+                                            <Form.Item
+                                                name={startField}
+                                                label="起始值"
                                                 rules={[{ required: true, message: '请输入起始值' }]}
                                                 style={{ marginBottom: 0 }}
                                                 required
                                             >
-                                                <InputNumber 
-                                                    style={{ width: '100%' }} 
-                                                    min={min} 
-                                                    max={max} 
+                                                <InputNumber
+                                                    style={{ width: '100%' }}
+                                                    min={min}
+                                                    max={max}
                                                     addonBefore={addonBefore}
                                                     placeholder="起始值"
                                                 />
                                             </Form.Item>
                                         </Col>
                                         <Col xs={24} sm={8}>
-                                            <Form.Item 
-                                                name={endField} 
-                                                label="结束值" 
+                                            <Form.Item
+                                                name={endField}
+                                                label="结束值"
                                                 rules={[{ required: true, message: '请输入结束值' }]}
                                                 style={{ marginBottom: 0 }}
                                                 required
                                             >
-                                                <InputNumber 
-                                                    style={{ width: '100%' }} 
-                                                    min={min} 
-                                                    max={max} 
+                                                <InputNumber
+                                                    style={{ width: '100%' }}
+                                                    min={min}
+                                                    max={max}
                                                     addonBefore={addonBefore}
                                                     placeholder="结束值"
                                                 />
                                             </Form.Item>
                                         </Col>
                                         <Col xs={24} sm={8}>
-                                            <Form.Item 
-                                                name={stepField} 
-                                                label="步长" 
+                                            <Form.Item
+                                                name={stepField}
+                                                label="步长"
                                                 rules={[{ required: true, message: '请输入步长' }]}
                                                 style={{ marginBottom: 0 }}
                                                 required
                                             >
-                                                <InputNumber 
-                                                    style={{ width: '100%' }} 
-                                                    min={0.01} 
+                                                <InputNumber
+                                                    style={{ width: '100%' }}
+                                                    min={0.01}
                                                     addonBefore={addonBefore}
                                                     placeholder="步长"
                                                 />
@@ -218,16 +218,16 @@ const BacktestPage = () => {
                             );
                         } else {
                             return (
-                                <Form.Item 
-                                    name={paramName} 
+                                <Form.Item
+                                    name={paramName}
                                     rules={[{ required: true, message: `请输入${label}` }]}
                                     style={{ marginTop: 8 }}
                                     required
                                 >
-                                    <InputNumber 
-                                        style={{ width: '100%' }} 
-                                        min={min} 
-                                        max={max} 
+                                    <InputNumber
+                                        style={{ width: '100%' }}
+                                        min={min}
+                                        max={max}
                                         addonBefore={addonBefore}
                                         placeholder={`请输入${label}`}
                                     />
@@ -243,14 +243,14 @@ const BacktestPage = () => {
     return (
         <div className="backtest-page-container">
             <h1>网格交易回测</h1>
-            
+
             <div style={{ marginBottom: 24 }}>
                 <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)}>
                     <Radio value="single">单次回测</Radio>
                     <Radio value="optimize">参数优化</Radio>
                 </Radio.Group>
             </div>
-            
+
             <div className="form-container">
                 <Form form={form} layout="vertical" onFinish={onFinish} initialValues={initialValues}>
                     <Row gutter={24}>
@@ -270,7 +270,7 @@ const BacktestPage = () => {
                                 <InputNumber style={{ width: '100%' }} min={1} addonBefore={currencySymbol} formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} parser={value => value.replace(/\$\s?|(,*)/g, '')} />
                             </Form.Item>
                         </Col>
-                        
+
                         {/* Grid Params */}
                         {mode === 'single' ? (
                             <>
@@ -383,7 +383,7 @@ const BacktestPage = () => {
 
                     <div className="chart-container">
                         <h3>策略表现 vs. 基准</h3>
-                        <BacktestChart 
+                        <BacktestChart
                             klineData={results.kline_data}
                             portfolioData={results.chart_data}
                             transactions={results.transaction_log}
@@ -400,7 +400,7 @@ const BacktestPage = () => {
             {optimizationResults && (
                 <div className="results-container">
                     <h2>参数优化结果: {stockInfo.name} ({stockInfo.code})</h2>
-                    
+
                     <div style={{ marginBottom: 24 }}>
                         <h3>最佳参数组合</h3>
                         <Row gutter={[16, 16]} className="kpi-grid">
@@ -427,7 +427,7 @@ const BacktestPage = () => {
 
                     <div>
                         <h3>所有优化结果 (共 {optimizationResults.optimization_results.length} 组)</h3>
-                        <Table 
+                        <Table
                             dataSource={optimizationResults.optimization_results.map((item, index) => ({ ...item, key: index }))}
                             scroll={{ x: 800 }}
                             pagination={{ pageSize: 10, showSizeChanger: true }}

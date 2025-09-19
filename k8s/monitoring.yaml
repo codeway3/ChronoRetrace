@@ -183,22 +183,22 @@ data:
       external_labels:
         cluster: 'chronoretrace-prod'
         environment: 'production'
-    
+
     rule_files:
       - "alert_rules.yml"
-    
+
     alerting:
       alertmanagers:
         - static_configs:
             - targets:
               - alertmanager:9093
-    
+
     scrape_configs:
       # Prometheus itself
       - job_name: 'prometheus'
         static_configs:
           - targets: ['localhost:9090']
-      
+
       # Kubernetes API Server
       - job_name: 'kubernetes-apiservers'
         kubernetes_sd_configs:
@@ -211,7 +211,7 @@ data:
           - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
             action: keep
             regex: default;kubernetes;https
-      
+
       # Kubernetes Nodes
       - job_name: 'kubernetes-nodes'
         kubernetes_sd_configs:
@@ -229,7 +229,7 @@ data:
             regex: (.+)
             target_label: __metrics_path__
             replacement: /api/v1/nodes/${1}/proxy/metrics
-      
+
       # ChronoRetrace Backend
       - job_name: 'chronoretrace-backend'
         kubernetes_sd_configs:
@@ -245,7 +245,7 @@ data:
             action: keep
             regex: http
         metrics_path: /metrics
-      
+
       # ChronoRetrace Frontend (Nginx)
       - job_name: 'chronoretrace-frontend'
         kubernetes_sd_configs:
@@ -261,7 +261,7 @@ data:
             action: keep
             regex: http
         metrics_path: /metrics
-      
+
       # Nginx Load Balancer
       - job_name: 'chronoretrace-nginx'
         kubernetes_sd_configs:
@@ -277,7 +277,7 @@ data:
             action: keep
             regex: metrics
         metrics_path: /metrics
-      
+
       # PostgreSQL
       - job_name: 'chronoretrace-postgres'
         kubernetes_sd_configs:
@@ -290,7 +290,7 @@ data:
             action: keep
             regex: postgres
         metrics_path: /metrics
-      
+
       # Redis
       - job_name: 'chronoretrace-redis'
         kubernetes_sd_configs:
@@ -303,7 +303,7 @@ data:
             action: keep
             regex: redis
         metrics_path: /metrics
-      
+
       # Kubernetes Pods
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
@@ -329,7 +329,7 @@ data:
           - source_labels: [__meta_kubernetes_pod_name]
             action: replace
             target_label: kubernetes_pod_name
-  
+
   alert_rules.yml: |
     groups:
       - name: chronoretrace.rules
@@ -343,7 +343,7 @@ data:
             annotations:
               summary: "High CPU usage detected"
               description: "CPU usage is above 80% for more than 5 minutes on {{ $labels.instance }}"
-          
+
           # High Memory Usage
           - alert: HighMemoryUsage
             expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
@@ -353,7 +353,7 @@ data:
             annotations:
               summary: "High memory usage detected"
               description: "Memory usage is above 85% for more than 5 minutes on {{ $labels.instance }}"
-          
+
           # Backend Service Down
           - alert: BackendServiceDown
             expr: up{job="chronoretrace-backend"} == 0
@@ -363,7 +363,7 @@ data:
             annotations:
               summary: "Backend service is down"
               description: "ChronoRetrace backend service has been down for more than 1 minute"
-          
+
           # High Response Time
           - alert: HighResponseTime
             expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
@@ -373,7 +373,7 @@ data:
             annotations:
               summary: "High response time detected"
               description: "95th percentile response time is above 2 seconds for more than 5 minutes"
-          
+
           # Database Connection Issues
           - alert: DatabaseConnectionIssues
             expr: rate(database_connection_errors_total[5m]) > 0.1
@@ -509,43 +509,43 @@ data:
   grafana.ini: |
     [analytics]
     check_for_updates = true
-    
+
     [grafana_net]
     url = https://grafana.net
-    
+
     [log]
     mode = console
-    
+
     [paths]
     data = /var/lib/grafana/
     logs = /var/log/grafana
     plugins = /var/lib/grafana/plugins
     provisioning = /etc/grafana/provisioning
-    
+
     [server]
     protocol = http
     http_port = 3000
     domain = grafana.chronoretrace.com
     enforce_domain = false
     root_url = https://grafana.chronoretrace.com
-    
+
     [security]
     admin_user = admin
     cookie_secure = true
     cookie_samesite = strict
-    
+
     [users]
     allow_sign_up = false
     allow_org_create = false
     auto_assign_org = true
     auto_assign_org_role = Viewer
-    
+
     [auth.anonymous]
     enabled = false
-    
+
     [auth.basic]
     enabled = true
-    
+
     [smtp]
     enabled = true
     host = smtp.gmail.com:587
@@ -553,15 +553,15 @@ data:
     password = ${SMTP_PASSWORD}
     from_address = notifications@chronoretrace.com
     from_name = ChronoRetrace Monitoring
-    
+
     [alerting]
     enabled = true
     execute_alerts = true
-    
+
     [metrics]
     enabled = true
     interval_seconds = 10
-    
+
     [feature_toggles]
     enable = ngalert
 
@@ -653,14 +653,14 @@ data:
       smtp_from: 'alerts@chronoretrace.com'
       smtp_auth_username: 'alerts@chronoretrace.com'
       smtp_auth_password: '${SMTP_PASSWORD}'
-    
+
     route:
       group_by: ['alertname']
       group_wait: 10s
       group_interval: 10s
       repeat_interval: 1h
       receiver: 'web.hook'
-    
+
     receivers:
       - name: 'web.hook'
         email_configs:
@@ -671,7 +671,7 @@ data:
               Alert: {{ .Annotations.summary }}
               Description: {{ .Annotations.description }}
               {{ end }}
-    
+
     inhibit_rules:
       - source_match:
           severity: 'critical'

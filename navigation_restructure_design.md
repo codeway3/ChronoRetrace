@@ -276,8 +276,8 @@ class AssetType(str, Enum):
 # services/screener_service.py
 class ScreenerService:
     def screen_by_asset_type(
-        self, 
-        asset_type: AssetType, 
+        self,
+        asset_type: AssetType,
         criteria: ScreenerCriteria
     ) -> ScreenerResult:
         """根据资产类型执行筛选"""
@@ -293,8 +293,8 @@ class ScreenerService:
 # services/backtest_service.py
 class BacktestService:
     def backtest_by_asset_type(
-        self, 
-        asset_type: AssetType, 
+        self,
+        asset_type: AssetType,
         config: BacktestConfig
     ) -> BacktestResult:
         """根据资产类型执行回溯测试"""

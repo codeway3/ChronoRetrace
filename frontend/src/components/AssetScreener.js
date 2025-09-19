@@ -40,7 +40,7 @@ const AssetScreener = ({ assetType, title }) => {
   useEffect(() => {
     const fetchCriteriaConfig = async () => {
       if (!assetType) return;
-      
+
       try {
         setCriteriaLoading(true);
         const response = await assetScreenerApi.getCriteriaConfig(assetType);
@@ -103,7 +103,7 @@ const AssetScreener = ({ assetType, title }) => {
       message.warning('没有可导出的数据');
       return;
     }
-    
+
     // 这里可以实现导出功能
     message.info('导出功能开发中...');
   };
@@ -187,7 +187,7 @@ const AssetScreener = ({ assetType, title }) => {
             </Col>
           ))}
         </Row>
-        
+
         <Row justify="center" style={{ marginTop: 24 }}>
           <Space size="middle">
             <Button

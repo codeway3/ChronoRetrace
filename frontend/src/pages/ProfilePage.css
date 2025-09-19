@@ -139,26 +139,26 @@
   .profile-container {
     padding: 16px;
   }
-  
+
   .profile-header {
     flex-direction: column;
     text-align: center;
     gap: 16px;
   }
-  
+
   .profile-info {
     text-align: center;
   }
-  
+
   .user-badges {
     justify-content: center;
   }
-  
+
   .profile-tabs .ant-tabs-tab {
     padding: 8px 16px;
     font-size: 14px;
   }
-  
+
   .two-factor-item {
     flex-direction: column;
     gap: 12px;
@@ -170,13 +170,13 @@
   .profile-container {
     padding: 12px;
   }
-  
+
   .profile-header-card,
   .profile-content-card {
     margin: 0 -12px 16px -12px;
     border-radius: 0;
   }
-  
+
   .profile-avatar {
     width: 80px !important;
     height: 80px !important;

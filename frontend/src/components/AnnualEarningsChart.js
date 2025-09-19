@@ -15,7 +15,7 @@ const AnnualEarningsChart = ({ data, loading, error }) => {
       const maxYear = Math.max(...years);
 
       // Default to last 5 years or all if less than 5
-      const defaultMinYear = Math.max(minYear, maxYear - 4); 
+      const defaultMinYear = Math.max(minYear, maxYear - 4);
       setYearRange([defaultMinYear, maxYear]);
     }
   }, [data]);
@@ -102,9 +102,9 @@ const AnnualEarningsChart = ({ data, loading, error }) => {
           value={yearRange}
           onChange={setYearRange}
           marks={years.reduce((acc, year) => ({ ...acc, [year]: year }), {})}
-          tooltip={{ 
+          tooltip={{
             formatter: (value) => value ?? 0,
-            open: true 
+            open: true
           }}
         />
       </div>

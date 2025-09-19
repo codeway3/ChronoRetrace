@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 from typing import Union
 
+
 class AnnualEarningsBase(BaseModel):
     symbol: str
     year: int
