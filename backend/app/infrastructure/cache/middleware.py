@@ -1,10 +1,9 @@
-from typing import Union
-
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 """
 缓存中间件
 为FastAPI应用提供缓存功能集成
 """
+from typing import Union
 
 import hashlib
 import logging
@@ -180,7 +179,9 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
         # 生成哈希
         key_string = "|".join(key_components)
-        cache_key = hashlib.md5(key_string.encode()).hexdigest()
+        cache_key = hashlib.sha256(key_string.encode()).hexdigest()[
+            :32
+        ]  # 截取前32位保持键长度合理
 
         return f"http_cache:{cache_key}"
 

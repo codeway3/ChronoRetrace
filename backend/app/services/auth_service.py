@@ -65,7 +65,7 @@ class AuthService:
         return encoded_jwt
 
     def verify_token(
-        self, token: str, token_type: str = "access"
+        self, token: str, token_type: str = "access"  # nosec B107
     ) -> Union[dict[str, Any], None]:
         """验证令牌"""
         try:

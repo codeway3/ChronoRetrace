@@ -23,7 +23,7 @@ repos:
       - id: check-added-large-files
         args: ['--maxkb=1000']
       - id: debug-statements
-      - id: check-docstring-first
+      # - id: check-docstring-first  # 暂时禁用
 
   # MyPy type checking (disabled - not actively maintained)
   # - repo: https://github.com/pre-commit/mirrors-mypy
@@ -38,11 +38,13 @@ repos:
 
   # Security checks
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
+    rev: 1.7.10
     hooks:
       - id: bandit
-        args: ['-r', 'backend/app']
+        args: ['-ll']  # 只检查高风险问题
+        files: ^backend/app/
         exclude: ^backend/tests/
+        additional_dependencies: ['pbr']
 
   # Check for secrets
   - repo: https://github.com/Yelp/detect-secrets

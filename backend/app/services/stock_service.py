@@ -157,7 +157,7 @@ class CachedStockService:
                 "market_type": market_type,
                 "trade_date": trade_date.isoformat() if trade_date else None,
             }
-            cache_key_suffix = hashlib.md5(str(cache_params).encode()).hexdigest()
+            cache_key_suffix = hashlib.sha256(str(cache_params).encode()).hexdigest()
 
             # 对于分钟级和5日线数据，不使用缓存（数据变化频繁）
             if interval in ["minute", "5day"]:

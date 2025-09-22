@@ -489,7 +489,7 @@ def memory_cache_result(ttl: int = 300):
 
             func_name = func.__name__
             args_str = json.dumps([args, kwargs], default=str, sort_keys=True)
-            key_hash = hashlib.md5(args_str.encode()).hexdigest()[:8]
+            key_hash = hashlib.sha256(args_str.encode()).hexdigest()[:8]
             cache_key = f"mem:{func_name}:{key_hash}"
 
             # 尝试从缓存获取

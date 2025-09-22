@@ -144,7 +144,7 @@ class CacheKeyManager:
         if params:
             # 对参数进行排序并哈希化
             param_str = json.dumps(params, sort_keys=True, ensure_ascii=False)
-            param_hash = hashlib.md5(param_str.encode("utf-8")).hexdigest()[:8]
+            param_hash = hashlib.sha256(param_str.encode("utf-8")).hexdigest()[:8]
             parts.append(param_hash)
 
         parts.append(version)
@@ -562,7 +562,7 @@ def cache_result(
             else:
                 # 默认键生成逻辑
                 func_name = func.__name__
-                args_hash = hashlib.md5(
+                args_hash = hashlib.sha256(
                     json.dumps([args, kwargs], default=str, sort_keys=True).encode()
                 ).hexdigest()[:8]
                 cache_key = cache_manager.key_manager.generate_key(
