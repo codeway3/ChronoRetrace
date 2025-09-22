@@ -49,6 +49,9 @@ cd ChronoRetrace
 
 # 运行部署脚本
 ./quick-deploy.sh
+
+# 部署并包含监控服务 (Prometheus, Grafana):
+./quick-deploy.sh --with-monitoring
 ```
 
 **就这么简单！** 脚本将会：
@@ -63,6 +66,10 @@ cd ChronoRetrace
 - 👤 管理面板：http://localhost:8000/admin
 
 **默认凭据：** `admin` / `admin123`
+
+**监控服务 (如果已部署):**
+- 🔥 Prometheus: http://localhost:9090
+- 📈 Grafana: http://localhost:3001 (默认: `admin` / `admin`)
 
 ### 支持的系统
 - ✅ macOS 10.15+
@@ -90,120 +97,6 @@ cd ChronoRetrace
 | **DevOps**  | GitHub Actions用于CI/CD、Ruff代码检查、Pytest测试、Bandit和Safety安全检查          |
 | **数据源** | Akshare、yfinance、Baostock、CryptoCompare等金融数据API                          |
 
-
-## 🚀 快速开始
-
-按照以下说明在本地机器上设置和运行项目。
-
-### 前置要求
-
-#### 系统要求
--   **操作系统**：Ubuntu 18.04+、macOS 10.15+ 或 Windows 10+（使用WSL）
--   **内存**：最少4GB RAM（生产环境建议8GB）
--   **存储**：至少2GB可用磁盘空间
--   **网络**：用于数据获取和包安装的互联网连接
-
-#### 软件依赖
--   **Python**：3.10或更新版本
--   **Node.js**：20.0或更新版本
--   **Redis**：6.0或更新版本（用于缓存和会话管理）
--   **（可选）PostgreSQL**：12+版本用于生产部署
--   **（可选）Tushare API令牌**：某些数据获取器可能需要来自[Tushare](https://tushare.pro/)的API令牌。如果需要，请注册并将令牌放在后端的`.env`文件中
-
-#### 安装Redis
-
-**macOS（使用Homebrew）：**
-```bash
-brew install redis
-brew services start redis
-```
-
-**Ubuntu/Debian：**
-```bash
-sudo apt update
-sudo apt install redis-server
-sudo systemctl start redis-server
-sudo systemctl enable redis-server
-```
-
-**Windows：**
-从[官方发布页面](https://github.com/microsoftarchive/redis/releases)下载并安装Redis，或使用WSL。
-
-### 1. 克隆仓库
-
-```bash
-git clone https://github.com/codeway3/ChronoRetrace.git
-cd ChronoRetrace
-```
-
-### 2. 后端设置
-
-后端服务器运行在8000端口。
-
-```bash
-# 导航到后端目录
-cd backend
-
-# 创建并配置环境文件
-cp .env.example .env
-
-# 编辑.env文件并配置以下内容：
-# - 数据库设置（开发环境用SQLite，生产环境用PostgreSQL）
-# - Redis连接（默认：redis://localhost:6379）
-# - JWT认证密钥
-# - API令牌（Tushare等）如果需要
-# - 性能监控设置
-
-# 创建并激活虚拟环境
-python -m venv venv
-source venv/bin/activate  # Windows使用 `venv\Scripts\activate`
-
-# 安装依赖
-pip install -r requirements.txt
-
-# 初始化数据库（创建表和索引）
-python -c "from app.infrastructure.database.init_db import init_database; init_database()"
-
-# 运行开发服务器（推荐）
-python start_dev.py
-
-# 其他方法：
-# ./run_server.sh
-# 或：uvicorn app.main:app --reload --reload-dir .
-```
-
-**可用端点：**
-- API文档：`http://127.0.0.1:8000/docs`
-- 健康检查：`http://127.0.0.1:8000/health`
-- 指标监控：`http://127.0.0.1:8000/metrics`
-
-### 3. 前端设置
-
-前端React应用运行在3000端口（如果3000被占用则使用3001）。
-
-```bash
-# 从项目根目录导航到前端目录
-cd frontend
-
-# 安装依赖
-npm install
-
-# 运行开发服务器
-npm start
-
-# 自定义端口（如果需要）
-PORT=3001 npm start
-```
-
-**可用页面：**
-- 主页仪表板：`http://localhost:3000/`
-- 股票分析：`http://localhost:3000/analysis`
-- 回测：`http://localhost:3000/backtest`
-- 股票筛选器：`http://localhost:3000/screener`
-- 用户认证：`http://localhost:3000/login` 和 `http://localhost:3000/register`
-- 用户资料：`http://localhost:3000/profile`
-
-应用程序应该会在浏览器中自动打开`http://localhost:3000`。
 
 ## 📂 项目结构
 
@@ -309,7 +202,11 @@ ChronoRetrace/
 ### 快速部署
 使用提供的脚本进行一键部署：
 ```bash
+# 默认部署
 ./quick-deploy.sh
+
+# 包含监控服务
+./quick-deploy.sh --with-monitoring
 ```
 
 ### Docker部署

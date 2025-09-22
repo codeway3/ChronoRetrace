@@ -13,7 +13,7 @@ services:
     environment:
       POSTGRES_DB: chronoretrace
       POSTGRES_USER: chronoretrace
-      POSTGRES_PASSWORD: chronoretrace_password
+      POSTGRES_PASSWORD: chronoretrace_password # pragma: allowlist secret
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -121,12 +121,32 @@ services:
     profiles:
       - production
 
+  # Monitoring - Alertmanager
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: chronoretrace-alertmanager
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    ports:
+      - "9093:9093"
+    networks:
+      - chronoretrace-network
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
   # Monitoring - Prometheus
   prometheus:
     image: prom/prometheus:latest
     container_name: chronoretrace-prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
@@ -139,6 +159,8 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
+    depends_on:
+      - alertmanager
     restart: unless-stopped
     profiles:
       - monitoring
@@ -174,6 +196,8 @@ volumes:
   prometheus_data:
     driver: local
   grafana_data:
+    driver: local
+  alertmanager_data:
     driver: local
 
 networks:

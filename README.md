@@ -50,6 +50,9 @@ cd ChronoRetrace
 
 # Run the deployment script
 ./quick-deploy.sh
+
+# To include monitoring services (Prometheus, Grafana), use:
+./quick-deploy.sh --with-monitoring
 ```
 
 **That's it!** The script will:
@@ -64,6 +67,10 @@ cd ChronoRetrace
 - 👤 Admin Panel: http://localhost:8000/admin
 
 **Default credentials:** `admin` / `admin123`
+
+**Monitoring Services (if deployed):**
+- 🔥 Prometheus: http://localhost:9090
+- 📈 Grafana: http://localhost:3001 (Default: `admin` / `admin`)
 
 ### Supported Systems
 - ✅ macOS 10.15+
@@ -91,120 +98,6 @@ cd ChronoRetrace
 | **DevOps**  | GitHub Actions for CI/CD, Ruff for linting, Pytest for testing, Bandit & Safety for security          |
 | **Data Sources** | Akshare, yfinance, Baostock, CryptoCompare, and other financial data APIs                          |
 
-
-## 🚀 Getting Started
-
-Follow these instructions to set up and run the project on your local machine.
-
-### 📋 Prerequisites
-
-### System Requirements
--   **Operating System**: Ubuntu 18.04+, macOS 10.15+, or Windows 10+ (with WSL)
--   **Memory**: Minimum 4GB RAM (8GB recommended for production)
--   **Storage**: At least 2GB free disk space
--   **Network**: Internet connection for data fetching and package installation
-
-### Software Dependencies
--   **Python**: Version 3.11 or newer
--   **Node.js**: Version 18 or newer (for the frontend)
--   **Redis**: Version 6.0 or newer (for caching and session management)
--   **(Optional) PostgreSQL**: Version 12+ for production deployment
--   **(Optional) Tushare API Token**: Some data fetchers may require an API token from [Tushare](https://tushare.pro/). If needed, register and place your token in the backend's `.env` file
-
-#### Installing Redis
-
-**macOS (using Homebrew):**
-```bash
-brew install redis
-brew services start redis
-```
-
-**Ubuntu/Debian:**
-```bash
-sudo apt update
-sudo apt install redis-server
-sudo systemctl start redis-server
-sudo systemctl enable redis-server
-```
-
-**Windows:**
-Download and install Redis from the [official releases](https://github.com/microsoftarchive/redis/releases) or use WSL.
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/codeway3/ChronoRetrace.git
-cd ChronoRetrace
-```
-
-### 2. Backend Setup
-
-The backend server runs on port 8000.
-
-```bash
-# Navigate to the backend directory
-cd backend
-
-# Create and configure your environment file
-cp .env.example .env
-
-# Edit .env file and configure the following:
-# - Database settings (SQLite for dev, PostgreSQL for production)
-# - Redis connection (default: redis://localhost:6379)
-# - JWT secret key for authentication
-# - API tokens (Tushare, etc.) if needed
-# - Performance monitoring settings
-
-# Create a virtual environment and activate it
-python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Initialize the database (creates tables and indexes)
-python -c "from app.infrastructure.database.init_db import init_database; init_database()"
-
-# Run the development server (recommended)
-python start_dev.py
-
-# Alternative methods:
-# ./run_server.sh
-# or: uvicorn app.main:app --reload --reload-dir .
-```
-
-**Available endpoints:**
-- API documentation: `http://127.0.0.1:8000/docs`
-- Health check: `http://127.0.0.1:8000/health`
-- Metrics: `http://127.0.0.1:8000/metrics`
-
-### 3. Frontend Setup
-
-The frontend React app runs on port 3000 (or 3001 if 3000 is occupied).
-
-```bash
-# Navigate to the frontend directory from the project root
-cd frontend
-
-# Install dependencies
-npm install
-
-# Run the development server
-npm start
-
-# For custom port (if needed)
-PORT=3001 npm start
-```
-
-**Available pages:**
-- Home Dashboard: `http://localhost:3000/`
-- Stock Analysis: `http://localhost:3000/analysis`
-- Backtesting: `http://localhost:3000/backtest`
-- Stock Screener: `http://localhost:3000/screener`
-- User Authentication: `http://localhost:3000/login` & `http://localhost:3000/register`
-- User Profile: `http://localhost:3000/profile`
-
-The application should automatically open in your browser at `http://localhost:3000`.
 
 ## 📂 Project Structure
 
@@ -310,7 +203,11 @@ ChronoRetrace/
 ### Quick Deploy
 Use the provided script for one-click deployment:
 ```bash
+# Default deployment
 ./quick-deploy.sh
+
+# With monitoring services
+./quick-deploy.sh --with-monitoring
 ```
 
 ### Docker Deployment

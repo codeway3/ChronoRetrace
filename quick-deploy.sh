@@ -154,7 +154,12 @@ EOF
     $DOCKER_COMPOSE_CMD build
 
     log_info "启动服务..."
-    $DOCKER_COMPOSE_CMD up -d
+    if [ "$WITH_MONITORING" = true ]; then
+        log_info "包含监控服务..."
+        $DOCKER_COMPOSE_CMD --profile monitoring up -d
+    else
+        $DOCKER_COMPOSE_CMD up -d
+    fi
 
     # 等待服务启动
     log_info "等待服务启动..."
@@ -201,7 +206,7 @@ setup_database() {
 
         # 创建数据库和用户
         psql postgres -c "CREATE DATABASE chronoretrace;" 2>/dev/null || true
-        psql postgres -c "CREATE USER chronoretrace WITH PASSWORD 'chronoretrace123';" 2>/dev/null || true
+        psql postgres -c "CREATE USER chronoretrace WITH PASSWORD 'chronoretrace123';" 2>/dev/null || true # pragma: allowlist secret
         psql postgres -c "GRANT ALL PRIVILEGES ON DATABASE chronoretrace TO chronoretrace;" 2>/dev/null || true
 
     elif [[ "$OS" == "linux" ]]; then
@@ -211,7 +216,7 @@ setup_database() {
 
         # 创建数据库和用户
         sudo -u postgres psql -c "CREATE DATABASE chronoretrace;" 2>/dev/null || true
-        sudo -u postgres psql -c "CREATE USER chronoretrace WITH PASSWORD 'chronoretrace123';" 2>/dev/null || true
+        sudo -u postgres psql -c "CREATE USER chronoretrace WITH PASSWORD 'chronoretrace123';" 2>/dev/null || true # pragma: allowlist secret
         sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE chronoretrace TO chronoretrace;" 2>/dev/null || true
     fi
 
@@ -250,10 +255,10 @@ deploy_backend() {
     if [ ! -f ".env" ]; then
         cat > .env << EOF
 # Python Path
-PYTHONPATH=/Users/apple/code/ChronoRetrace/backend
+PYTHONPATH=$(pwd)
 
 # Database Configuration (PostgreSQL for production)
-DATABASE_URL=postgresql://chronoretrace:chronoretrace123@localhost:5432/chronoretrace
+DATABASE_URL=postgresql://chronoretrace:chronoretrace123@localhost:5432/chronoretrace # pragma: allowlist secret
 
 # Redis Configuration
 REDIS_URL=redis://localhost:6379/0
@@ -395,6 +400,11 @@ show_deployment_info() {
         log_info "  前端: http://localhost:3000"
         log_info "  后端 API: http://localhost:8000"
         log_info "  管理后台: http://localhost:8000/admin"
+        if [ "$WITH_MONITORING" = true ]; then
+            log_info "  Prometheus: http://localhost:9090"
+            log_info "  Grafana: http://localhost:3001 (默认账号: admin/admin)"
+            log_info "  Alertmanager: http://localhost:9093"
+        fi
     else
         log_info "  前端: http://localhost:3000"
         log_info "  后端 API: http://localhost:8000"
@@ -453,6 +463,7 @@ show_help() {
     echo "选项:"
     echo "  --local              强制使用本地部署模式"
     echo "  --docker             强制使用Docker部署模式"
+    echo "  --with-monitoring    在Docker部署时包含监控服务"
     echo "  --health-check-only  仅执行健康检查"
     echo "  stop                 停止所有服务"
     echo "  --help, -h           显示此帮助信息"
@@ -461,6 +472,7 @@ show_help() {
     echo "  $0                   自动检测并部署"
     echo "  $0 --local           使用本地部署"
     echo "  $0 --docker          使用Docker部署"
+    echo "  $0 --docker --with-monitoring 部署应用及监控服务"
     echo "  $0 stop              停止服务"
 }
 
@@ -470,32 +482,57 @@ main() {
     log_info "=== ChronoRetrace 一键部署脚本 ==="
     echo
 
-    # 检查参数
-    if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-        show_help
-        exit 0
-    fi
+    # 初始化参数
+    USE_DOCKER=""
+    WITH_MONITORING=false
+    ACTION=""
 
-    if [ "$1" = "stop" ]; then
+    # 解析参数
+    while [[ "$#" -gt 0 ]]; do
+        case $1 in
+            --local)
+            USE_DOCKER=false
+            shift
+            ;;
+            --docker)
+            USE_DOCKER=true
+            shift
+            ;;
+            --with-monitoring)
+            WITH_MONITORING=true
+            shift
+            ;;
+            --health-check-only)
+            ACTION="health_check"
+            shift
+            ;;
+            stop)
+            ACTION="stop"
+            shift
+            ;;
+            --help|-h)
+            show_help
+            exit 0
+            ;;
+            *)
+            log_error "未知参数: $1"
+            show_help
+            exit 1
+            ;;
+        esac
+    done
+
+    # 执行操作
+    if [ "$ACTION" = "stop" ]; then
         check_docker
         stop_services
         exit 0
     fi
 
-    if [ "$1" = "--health-check-only" ]; then
+    if [ "$ACTION" = "health_check" ]; then
         log_info "仅执行健康检查..."
         health_check
         exit 0
-    fi
-
-    if [ "$1" = "--local" ]; then
-        log_info "强制使用本地部署模式..."
-        USE_DOCKER=false
-    fi
-
-    if [ "$1" = "--docker" ]; then
-        log_info "强制使用Docker部署模式..."
-        USE_DOCKER=true
     fi
 
     # 检测操作系统
@@ -504,8 +541,10 @@ main() {
     # 创建日志目录
     create_log_dir
 
-    # 检查 Docker
-    check_docker
+    # 检查 Docker (如果未通过参数指定)
+    if [ -z "$USE_DOCKER" ]; then
+        check_docker
+    fi
 
     # 安装依赖
     install_dependencies

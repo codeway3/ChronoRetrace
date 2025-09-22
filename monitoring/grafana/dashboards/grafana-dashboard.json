@@ -1,0 +1,544 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ChronoRetrace 生产环境监控",
+    "tags": ["chronoretrace", "production", "monitoring"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "instance",
+          "type": "query",
+          "query": "label_values(up, instance)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true
+        },
+        {
+          "name": "service",
+          "type": "query",
+          "query": "label_values(up, job)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "系统概览",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+        "collapsed": false
+      },
+      {
+        "id": 2,
+        "title": "服务状态",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 1},
+        "targets": [
+          {
+            "expr": "up{job=~\"$service\"}",
+            "legendFormat": "{{job}} - {{instance}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {"options": {"0": {"text": "DOWN"}, "1": {"text": "UP"}}}
+            ]
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "CPU使用率",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 1},
+        "targets": [
+          {
+            "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\",instance=~\"$instance\"}[5m])) * 100)",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 70},
+                {"color": "red", "value": 90}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "内存使用率",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 1},
+        "targets": [
+          {
+            "expr": "(1 - (node_memory_MemAvailable_bytes{instance=~\"$instance\"} / node_memory_MemTotal_bytes{instance=~\"$instance\"})) * 100",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 80},
+                {"color": "red", "value": 95}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "磁盘使用率",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 1},
+        "targets": [
+          {
+            "expr": "(1 - (node_filesystem_avail_bytes{instance=~\"$instance\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{instance=~\"$instance\",fstype!=\"tmpfs\"})) * 100",
+            "legendFormat": "{{instance}} - {{mountpoint}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 80},
+                {"color": "red", "value": 95}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "应用性能监控",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 9},
+        "collapsed": false
+      },
+      {
+        "id": 7,
+        "title": "API请求速率",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 10},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"chronoretrace-backend\"}[5m])) by (method, status)",
+            "legendFormat": "{{method}} - {{status}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps"
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "API响应时间",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 10},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"chronoretrace-backend\"}[5m])) by (le))",
+            "legendFormat": "95th percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=\"chronoretrace-backend\"}[5m])) by (le))",
+            "legendFormat": "50th percentile"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "错误率",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 10},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"chronoretrace-backend\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"chronoretrace-backend\"}[5m])) * 100",
+            "legendFormat": "5xx错误率"
+          },
+          {
+            "expr": "sum(rate(http_requests_total{job=\"chronoretrace-backend\",status=~\"4..\"}[5m])) / sum(rate(http_requests_total{job=\"chronoretrace-backend\"}[5m])) * 100",
+            "legendFormat": "4xx错误率"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 5}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "数据库监控",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 18},
+        "collapsed": false
+      },
+      {
+        "id": 11,
+        "title": "数据库连接数",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 19},
+        "targets": [
+          {
+            "expr": "pg_stat_activity_count",
+            "legendFormat": "活跃连接"
+          },
+          {
+            "expr": "pg_settings_max_connections",
+            "legendFormat": "最大连接数"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "数据库查询性能",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 19},
+        "targets": [
+          {
+            "expr": "rate(pg_stat_database_tup_returned[5m])",
+            "legendFormat": "查询返回行数/秒"
+          },
+          {
+            "expr": "rate(pg_stat_database_tup_fetched[5m])",
+            "legendFormat": "查询获取行数/秒"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "rps"
+          }
+        }
+      },
+      {
+        "id": 13,
+        "title": "Redis性能",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 19},
+        "targets": [
+          {
+            "expr": "redis_connected_clients",
+            "legendFormat": "连接客户端数"
+          },
+          {
+            "expr": "rate(redis_commands_processed_total[5m])",
+            "legendFormat": "命令执行速率"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 14,
+        "title": "Redis内存使用",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 19},
+        "targets": [
+          {
+            "expr": "redis_memory_used_bytes",
+            "legendFormat": "已使用内存"
+          },
+          {
+            "expr": "redis_memory_max_bytes",
+            "legendFormat": "最大内存"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes"
+          }
+        }
+      },
+      {
+        "id": 15,
+        "title": "负载均衡器监控",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 27},
+        "collapsed": false
+      },
+      {
+        "id": 16,
+        "title": "Nginx连接数",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 28},
+        "targets": [
+          {
+            "expr": "nginx_connections_active",
+            "legendFormat": "活跃连接"
+          },
+          {
+            "expr": "nginx_connections_reading",
+            "legendFormat": "读取连接"
+          },
+          {
+            "expr": "nginx_connections_writing",
+            "legendFormat": "写入连接"
+          },
+          {
+            "expr": "nginx_connections_waiting",
+            "legendFormat": "等待连接"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 17,
+        "title": "HAProxy后端状态",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 28},
+        "targets": [
+          {
+            "expr": "haproxy_backend_up",
+            "legendFormat": "{{backend}} - {{server}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 18,
+        "title": "负载均衡器请求分布",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 28},
+        "targets": [
+          {
+            "expr": "rate(haproxy_backend_http_requests_total[5m])",
+            "legendFormat": "{{backend}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps"
+          }
+        }
+      },
+      {
+        "id": 19,
+        "title": "业务指标监控",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 36},
+        "collapsed": false
+      },
+      {
+        "id": 20,
+        "title": "用户活跃度",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 37},
+        "targets": [
+          {
+            "expr": "chronoretrace_active_users_total",
+            "legendFormat": "活跃用户数"
+          },
+          {
+            "expr": "rate(chronoretrace_user_logins_total[5m])",
+            "legendFormat": "登录速率"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 21,
+        "title": "股票数据更新",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 37},
+        "targets": [
+          {
+            "expr": "rate(chronoretrace_stock_updates_total[5m])",
+            "legendFormat": "股票数据更新速率"
+          },
+          {
+            "expr": "chronoretrace_stock_data_lag_seconds",
+            "legendFormat": "数据延迟"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 22,
+        "title": "回测任务",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 37},
+        "targets": [
+          {
+            "expr": "chronoretrace_backtest_jobs_running",
+            "legendFormat": "运行中的回测任务"
+          },
+          {
+            "expr": "rate(chronoretrace_backtest_jobs_completed_total[5m])",
+            "legendFormat": "完成的回测任务速率"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 23,
+        "title": "告警和事件",
+        "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 45},
+        "collapsed": false
+      },
+      {
+        "id": 24,
+        "title": "活跃告警",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 46},
+        "targets": [
+          {
+            "expr": "ALERTS{alertstate=\"firing\"}",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true
+              },
+              "indexByName": {
+                "alertname": 0,
+                "severity": 1,
+                "instance": 2,
+                "summary": 3
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 25,
+        "title": "系统事件日志",
+        "type": "logs",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 46},
+        "targets": [
+          {
+            "expr": "{job=\"chronoretrace-backend\"} |= \"ERROR\" or \"WARN\"",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": true,
+          "sortOrder": "Descending"
+        }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "部署事件",
+          "datasource": "prometheus",
+          "expr": "increase(chronoretrace_deployment_total[1m])",
+          "iconColor": "blue",
+          "enable": true
+        },
+        {
+          "name": "告警事件",
+          "datasource": "prometheus",
+          "expr": "increase(alertmanager_notifications_total[1m])",
+          "iconColor": "red",
+          "enable": true
+        }
+      ]
+    },
+    "links": [
+      {
+        "title": "Prometheus",
+        "url": "https://prometheus.chronoretrace.com",
+        "type": "link"
+      },
+      {
+        "title": "Alertmanager",
+        "url": "https://alertmanager.chronoretrace.com",
+        "type": "link"
+      }
+    ]
+  }
+}
