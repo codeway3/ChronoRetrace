@@ -12,7 +12,7 @@ class WebSocketService {
     this.reconnectInterval = 1000; // 1秒
     this.isConnecting = false;
     this.isManualClose = false;
-    
+
     // 事件监听器
     this.listeners = {
       open: [],
@@ -21,11 +21,11 @@ class WebSocketService {
       message: [],
       data: new Map() // topic -> [callbacks]
     };
-    
+
     // 订阅状态
     this.subscriptions = new Set();
     this.pendingSubscriptions = new Set();
-    
+
     // 心跳
     this.heartbeatInterval = null;
     this.heartbeatTimeout = null;
@@ -65,13 +65,13 @@ class WebSocketService {
           console.log('WebSocket connected');
           this.isConnecting = false;
           this.reconnectAttempts = 0;
-          
+
           // 启动心跳
           this.startHeartbeat();
-          
+
           // 重新订阅之前的主题
           this.resubscribe();
-          
+
           // 触发open事件
           this.listeners.open.forEach(callback => callback(event));
           resolve();
@@ -80,13 +80,13 @@ class WebSocketService {
         this.ws.onclose = (event) => {
           console.log('WebSocket disconnected:', event.code, event.reason);
           this.isConnecting = false;
-          
+
           // 停止心跳
           this.stopHeartbeat();
-          
+
           // 触发close事件
           this.listeners.close.forEach(callback => callback(event));
-          
+
           // 自动重连（除非是手动关闭）
           if (!this.isManualClose && this.reconnectAttempts < this.maxReconnectAttempts) {
             this.scheduleReconnect();
@@ -96,7 +96,7 @@ class WebSocketService {
         this.ws.onerror = (error) => {
           console.error('WebSocket error:', error);
           this.isConnecting = false;
-          
+
           // 触发error事件
           this.listeners.error.forEach(callback => callback(error));
           reject(error);
@@ -120,12 +120,12 @@ class WebSocketService {
   disconnect() {
     this.isManualClose = true;
     this.stopHeartbeat();
-    
+
     if (this.ws) {
       this.ws.close(1000, 'Manual disconnect');
       this.ws = null;
     }
-    
+
     // 清空订阅
     this.subscriptions.clear();
     this.pendingSubscriptions.clear();
@@ -137,10 +137,10 @@ class WebSocketService {
   handleMessage(event) {
     try {
       const message = JSON.parse(event.data);
-      
+
       // 触发通用message事件
       this.listeners.message.forEach(callback => callback(message));
-      
+
       // 处理不同类型的消息
       switch (message.type) {
         case 'data':
@@ -171,7 +171,7 @@ class WebSocketService {
    */
   handleDataMessage(message) {
     const { topic, data } = message;
-    
+
     if (this.listeners.data.has(topic)) {
       this.listeners.data.get(topic).forEach(callback => {
         try {
@@ -246,7 +246,7 @@ class WebSocketService {
         if (index > -1) {
           callbacks.splice(index, 1);
         }
-        
+
         // 如果没有回调了，取消订阅
         if (callbacks.length === 0) {
           this.listeners.data.delete(topic);
@@ -319,11 +319,11 @@ class WebSocketService {
    */
   startHeartbeat() {
     this.stopHeartbeat();
-    
+
     this.heartbeatInterval = setInterval(() => {
       if (this.isConnected()) {
         this.send({ type: 'ping' });
-        
+
         // 设置心跳超时
         this.heartbeatTimeout = setTimeout(() => {
           console.warn('Heartbeat timeout, reconnecting...');
@@ -341,7 +341,7 @@ class WebSocketService {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
-    
+
     if (this.heartbeatTimeout) {
       clearTimeout(this.heartbeatTimeout);
       this.heartbeatTimeout = null;
@@ -354,9 +354,9 @@ class WebSocketService {
   scheduleReconnect() {
     this.reconnectAttempts++;
     const delay = Math.min(this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1), 30000);
-    
+
     console.log(`Scheduling reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
-    
+
     setTimeout(() => {
       if (!this.isManualClose && !this.isConnected()) {
         this.connect();

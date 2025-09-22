@@ -22,7 +22,7 @@ const WebSocketTest = () => {
     try {
       // 连接到WebSocket服务器
       const websocket = new WebSocket('ws://localhost:8000/api/v1/ws/frontend_client');
-      
+
       websocket.onopen = () => {
         console.log('WebSocket连接已建立');
         setConnected(true);
@@ -102,7 +102,7 @@ const WebSocketTest = () => {
       type: 'subscribe',
       topic: 'stock.AAPL.1m'
     };
-    
+
     ws.send(JSON.stringify(subscribeMessage));
     addMessage('客户端', JSON.stringify(subscribeMessage, null, 2), 'default');
   };
@@ -114,18 +114,18 @@ const WebSocketTest = () => {
   return (
     <div style={{ padding: '20px' }}>
       <Title level={2}>WebSocket 测试页面</Title>
-      
+
       <Card title="连接控制" style={{ marginBottom: '20px' }}>
         <Space>
-          <Button 
-            type="primary" 
-            onClick={connect} 
+          <Button
+            type="primary"
+            onClick={connect}
             disabled={connected}
           >
             连接
           </Button>
-          <Button 
-            onClick={disconnect} 
+          <Button
+            onClick={disconnect}
             disabled={!connected}
           >
             断开连接
@@ -145,8 +145,8 @@ const WebSocketTest = () => {
             onPressEnter={sendMessage}
             disabled={!connected}
           />
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             onClick={sendMessage}
             disabled={!connected || !inputMessage.trim()}
           >
@@ -181,8 +181,8 @@ const WebSocketTest = () => {
                     </Tag>
                     <Text type="secondary">{item.timestamp}</Text>
                   </div>
-                  <pre style={{ 
-                    whiteSpace: 'pre-wrap', 
+                  <pre style={{
+                    whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
                     margin: 0,
                     fontSize: '12px'

@@ -50,7 +50,7 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
         self.subscriptions: Dict[str, Set[str]] = {}
-    
+
     async def connect(self, websocket: WebSocket, client_id: str)
     async def disconnect(self, client_id: str)
     async def subscribe(self, client_id: str, topic: str)
@@ -65,7 +65,7 @@ class DataStreamService:
     def __init__(self, connection_manager: ConnectionManager):
         self.connection_manager = connection_manager
         self.data_fetchers = {}
-    
+
     async def start_real_time_feed(self, symbol: str, interval: str)
     async def stop_real_time_feed(self, symbol: str)
     async def process_market_data(self, data: dict)
@@ -90,7 +90,7 @@ class WebSocketService {
         this.subscriptions = new Map();
         this.reconnectAttempts = 0;
     }
-    
+
     connect(clientId) { /* 连接逻辑 */ }
     subscribe(topic, callback) { /* 订阅逻辑 */ }
     unsubscribe(topic) { /* 取消订阅 */ }
@@ -106,7 +106,7 @@ const WebSocketContext = createContext();
 export const WebSocketProvider = ({ children }) => {
     const [realTimeData, setRealTimeData] = useState({});
     const [connectionStatus, setConnectionStatus] = useState('disconnected');
-    
+
     // WebSocket服务集成
 };
 ```
@@ -116,12 +116,12 @@ export const WebSocketProvider = ({ children }) => {
 // src/components/RealTimeChart.js
 const RealTimeChart = ({ symbol }) => {
     const { subscribeToSymbol, unsubscribeFromSymbol } = useWebSocket();
-    
+
     useEffect(() => {
         subscribeToSymbol(symbol, (data) => {
             // 更新图表数据
         });
-        
+
         return () => unsubscribeFromSymbol(symbol);
     }, [symbol]);
 };
@@ -135,7 +135,7 @@ const RealTimeChart = ({ symbol }) => {
 class RealTimeDataAdapter:
     def __init__(self, fetcher_type: str):
         self.fetcher = self._get_fetcher(fetcher_type)
-    
+
     async def start_stream(self, symbols: List[str])
     async def stop_stream(self, symbols: List[str])
     async def get_real_time_data(self, symbol: str)

@@ -390,24 +390,24 @@ async def lifespan(app: FastAPI):
         from app.websocket.data_stream_service import DataStreamService
         from app.infrastructure.cache.redis_manager import RedisCacheManager
         from app.api.v1.websocket import init_websocket_services
-        
+
         logger.info("正在初始化WebSocket服务...")
-        
+
         connection_manager = ConnectionManager()
         redis_manager = RedisCacheManager()
         data_stream_service = DataStreamService(connection_manager, redis_manager)
-        
+
         # Store services in app state for access in routes
         app.state.connection_manager = connection_manager
         app.state.data_stream_service = data_stream_service
-        
+
         # Initialize WebSocket services in the router
         init_websocket_services(redis_manager)
-        
+
         # Start data stream service
         await data_stream_service.start()
         logger.info("✅ WebSocket服务初始化并启动成功")
-        
+
     except Exception as e:
         logger.error(f"❌ WebSocket服务初始化失败: {e}")
         # 不抛出异常，允许应用继续启动（WebSocket功能可能不可用）
@@ -418,15 +418,15 @@ async def lifespan(app: FastAPI):
     yield
     # On shutdown
     logger.info("正在关闭应用...")
-    
+
     # Stop WebSocket services
     try:
-        if hasattr(app.state, 'data_stream_service') and app.state.data_stream_service:
+        if hasattr(app.state, "data_stream_service") and app.state.data_stream_service:
             await app.state.data_stream_service.stop()
             logger.info("✅ WebSocket服务已停止")
     except Exception as e:
         logger.error(f"停止WebSocket服务时出错: {e}")
-    
+
     performance_monitor.stop_monitoring()
     scheduler.shutdown()
     logger.info("✅ 应用已关闭")

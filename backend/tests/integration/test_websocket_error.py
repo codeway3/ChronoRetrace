@@ -29,27 +29,25 @@ async def test_websocket_invalid_json():
 
     try:
         # 使用更短的超时时间避免测试挂起
-        websocket = await asyncio.wait_for(
-            websockets.connect(uri), timeout=5.0
-        )
-        
+        websocket = await asyncio.wait_for(websockets.connect(uri), timeout=5.0)
+
         # 等待连接确认
         ack = await asyncio.wait_for(websocket.recv(), timeout=3.0)
         logger.info(f"连接确认: {ack}")
 
         # 发送无效JSON
         await websocket.send("这不是有效的JSON")
-        
+
         # 等待服务器响应
         try:
             response = await asyncio.wait_for(websocket.recv(), timeout=5.0)
             logger.info(f"收到响应: {response}")
-            
+
             # 验证响应是错误消息
             response_data = json.loads(response)
             assert response_data.get("type") == "error"
             assert "invalid_json" in response_data.get("error_code", "")
-            
+
         except asyncio.TimeoutError:
             logger.info("没有收到响应（超时）- 这是可接受的行为")
             pass
@@ -69,12 +67,12 @@ async def test_websocket_invalid_json():
         if websocket:
             try:
                 # 检查连接状态的兼容方式
-                if hasattr(websocket, 'closed'):
+                if hasattr(websocket, "closed"):
                     is_closed = websocket.closed
                 else:
                     # 对于新版本的websockets库，使用state属性
-                    is_closed = getattr(websocket, 'state', None) in [None, 'CLOSED']
-                
+                    is_closed = getattr(websocket, "state", None) in [None, "CLOSED"]
+
                 if not is_closed:
                     await websocket.close()
                     await asyncio.sleep(0.1)  # 给服务器时间处理关闭
@@ -92,10 +90,8 @@ async def test_websocket_invalid_message_type():
     websocket = None
 
     try:
-        websocket = await asyncio.wait_for(
-            websockets.connect(uri), timeout=5.0
-        )
-        
+        websocket = await asyncio.wait_for(websockets.connect(uri), timeout=5.0)
+
         # 等待连接确认
         ack = await asyncio.wait_for(websocket.recv(), timeout=3.0)
         logger.info(f"连接确认: {ack}")
@@ -128,12 +124,12 @@ async def test_websocket_invalid_message_type():
         if websocket:
             try:
                 # 检查连接状态的兼容方式
-                if hasattr(websocket, 'closed'):
+                if hasattr(websocket, "closed"):
                     is_closed = websocket.closed
                 else:
                     # 对于新版本的websockets库，使用state属性
-                    is_closed = getattr(websocket, 'state', None) in [None, 'CLOSED']
-                
+                    is_closed = getattr(websocket, "state", None) in [None, "CLOSED"]
+
                 if not is_closed:
                     await websocket.close()
                     await asyncio.sleep(0.1)
@@ -226,7 +222,7 @@ async def test_websocket_large_message():
             large_message = {
                 "type": "subscribe",
                 "topic": "stock.AAPL.1m",
-                "large_data": large_data
+                "large_data": large_data,
             }
             await websocket.send(json.dumps(large_message))
             await asyncio.sleep(2)
@@ -294,9 +290,7 @@ async def test_websocket_connection_without_client_id():
     uri = "ws://localhost:8000/api/v1/ws/"
 
     try:
-        websocket = await asyncio.wait_for(
-            websockets.connect(uri), timeout=5.0
-        )
+        websocket = await asyncio.wait_for(websockets.connect(uri), timeout=5.0)
         await websocket.send(json.dumps({"type": "ping"}))
         await asyncio.sleep(1)
         await websocket.close()

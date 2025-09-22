@@ -23,7 +23,7 @@ repos:
       - id: check-added-large-files
         args: ['--maxkb=1000']
       - id: debug-statements
-      # - id: check-docstring-first  # 暂时禁用
+      - id: check-docstring-first
 
   # MyPy type checking (disabled - not actively maintained)
   # - repo: https://github.com/pre-commit/mirrors-mypy

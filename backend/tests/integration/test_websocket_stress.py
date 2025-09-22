@@ -53,10 +53,7 @@ async def test_websocket_multiple_connections():
         # 测试消息发送
         for i, websocket in enumerate(connections):
             try:
-                message = {
-                    "type": "subscribe",
-                    "topic": "stock.AAPL.1m"
-                }
+                message = {"type": "subscribe", "topic": "stock.AAPL.1m"}
                 await websocket.send(json.dumps(message))
                 logger.info(f"向连接 {i} 发送消息成功")
             except Exception as e:
@@ -95,10 +92,7 @@ async def test_websocket_message_burst():
             # 快速发送多条消息
             message_count = 10
             for i in range(message_count):
-                message = {
-                    "type": "subscribe",
-                    "topic": f"stock.SYMBOL_{i}.1m"
-                }
+                message = {"type": "subscribe", "topic": f"stock.SYMBOL_{i}.1m"}
                 await websocket.send(json.dumps(message))
                 # 短暂延迟避免过度压力
                 await asyncio.sleep(0.1)
@@ -144,20 +138,14 @@ async def test_websocket_connection_lifecycle():
             logger.info(f"周期 {cycle}: 连接确认 {ack}")
 
             # 发送订阅消息
-            subscribe_message = {
-                "type": "subscribe",
-                "topic": "stock.AAPL.1m"
-            }
+            subscribe_message = {"type": "subscribe", "topic": "stock.AAPL.1m"}
             await websocket.send(json.dumps(subscribe_message))
 
             # 等待一段时间
             await asyncio.sleep(1)
 
             # 发送取消订阅消息
-            unsubscribe_message = {
-                "type": "unsubscribe",
-                "topic": "stock.AAPL.1m"
-            }
+            unsubscribe_message = {"type": "unsubscribe", "topic": "stock.AAPL.1m"}
             await websocket.send(json.dumps(unsubscribe_message))
 
             # 关闭连接
@@ -192,7 +180,7 @@ async def test_websocket_concurrent_operations():
                     {"type": "subscribe", "topic": "stock.AAPL.1m"},
                     {"type": "subscribe", "topic": "stock.GOOGL.1m"},
                     {"type": "ping"},
-                    {"type": "unsubscribe", "topic": "stock.AAPL.1m"}
+                    {"type": "unsubscribe", "topic": "stock.AAPL.1m"},
                 ]
 
                 for op in operations:
@@ -243,10 +231,7 @@ async def test_websocket_long_running_connection():
             logger.info(f"连接确认: {ack}")
 
             # 订阅数据
-            subscribe_message = {
-                "type": "subscribe",
-                "topic": "stock.AAPL.1m"
-            }
+            subscribe_message = {"type": "subscribe", "topic": "stock.AAPL.1m"}
             await websocket.send(json.dumps(subscribe_message))
 
             # 保持连接一段时间，定期发送心跳

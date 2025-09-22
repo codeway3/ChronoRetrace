@@ -15,7 +15,7 @@ export const RealTimeStockPrice = ({ symbol, market = 'us', className = '' }) =>
       if (previousPrice !== null) {
         const change = data.price - previousPrice;
         setPriceChange(change);
-        
+
         // 3秒后清除价格变化指示
         const timer = setTimeout(() => setPriceChange(null), 3000);
         return () => clearTimeout(timer);
@@ -115,7 +115,7 @@ export const RealTimeMarketOverview = ({ market = 'us', className = '' }) => {
             <div className="index-name">{index.name}</div>
             <div className="index-value">{index.value?.toFixed(2)}</div>
             <div className={`index-change ${index.change >= 0 ? 'positive' : 'negative'}`}>
-              {index.change >= 0 ? '+' : ''}{index.change?.toFixed(2)} 
+              {index.change >= 0 ? '+' : ''}{index.change?.toFixed(2)}
               ({index.change_percent >= 0 ? '+' : ''}{index.change_percent?.toFixed(2)}%)
             </div>
           </div>
@@ -149,9 +149,9 @@ export const RealTimeStockList = ({ symbols, market = 'us', className = '' }) =>
       <h3>实时股票数据</h3>
       <div className="stocks-grid">
         {symbols.map(symbol => (
-          <RealTimeStockPrice 
-            key={symbol} 
-            symbol={symbol} 
+          <RealTimeStockPrice
+            key={symbol}
+            symbol={symbol}
             market={market}
             className="stock-item"
           />
@@ -199,13 +199,13 @@ export const WebSocketStatus = ({ className = '' }) => {
   return (
     <div className={`websocket-status ${className}`}>
       <div className="status-indicator">
-        <div 
-          className="status-dot" 
+        <div
+          className="status-dot"
           style={{ backgroundColor: getStatusColor() }}
         ></div>
         <span className="status-text">{getStatusText()}</span>
       </div>
-      
+
       {statusDetails && (
         <div className="status-details">
           <div>订阅数: {statusDetails.subscriptions.length}</div>
@@ -214,7 +214,7 @@ export const WebSocketStatus = ({ className = '' }) => {
           )}
         </div>
       )}
-      
+
       {error && (
         <div className="status-error">
           错误: {error.message || '连接失败'}
@@ -227,11 +227,11 @@ export const WebSocketStatus = ({ className = '' }) => {
 /**
  * 实时数据仪表板
  */
-export const RealTimeDashboard = ({ 
-  watchlist = [], 
-  market = 'us', 
+export const RealTimeDashboard = ({
+  watchlist = [],
+  market = 'us',
   showMarketOverview = true,
-  className = '' 
+  className = ''
 }) => {
   const { isConnected, connect } = useWebSocket();
 
@@ -263,8 +263,8 @@ export const RealTimeDashboard = ({
 
       {watchlist.length > 0 && (
         <div className="watchlist-section">
-          <RealTimeStockList 
-            symbols={watchlist} 
+          <RealTimeStockList
+            symbols={watchlist}
             market={market}
           />
         </div>

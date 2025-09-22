@@ -6,62 +6,62 @@
 
 ### 1. 正常连接测试
 **输入：** 连接到 `ws://localhost:8000/api/v1/ws/test_client`
-**预期结果：** 
+**预期结果：**
 - 连接成功
 - 收到连接确认消息：`{"type": "connection_ack", "client_id": "test_client", "timestamp": "..."}`
 
 ### 2. 有效订阅测试
 **输入：** `{"type": "subscribe", "topic": "stock.AAPL.1m"}`
-**预期结果：** 
+**预期结果：**
 - 收到订阅确认：`{"type": "subscribe_ack", "topic": "stock.AAPL.1m", "timestamp": "..."}`
 
 ### 3. 无效主题格式测试
 **输入：** `{"type": "subscribe", "topic": "invalid_topic"}`
-**预期结果：** 
+**预期结果：**
 - 收到错误消息：`{"type": "error", "error_code": "invalid_topic", "error_message": "无效的主题格式: invalid_topic", "timestamp": "..."}`
 
 ### 4. 不支持的数据类型测试
 **输入：** `{"type": "subscribe", "topic": "forex.EURUSD.1m"}`
-**预期结果：** 
+**预期结果：**
 - 收到错误消息：`{"type": "error", "error_code": "invalid_topic", "error_message": "无效的主题格式: forex.EURUSD.1m", "timestamp": "..."}`
 
 ### 5. 无效时间间隔测试
 **输入：** `{"type": "subscribe", "topic": "stock.AAPL.2m"}`
-**预期结果：** 
+**预期结果：**
 - 收到错误消息：`{"type": "error", "error_code": "invalid_topic", "error_message": "无效的主题格式: stock.AAPL.2m", "timestamp": "..."}`
 
 ### 6. 取消订阅测试
-**输入：** 
+**输入：**
 1. `{"type": "subscribe", "topic": "stock.AAPL.1m"}`
 2. `{"type": "unsubscribe", "topic": "stock.AAPL.1m"}`
-**预期结果：** 
+**预期结果：**
 1. 收到订阅确认
 2. 收到取消订阅确认：`{"type": "unsubscribe_ack", "topic": "stock.AAPL.1m", "timestamp": "..."}`
 
 ### 7. Ping/Pong 心跳测试
 **输入：** `{"type": "ping"}`
-**预期结果：** 
+**预期结果：**
 - 收到Pong响应：`{"type": "pong", "timestamp": "..."}`
 
 ### 8. 多主题订阅测试
-**输入：** 
+**输入：**
 1. `{"type": "subscribe", "topic": "stock.AAPL.1m"}`
 2. `{"type": "subscribe", "topic": "crypto.BTC.5m"}`
 3. `{"type": "subscribe", "topic": "market.US.summary"}`
-**预期结果：** 
+**预期结果：**
 - 每个订阅都收到对应的确认消息
 
 ### 9. 无效消息格式测试
 **输入：** `{"invalid": "message"}`
-**预期结果：** 
+**预期结果：**
 - 收到错误消息：`{"type": "error", "error_code": "invalid_message", "error_message": "...", "timestamp": "..."}`
 
 ### 10. 连接断开重连测试
-**输入：** 
+**输入：**
 1. 建立连接并订阅
 2. 主动断开连接
 3. 重新连接并订阅
-**预期结果：** 
+**预期结果：**
 1. 正常订阅成功
 2. 连接正常关闭
 3. 重连成功，重新订阅成功

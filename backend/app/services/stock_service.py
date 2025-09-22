@@ -1,12 +1,10 @@
-from __future__ import annotations
-from typing import Union
-
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 """
-
 股票数据服务层
 集成多级缓存的股票数据查询和管理服务
 """
+from __future__ import annotations
+from typing import Union
 
 import hashlib
 import logging

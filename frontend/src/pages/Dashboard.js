@@ -343,19 +343,19 @@ const Dashboard = ({ marketType }) => {
           </Col>
         </Row>
       </Card>
-      
+
       {/* 实时数据显示区域 */}
       {showRealTimeData && selectedStock && marketType !== 'crypto' && (
         <Card style={{ margin: '20px 0' }}>
           <Title level={5}>实时数据</Title>
-          <RealTimeStockPrice 
-            symbol={selectedStock} 
+          <RealTimeStockPrice
+            symbol={selectedStock}
             market={marketType === 'US_stock' ? 'us' : 'a_share'}
             className="dashboard-realtime-price"
           />
         </Card>
       )}
-      
+
       <Spin spinning={loading}>
         {chartData.length > 0 && process.env.NODE_ENV === 'development' && console.log("Chart Data being passed to StockChart:", chartData.slice(-5))}
         <StockChart

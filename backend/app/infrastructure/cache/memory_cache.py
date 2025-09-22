@@ -1,12 +1,10 @@
-from __future__ import annotations
-from typing import Union
-
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 """
-
 应用级内存缓存管理器
 实现L1级别的高速内存缓存，与Redis缓存形成多级缓存架构
 """
+from __future__ import annotations
+from typing import Union
 
 import logging
 import threading

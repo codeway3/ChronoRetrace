@@ -11,8 +11,4 @@ from .connection_manager import ConnectionManager
 from .data_stream_service import DataStreamService
 from .message_handler import MessageHandler
 
-__all__ = [
-    "ConnectionManager",
-    "DataStreamService", 
-    "MessageHandler"
-]
+__all__ = ["ConnectionManager", "DataStreamService", "MessageHandler"]

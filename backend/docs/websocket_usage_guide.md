@@ -142,19 +142,19 @@ import websockets
 async def websocket_client():
     client_id = "my_client"
     uri = f"ws://localhost:8000/api/v1/ws/{client_id}"
-    
+
     async with websockets.connect(uri) as websocket:
         # 等待连接确认
         response = await websocket.recv()
         print(f"连接确认: {response}")
-        
+
         # 订阅苹果股票1分钟数据
         subscribe_message = {
             "type": "subscribe",
             "topic": "stock.AAPL.1m"
         }
         await websocket.send(json.dumps(subscribe_message))
-        
+
         # 监听消息
         while True:
             try:
@@ -181,7 +181,7 @@ ws.onopen = function() {
 ws.onmessage = function(event) {
     const data = JSON.parse(event.data);
     console.log('收到消息:', data);
-    
+
     // 如果是连接确认，发送订阅请求
     if (data.type === 'connection_ack') {
         const subscribeMessage = {

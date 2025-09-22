@@ -11,7 +11,7 @@ export const useWebSocket = () => {
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [lastMessage, setLastMessage] = useState(null);
   const [error, setError] = useState(null);
-  
+
   const statusRef = useRef(connectionStatus);
   statusRef.current = connectionStatus;
 
@@ -105,7 +105,7 @@ export const useWebSocketData = (topic, options = {}) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   const unsubscribeRef = useRef(null);
 
   const subscribe = useCallback(() => {
