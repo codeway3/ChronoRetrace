@@ -66,13 +66,9 @@ def clear_cache_between_tests():
         pass
 
 
-@patch("app.api.v1.commodities.ak.futures_display_main_sina")
 @patch("app.api.v1.commodities.run_in_threadpool", new_callable=AsyncMock)
-async def test_get_commodity_list_success(mock_run_in_threadpool, mock_akshare):
-    # Mock akshare to avoid initialization error
-    mock_akshare.return_value = pd.DataFrame(
-        {"symbol": ["ag2412", "CL2412"], "name": ["白银2412", "原油2412"]}
-    )
+async def test_get_commodity_list_success(mock_run_in_threadpool):
+    # Mock successful akshare call
     mock_run_in_threadpool.return_value = pd.DataFrame(
         {"symbol": ["ag2412", "CL2412"], "name": ["白银2412", "原油2412"]}
     )
@@ -80,14 +76,15 @@ async def test_get_commodity_list_success(mock_run_in_threadpool, mock_akshare):
     assert response.status_code == 200
     data = response.json()
     assert "ag2412" in data
+    assert data["ag2412"] == "白银2412"
 
 
-@patch("app.api.v1.commodities.ak.futures_display_main_sina")
 @patch("app.api.v1.commodities.run_in_threadpool", new_callable=AsyncMock)
-async def test_get_commodity_list_akshare_fails(mock_run_in_threadpool, mock_akshare):
-    # Mock akshare to avoid initialization error
-    mock_akshare.side_effect = Exception("Akshare down")
+async def test_get_commodity_list_akshare_fails(mock_run_in_threadpool):
+    # Mock akshare failure
     mock_run_in_threadpool.side_effect = Exception("Akshare down")
     response = client.get("/api/v1/commodities/list")
     assert response.status_code == 200
-    assert "GC=F" in response.json()
+    data = response.json()
+    assert "GC=F" in data
+    assert data["GC=F"] == "黄金"

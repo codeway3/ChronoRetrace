@@ -15,6 +15,7 @@ import AIndustriesDashboard from './pages/AIndustriesDashboard';
 import FuturesDashboard from './pages/FuturesDashboard';
 import OptionsDashboard from './pages/OptionsDashboard';
 import ScreenerPage from './pages/ScreenerPage';
+import WebSocketTest from './pages/WebSocketTest';
 import './App.css';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
           {/* 公开路由 */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/websocket-test" element={<WebSocketTest />} />
 
           {/* 受保护的路由 - 按投资标的分类的二级层次化导航 */}
 

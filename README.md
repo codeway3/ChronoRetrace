@@ -15,6 +15,7 @@
 ### 📊 Data & Analytics
 -   **Multi-Market Data**: Fetches and displays data for A-shares, US stocks, and major cryptocurrencies.
 -   **Futures and Options**: Fetches and displays data for futures and options.
+-   **Real-time Data Streaming**: WebSocket-based real-time data push service with automatic reconnection, heartbeat monitoring, and multi-client support.
 -   **Interactive Charts**: Utilizes ECharts to provide responsive, interactive K-line (candlestick) charts with time range selection and key Moving Averages (MA5, MA10, MA20, MA60).
 -   **Financial Data Overview**: Displays key performance indicators (KPIs), annual earnings, and corporate actions for selected stocks.
 -   **Strategy Backtesting**: A flexible backtesting engine to test investment strategies with comprehensive performance metrics.
@@ -82,6 +83,7 @@ cd ChronoRetrace
 | :-------- | :----------------------------------------------------------------------------------------------------- |
 | **Backend** | Python 3.10+, FastAPI, SQLAlchemy, Uvicorn, Pandas, Pydantic, JWT Authentication                       |
 | **Frontend**| React.js, Node.js 20+, ECharts for React, Ant Design, Axios, Context API                               |
+| **Real-time** | WebSocket connections, automatic reconnection, heartbeat monitoring, message routing                   |
 | **Database**| SQLite (for development), PostgreSQL (recommended for production)                                      |
 | **Caching** | Redis for multi-layer caching, session storage, and rate limiting                                      |
 | **Monitoring** | Custom performance metrics, system resource tracking, response time analysis                         |
@@ -283,7 +285,8 @@ ChronoRetrace/
 ### Stock Analysis
 1. **Search Stocks**: Use the search functionality to find stocks by symbol or name
 2. **View Charts**: Interactive candlestick charts with technical indicators
-3. **Financial Data**: Access key metrics, earnings, and corporate actions
+3. **Real-time Updates**: Subscribe to live data streams for automatic chart updates
+4. **Financial Data**: Access key metrics, earnings, and corporate actions
 
 ### Backtesting
 1. **Strategy Setup**: Configure your investment strategy parameters
@@ -297,6 +300,7 @@ ChronoRetrace/
 
 ### API Usage
 - **REST API**: Full RESTful API available at `/docs`
+- **WebSocket API**: Real-time data streaming at `/api/v1/ws/connect`
 - **Authentication**: JWT-based API authentication
 - **Rate Limiting**: Automatic request throttling for fair usage
 - **Caching**: Optimized response times with Redis caching
@@ -389,6 +393,7 @@ A: Please read our [Contributing Guidelines](CONTRIBUTING.md) and submit a pull 
 - ✨ Enhanced performance monitoring and caching
 - 🔒 Improved security with JWT authentication
 - 📊 Advanced analytics and backtesting features
+- 🔄 WebSocket real-time data streaming with auto-reconnection and heartbeat monitoring
 - 🐳 Docker and Kubernetes deployment support
 - 🎨 Modern React UI with responsive design
 

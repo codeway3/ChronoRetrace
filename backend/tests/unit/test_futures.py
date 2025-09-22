@@ -70,13 +70,9 @@ def test_get_futures_data_not_found(mock_fetch, mock_akshare):
     assert response.status_code == 404
 
 
-@patch("app.api.v1.futures.ak.futures_display_main_sina")
 @patch("app.api.v1.futures.run_in_threadpool", new_callable=AsyncMock)
-async def test_get_futures_list_success(mock_run_in_threadpool, mock_akshare):
-    # Mock akshare to avoid initialization error
-    mock_akshare.return_value = pd.DataFrame(
-        {"symbol": ["rb2410", "hc2410"], "name": ["螺纹钢2410", "热卷2410"]}
-    )
+async def test_get_futures_list_success(mock_run_in_threadpool):
+    # Mock successful akshare call
     mock_run_in_threadpool.return_value = pd.DataFrame(
         {"symbol": ["rb2410", "hc2410"], "name": ["螺纹钢2410", "热卷2410"]}
     )
@@ -84,19 +80,18 @@ async def test_get_futures_list_success(mock_run_in_threadpool, mock_akshare):
     assert response.status_code == 200
     data = response.json()
     assert "rb2410" in data
+    assert data["rb2410"] == "螺纹钢2410"
 
 
-@patch("app.api.v1.futures.ak.futures_display_main_sina")
 @patch("app.api.v1.futures.run_in_threadpool", new_callable=AsyncMock)
-async def test_get_futures_list_akshare_fails(mock_run_in_threadpool, mock_akshare):
-    # Mock akshare to avoid initialization error
-    mock_akshare.side_effect = Exception("Akshare down")
+async def test_get_futures_list_akshare_fails(mock_run_in_threadpool):
+    # Mock akshare failure
     mock_run_in_threadpool.side_effect = Exception("Akshare down")
     response = client.get("/api/v1/futures/list")
     assert response.status_code == 200
     # Check that fallback data is returned
     data = response.json()
     assert "ES=F" in data
-    assert "NQ=F" in data
     assert data["ES=F"] == "E-mini S&P 500"
+    assert "NQ=F" in data
     assert data["NQ=F"] == "E-mini NASDAQ 100"

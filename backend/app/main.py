@@ -31,6 +31,7 @@ from app.api.v1 import screener as screener_v1
 from app.api.v1 import stocks as stocks_v1
 from app.api.v1 import users as users_v1
 from app.api.v1 import watchlist as watchlist_v1
+from app.api.v1 import websocket as websocket_v1
 from app.core.config import settings
 from app.core.middleware import setup_middleware
 
@@ -383,10 +384,49 @@ async def lifespan(app: FastAPI):
     performance_monitor.start_monitoring()
     print("Performance monitoring started.")
 
+    # Initialize WebSocket services
+    try:
+        from app.websocket.connection_manager import ConnectionManager
+        from app.websocket.data_stream_service import DataStreamService
+        from app.infrastructure.cache.redis_manager import RedisCacheManager
+        from app.api.v1.websocket import init_websocket_services
+        
+        logger.info("正在初始化WebSocket服务...")
+        
+        connection_manager = ConnectionManager()
+        redis_manager = RedisCacheManager()
+        data_stream_service = DataStreamService(connection_manager, redis_manager)
+        
+        # Store services in app state for access in routes
+        app.state.connection_manager = connection_manager
+        app.state.data_stream_service = data_stream_service
+        
+        # Initialize WebSocket services in the router
+        init_websocket_services(redis_manager)
+        
+        # Start data stream service
+        await data_stream_service.start()
+        logger.info("✅ WebSocket服务初始化并启动成功")
+        
+    except Exception as e:
+        logger.error(f"❌ WebSocket服务初始化失败: {e}")
+        # 不抛出异常，允许应用继续启动（WebSocket功能可能不可用）
+        app.state.connection_manager = None
+        app.state.data_stream_service = None
+
     logger.info("✅ 应用启动完成")
     yield
     # On shutdown
     logger.info("正在关闭应用...")
+    
+    # Stop WebSocket services
+    try:
+        if hasattr(app.state, 'data_stream_service') and app.state.data_stream_service:
+            await app.state.data_stream_service.stop()
+            logger.info("✅ WebSocket服务已停止")
+    except Exception as e:
+        logger.error(f"停止WebSocket服务时出错: {e}")
+    
     performance_monitor.stop_monitoring()
     scheduler.shutdown()
     logger.info("✅ 应用已关闭")
@@ -459,7 +499,10 @@ app.include_router(
 )
 app.include_router(health_v1.router, prefix="/api/v1/health", tags=["health"])
 
-# Import and include asset config router
+# Register WebSocket router
+app.include_router(websocket_v1.router, prefix="/api/v1/ws", tags=["websocket"])
+
+# Register asset config router
 from app.api.v1 import asset_config as asset_config_v1
 
 app.include_router(

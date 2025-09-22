@@ -8,7 +8,7 @@
 from enum import Enum
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class AssetType(str, Enum):
@@ -47,8 +47,7 @@ class AssetTypeConfig(BaseModel):
     enabled: bool = True
     supported_functions: List[AssetFunction] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AssetTypeResponse(BaseModel):

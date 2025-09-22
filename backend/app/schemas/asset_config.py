@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Any, List
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 
 
@@ -58,8 +58,7 @@ class AssetConfigResponse(AssetConfigBase):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Asset Symbol Schemas
@@ -110,8 +109,7 @@ class AssetSymbolResponse(AssetSymbolBase):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Asset Market Data Schemas
@@ -185,8 +183,7 @@ class AssetMarketDataResponse(AssetMarketDataBase):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Asset Screener Template Schemas
@@ -218,8 +215,7 @@ class AssetScreenerTemplateResponse(AssetScreenerTemplateBase):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Asset Backtest Template Schemas
@@ -255,5 +251,4 @@ class AssetBacktestTemplateResponse(AssetBacktestTemplateBase):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

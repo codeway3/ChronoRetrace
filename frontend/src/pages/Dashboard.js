@@ -3,6 +3,8 @@ import { Select, message, Spin, Row, Col, Card, Typography, Radio, DatePicker, S
 import dayjs from 'dayjs';
 import StockChart from '../components/StockChart';
 import FinancialOverviewAndActions from '../components/FinancialOverviewAndActions';
+import { RealTimeStockPrice, WebSocketStatus } from '../components/RealTimeData';
+import { useWebSocket } from '../hooks/useWebSocket';
 import { getStockData, getAllStocks, getCorporateActions, getAnnualEarnings, getTopCryptos, getCryptoHistory } from '../api/stockApi';
 
 const { Option } = Select;
@@ -42,6 +44,10 @@ const Dashboard = ({ marketType }) => {
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [error, setError] = useState(null); // 新增错误状态
   const debounceTimeout = useRef(null);
+
+  // WebSocket相关状态
+  const { isConnected } = useWebSocket();
+  const [showRealTimeData, setShowRealTimeData] = useState(false);
 
   // New states for corporate actions
   const [corporateActions, setCorporateActions] = useState(null);
@@ -265,12 +271,28 @@ const Dashboard = ({ marketType }) => {
 
   return (
     <div>
-      <Title level={4}>{title}</Title>
-      <Text type="secondary">
-        {marketType === 'crypto'
-          ? '从列表中选择一个加密货币以查看其日线图。'
-          : '选择一只股票和时间间隔以查看其图表。'}
-      </Text>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div>
+          <Title level={4}>{title}</Title>
+          <Text type="secondary">
+            {marketType === 'crypto'
+              ? '从列表中选择一个加密货币以查看其日线图。'
+              : '选择一只股票和时间间隔以查看其图表。'}
+          </Text>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <WebSocketStatus />
+          {marketType !== 'crypto' && (
+            <Switch
+              checkedChildren="实时数据"
+              unCheckedChildren="实时数据"
+              checked={showRealTimeData}
+              onChange={setShowRealTimeData}
+              disabled={!isConnected}
+            />
+          )}
+        </div>
+      </div>
       {error && <Text type="danger">{error}</Text>} {/* 显示错误信息 */}
       <Card style={{ margin: '20px 0' }}>
         <Row gutter={[16, 16]} align="middle">
@@ -321,6 +343,19 @@ const Dashboard = ({ marketType }) => {
           </Col>
         </Row>
       </Card>
+      
+      {/* 实时数据显示区域 */}
+      {showRealTimeData && selectedStock && marketType !== 'crypto' && (
+        <Card style={{ margin: '20px 0' }}>
+          <Title level={5}>实时数据</Title>
+          <RealTimeStockPrice 
+            symbol={selectedStock} 
+            market={marketType === 'US_stock' ? 'us' : 'a_share'}
+            className="dashboard-realtime-price"
+          />
+        </Card>
+      )}
+      
       <Spin spinning={loading}>
         {chartData.length > 0 && process.env.NODE_ENV === 'development' && console.log("Chart Data being passed to StockChart:", chartData.slice(-5))}
         <StockChart
