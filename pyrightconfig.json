@@ -1,5 +1,7 @@
 {
-    "include": ["backend"],
+    "include": [
+        "backend"
+    ],
     "exclude": [
         "**/node_modules",
         "**/__pycache__",
@@ -7,37 +9,17 @@
         "**/.ruff_cache",
         "**/build",
         "**/dist",
-        "**/venv",
-        "**/.venv"
+        "frontend"
     ],
-    "extraPaths": ["./backend"],
     "pythonVersion": "3.10",
     "pythonPlatform": "Darwin",
-    "executionEnvironments": [
-        {
-            "root": ".",
-            "pythonVersion": "3.10",
-            "extraPaths": ["./backend"]
-        }
-    ],
     "typeCheckingMode": "basic",
     "reportMissingImports": "warning",
     "reportMissingTypeStubs": "none",
-    "reportGeneralTypeIssues": "warning",
-    "reportOptionalMemberAccess": "warning",
-    "reportOptionalSubscript": "warning",
-    "reportOptionalIterable": "warning",
-    "reportOptionalContextManager": "warning",
-    "reportOptionalOperand": "warning",
-    "reportUntypedFunctionDecorator": "none",
-    "reportUntypedClassDecorator": "none",
-    "reportUntypedBaseClass": "none",
-    "reportUntypedNamedTuple": "none",
-    "reportPrivateUsage": "none",
-    "reportConstantRedefinition": "none",
-    "reportIncompatibleMethodOverride": "warning",
-    "reportIncompatibleVariableOverride": "warning",
-    "reportOverlappingOverloads": "warning",
-    "reportArgumentType": "none",
-    "reportAttributeAccessIssue": "none"
+    "executionEnvironments": [
+        {
+            "root": "backend",
+            "venv": "/Users/apple/code/ChronoRetrace/backend/venv"
+        }
+    ]
 }
