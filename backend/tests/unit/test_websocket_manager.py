@@ -29,6 +29,8 @@ class TestConnectionManager:
         websocket.client = MagicMock()
         websocket.client.host = "127.0.0.1"
         websocket.client.port = 12345
+        websocket.client_state = MagicMock()
+        websocket.client_state.name = "CONNECTED"
         return websocket
 
     @pytest.mark.asyncio
@@ -79,7 +81,9 @@ class TestConnectionManager:
 
         # 验证消息已发送
         assert result is True
-        mock_websocket.send_text.assert_called_once_with(json.dumps(message))
+        mock_websocket.send_text.assert_called_once_with(
+            json.dumps(message, ensure_ascii=False)
+        )
 
     @pytest.mark.asyncio
     async def test_send_to_nonexistent_client(self, connection_manager):
@@ -150,6 +154,8 @@ class TestConnectionManager:
             mock_ws.client = MagicMock()
             mock_ws.client.host = "127.0.0.1"
             mock_ws.client.port = 12345 + i
+            mock_ws.client_state = MagicMock()
+            mock_ws.client_state.name = "CONNECTED"
             client_id = f"subscriber_{i}"
 
             await connection_manager.connect(mock_ws, client_id)
@@ -166,7 +172,13 @@ class TestConnectionManager:
         # 验证所有订阅者都收到了消息
         assert sent_count == 2
         for _, websocket in subscribers:
-            websocket.send_text.assert_called_once_with(json.dumps(message))
+            websocket.send_text.assert_called_once()
+            sent_data = json.loads(websocket.send_text.call_args[0][0])
+            assert sent_data["type"] == message["type"]
+            assert sent_data["symbol"] == message["symbol"]
+            assert sent_data["price"] == message["price"]
+            assert sent_data["topic"] == topic
+            assert "timestamp" in sent_data
 
     @pytest.mark.asyncio
     async def test_multiple_clients_same_topic(self, connection_manager):
@@ -180,6 +192,8 @@ class TestConnectionManager:
             mock_ws.client = MagicMock()
             mock_ws.client.host = "127.0.0.1"
             mock_ws.client.port = 12345 + i
+            mock_ws.client_state = MagicMock()
+            mock_ws.client_state.name = "CONNECTED"
             client_id = f"client_{i}"
 
             await connection_manager.connect(mock_ws, client_id)
@@ -201,7 +215,12 @@ class TestConnectionManager:
         # 验证所有客户端都收到了消息
         assert sent_count == 3
         for _, websocket in clients:
-            websocket.send_text.assert_called_once_with(json.dumps(message))
+            websocket.send_text.assert_called_once()
+            sent_data = json.loads(websocket.send_text.call_args[0][0])
+            assert sent_data["type"] == message["type"]
+            assert sent_data["data"] == message["data"]
+            assert sent_data["topic"] == topic
+            assert "timestamp" in sent_data
 
     @pytest.mark.asyncio
     async def test_client_disconnect_removes_subscriptions(
