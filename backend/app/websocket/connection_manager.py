@@ -314,9 +314,10 @@ class ConnectionManager:
         if topic not in self.subscriptions:
             return 0
 
-        # 添加主题信息到消息
-        message["topic"] = topic
-        message["timestamp"] = datetime.utcnow().isoformat()
+        # 创建消息副本以避免副作用
+        message_to_send = message.copy()
+        message_to_send["topic"] = topic
+        message_to_send["timestamp"] = datetime.utcnow().isoformat()
 
         success_count = 0
         failed_clients = []
@@ -326,7 +327,7 @@ class ConnectionManager:
         client_ids = list(self.subscriptions[topic])
 
         for client_id in client_ids:
-            task = asyncio.create_task(self.send_to_client(client_id, message))
+            task = asyncio.create_task(self.send_to_client(client_id, message_to_send))
             tasks.append((client_id, task))
 
         # 等待所有发送任务完成
