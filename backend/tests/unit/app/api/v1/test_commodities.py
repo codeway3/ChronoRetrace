@@ -50,20 +50,7 @@ def test_get_commodity_data_not_found(mock_fetch, mock_akshare):
     assert response.status_code == 404
 
 
-pytestmark = pytest.mark.anyio
-
-
-@pytest.fixture
-def anyio_backend():
-    return "asyncio"
-
-
-@pytest.fixture(autouse=True)
-def clear_cache_between_tests():
-    try:
-        anyio.run(FastAPICache.clear)
-    except Exception:
-        pass
+pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("setup_fastapi_cache")]
 
 
 @patch("app.api.v1.commodities.run_in_threadpool", new_callable=AsyncMock)
@@ -86,5 +73,4 @@ async def test_get_commodity_list_akshare_fails(mock_run_in_threadpool):
     response = client.get("/api/v1/commodities/list")
     assert response.status_code == 200
     data = response.json()
-    assert "GC=F" in data
-    assert data["GC=F"] == "黄金"
+    assert data == {"GC=F": "黄金", "SI=F": "白银", "CL=F": "原油"}

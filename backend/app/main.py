@@ -32,6 +32,7 @@ from app.api.v1 import stocks as stocks_v1
 from app.api.v1 import users as users_v1
 from app.api.v1 import watchlist as watchlist_v1
 from app.api.v1 import websocket as websocket_v1
+from app.analytics.api import endpoints as analytics_endpoints
 from app.core.config import settings
 from app.core.middleware import setup_middleware
 
@@ -498,6 +499,11 @@ app.include_router(
     data_quality_v1.router, prefix="/api/v1/data-quality", tags=["data-quality"]
 )
 app.include_router(health_v1.router, prefix="/api/v1/health", tags=["health"])
+
+# Register WebSocket router
+app.include_router(
+    analytics_endpoints.router, prefix="/api/v1/analytics", tags=["Analytics"]
+)
 
 # Register WebSocket router
 app.include_router(websocket_v1.router, prefix="/api/v1/ws", tags=["websocket"])

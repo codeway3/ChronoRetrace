@@ -9,57 +9,21 @@ import os
 import sys
 from unittest.mock import AsyncMock, MagicMock, Mock
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.main import app
+from app.infrastructure.database.session import get_db
 from app.infrastructure.database.models import Base
 
 # import akshare as ak  # Removed to avoid initialization issues in tests
 # Mock akshare module completely to avoid initialization issues
 sys.modules["akshare"] = MagicMock()
-
-
-def pytest_configure(config):
-    """
-    注册自定义标记，避免警告
-    """
-    config.addinivalue_line("markers", "asyncio: mark test as an asyncio coroutine")
-
-    # akshare初始化已通过mock处理，无需实际调用
-
-
-def pytest_pyfunc_call(pyfuncitem):
-    """
-    Minimal async test runner hook to support @pytest.mark.asyncio tests
-    when pytest-asyncio is not installed. Uses the provided event_loop fixture
-    if available, otherwise creates a new loop.
-    """
-    import asyncio as _asyncio
-    import inspect
-
-    if inspect.iscoroutinefunction(pyfuncitem.obj):
-        loop = pyfuncitem.funcargs.get("event_loop")
-        if loop is None:
-            loop = _asyncio.get_event_loop_policy().new_event_loop()
-            try:
-                _asyncio.set_event_loop(loop)
-                loop.run_until_complete(pyfuncitem.obj(**pyfuncitem.funcargs))
-            finally:
-                loop.close()
-                _asyncio.set_event_loop(None)
-        else:
-            loop.run_until_complete(pyfuncitem.obj(**pyfuncitem.funcargs))
-        return True
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """创建事件循环"""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(scope="session")
@@ -129,7 +93,7 @@ def sample_metrics_data():
     }
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def setup_redis_environment():
     """设置Redis环境变量"""
     # 如果在CI环境中，使用环境变量中的Redis配置
@@ -177,20 +141,31 @@ def setup_fastapi_cache():
         pass
 
 
+@pytest.fixture(scope="session")
+def client(test_engine):
+    """
+    Create a test client for the FastAPI application.
+    """
+
+    # Dependency override for database session
+    def override_get_db():
+        try:
+            db = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)()
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(app) as c:
+        yield c
+
+    app.dependency_overrides.clear()
+
+
 @pytest.fixture(autouse=True)
-def clear_cache_between_tests():
+async def clear_cache_between_tests():
     """Clear cache between individual tests"""
-    try:
-        import asyncio
+    from fastapi_cache import FastAPICache
 
-        from fastapi_cache import FastAPICache
-
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If we're already in an async context, create a task
-            asyncio.create_task(FastAPICache.clear())
-        else:
-            # If not in async context, run the clear operation
-            loop.run_until_complete(FastAPICache.clear())
-    except Exception:
-        pass
+    await FastAPICache.clear()

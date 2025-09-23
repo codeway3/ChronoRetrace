@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import Selectable
 from starlette.concurrency import run_in_threadpool
 
 from app.infrastructure.database import models
@@ -14,7 +15,7 @@ from ..fetchers.stock_fetchers import a_share_fetcher, us_stock_fetcher
 from . import database_writer as db_writer
 from .data_utils import calculate_ma
 
-from typing import Union
+from typing import Union, Optional, cast
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ def get_all_stocks_list(db: Session, market_type: str = "A_share"):
     If the cache is empty or older than 24 hours for that market, it refreshes from data sources.
     """
     query = db.query(models.StockInfo).filter(
-        models.StockInfo.market_type == market_type
+        getattr(models.StockInfo, "market_type") == market_type
     )
 
     # Simplified logic: if the list is empty, try to refresh it.
@@ -69,15 +70,21 @@ class StockDataFetcher:
         stock_code: str,
         interval: str,
         market_type: str,
-        trade_date: Union[date, None] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        trade_date: Optional[date] = None,
     ):
         self.db = db
         self.stock_code = stock_code
         self.interval = interval
         self.market_type = market_type
         self.trade_date = trade_date
-        self.start_date = (datetime.now() - timedelta(days=15 * 365)).date()
-        self.end_date = datetime.now().date()
+        self.start_date = (
+            start_date
+            if start_date
+            else (datetime.now() - timedelta(days=15 * 365)).date()
+        )
+        self.end_date = end_date if end_date else datetime.now().date()
 
     def fetch_stock_data(self):
         """
@@ -127,15 +134,16 @@ class StockDataFetcher:
         query = (
             self.db.query(models.StockData)
             .filter(
-                models.StockData.ts_code == self.stock_code,
-                models.StockData.interval == self.interval,
-                models.StockData.trade_date >= self.start_date,
-                models.StockData.trade_date <= self.end_date,
+                getattr(models.StockData, "ts_code") == self.stock_code,
+                getattr(models.StockData, "interval") == self.interval,
+                getattr(models.StockData, "trade_date") >= self.start_date,
+                getattr(models.StockData, "trade_date") <= self.end_date,
             )
-            .order_by(models.StockData.trade_date)
+            .order_by(getattr(models.StockData, "trade_date"))
         )
 
-        df = pd.read_sql(query.statement, self.db.connection())
+        with self.db.connection() as connection:
+            df = pd.read_sql(cast(Selectable, query.statement), connection)
         if not df.empty:
             logger.info(f"Found {len(df)} records in DB for {self.stock_code}.")
             # Drop the 'id' column as it's not needed for the frontend.
@@ -177,7 +185,9 @@ def fetch_stock_data(
     stock_code: str,
     interval: str,
     market_type: str,
-    trade_date: Union[date, None] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    trade_date: Optional[date] = None,
 ):
     """
     Main entry point for fetching stock data.
@@ -186,7 +196,9 @@ def fetch_stock_data(
     db_gen = get_db()
     db = next(db_gen)
     try:
-        fetcher = StockDataFetcher(db, stock_code, interval, market_type, trade_date)
+        fetcher = StockDataFetcher(
+            db, stock_code, interval, market_type, start_date, end_date, trade_date
+        )
         return fetcher.fetch_stock_data()
     finally:
         next(db_gen, None)
@@ -201,7 +213,7 @@ async def sync_financial_data(symbol: str):
     try:
         stock_info = (
             db.query(models.StockInfo)
-            .filter(models.StockInfo.ts_code == symbol)
+            .filter(getattr(models.StockInfo, "ts_code") == symbol)
             .first()
         )
 
@@ -316,7 +328,7 @@ def get_fundamental_data_from_db(
     """
     return (
         db.query(models.FundamentalData)
-        .filter(models.FundamentalData.symbol == symbol)  # type: ignore[attr-defined]
+        .filter(getattr(models.FundamentalData, "symbol") == symbol)
         .first()
     )
 
@@ -336,8 +348,8 @@ def get_corporate_actions_from_db(
     """
     return (
         db.query(models.CorporateAction)
-        .filter(models.CorporateAction.symbol == symbol)  # type: ignore[attr-defined]
-        .order_by(models.CorporateAction.ex_date)
+        .filter(getattr(models.CorporateAction, "symbol") == symbol)
+        .order_by(getattr(models.CorporateAction, "ex_date"))
         .all()
     )
 
@@ -347,8 +359,8 @@ def get_annual_earnings_from_db(
 ) -> list[models.AnnualEarnings]:
     return (
         db.query(models.AnnualEarnings)
-        .filter(models.AnnualEarnings.symbol == symbol)  # type: ignore[attr-defined]
-        .order_by(models.AnnualEarnings.year)  # type: ignore[attr-defined]
+        .filter(getattr(models.AnnualEarnings, "symbol") == symbol)
+        .order_by(getattr(models.AnnualEarnings, "year"))
         .all()
     )
 
@@ -363,8 +375,8 @@ def resolve_symbol(db: Session, symbol: str) -> Union[str, None]:
     a_share_info = (
         db.query(models.StockInfo)
         .filter(
-            models.StockInfo.market_type == "A_share",
-            models.StockInfo.ts_code.ilike(f"{symbol}.%"),  # type: ignore[attr-defined]
+            getattr(models.StockInfo, "market_type") == "A_share",
+            getattr(models.StockInfo, "ts_code").ilike(f"{symbol}.%"),
         )
         .first()
     )
@@ -374,8 +386,8 @@ def resolve_symbol(db: Session, symbol: str) -> Union[str, None]:
     us_stock_info = (
         db.query(models.StockInfo)
         .filter(
-            models.StockInfo.market_type == "US_stock",
-            models.StockInfo.ts_code.ilike(symbol),  # type: ignore[attr-defined]
+            getattr(models.StockInfo, "market_type") == "US_stock",
+            getattr(models.StockInfo, "ts_code").ilike(symbol),
         )
         .first()
     )

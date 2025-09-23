@@ -17,6 +17,18 @@ from app.websocket.connection_manager import ConnectionManager
 class TestConnectionManager:
     """WebSocket连接管理器单元测试"""
 
+    @pytest.fixture(autouse=True)
+    def mock_heartbeat(self, mocker):
+        """Mock the heartbeat monitor to do nothing."""
+
+        async def dummy_monitor(*args, **kwargs):
+            pass
+
+        mocker.patch(
+            "app.websocket.connection_manager.ConnectionManager._heartbeat_monitor",
+            new=dummy_monitor,
+        )
+
     @pytest.fixture
     def connection_manager(self):
         """创建WebSocket连接管理器实例"""

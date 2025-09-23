@@ -26,6 +26,9 @@ Homepage = "https://github.com/chronoretrace/chronoretrace"
 Repository = "https://github.com/chronoretrace/chronoretrace"
 Issues = "https://github.com/chronoretrace/chronoretrace/issues"
 
+[tool.setuptools.packages.find]
+where = ["backend"]
+
 # ============================================================================
 # TOOL CONFIGURATIONS
 # ============================================================================
@@ -77,7 +80,8 @@ keep-runtime-typing = true
 # If you want to re-enable type checking in the future, uncomment and configure as needed
 
 [tool.pytest.ini_options]
-# Pytest configuration
+asyncio_mode = "auto"
+pythonpath = ["backend"]
 minversion = "7.0"
 addopts = [
     "-ra",
@@ -93,7 +97,7 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"'",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "api: marks tests as API tests",

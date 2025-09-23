@@ -57,26 +57,24 @@ python_functions = ["test_*"]
 pythonpath = ["."]
 addopts = [
     "-v",
-    "--tb=short",
     "--strict-markers",
-    "--disable-warnings",
     "--cov=app",
     "--cov-report=term-missing",
-    "--cov-report=html",
-    "--no-header",
-    "--no-summary",
+    "--cov-report=html"
+]
+asyncio_mode = "auto"
+markers = [
+    "anyio",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "asyncio: marks tests as asyncio tests",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning:passlib.*",
     "ignore::DeprecationWarning:unittest.*",
     "ignore:'crypt' is deprecated:DeprecationWarning",
     "ignore:It is deprecated to return a value that is not None from a test case:DeprecationWarning",
-]
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
-    "asyncio: mark tests as asyncio tests that use the pytest-asyncio plugin",
 ]
 
 [tool.coverage.run]
