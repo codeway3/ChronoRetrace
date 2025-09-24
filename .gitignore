@@ -45,3 +45,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .aider*
+
+# Benchmarks caches (root and backend)
+.benchmarks/
+backend/.benchmarks/
+
+# mypy caches (root and backend)
+.mypy_cache/
+backend/.mypy_cache/
