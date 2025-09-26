@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi_cache import FastAPICache
@@ -188,7 +187,7 @@ async def initialize_admin_account(request: Request, db: Session = Depends(get_d
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"创建管理员账号失败: {str(e)}",
+            detail=f"创建管理员账号失败: {e!s}",
         ) from None
 
 
@@ -196,8 +195,8 @@ async def initialize_admin_account(request: Request, db: Session = Depends(get_d
 async def get_users(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    search: Union[str, None] = Query(None),
-    is_active: Union[bool, None] = Query(None),
+    search: str | None = Query(None),
+    is_active: bool | None = Query(None),
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):

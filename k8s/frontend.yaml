@@ -50,17 +50,17 @@ spec:
           env:
             - name: NODE_ENV
               value: "production"
-            - name: REACT_APP_API_URL
+            - name: VITE_API_BASE_URL
               valueFrom:
                 configMapKeyRef:
                   name: chronoretrace-config
-                  key: REACT_APP_API_URL
-            - name: REACT_APP_WS_URL
+                  key: VITE_API_BASE_URL
+            - name: VITE_WS_URL
               valueFrom:
                 configMapKeyRef:
                   name: chronoretrace-config
-                  key: REACT_APP_WS_URL
-            - name: REACT_APP_ENVIRONMENT
+                  key: VITE_WS_URL
+            - name: VITE_ENVIRONMENT
               value: "production"
           volumeMounts:
             - name: nginx-config

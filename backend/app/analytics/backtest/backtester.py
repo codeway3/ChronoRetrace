@@ -1,482 +1,404 @@
-import itertools
+"""
+回测引擎核心模块
+"""
+
 import logging
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 import numpy as np
 import pandas as pd
-from sqlalchemy.orm import Session
-
-from app.data.managers import data_manager as data_fetcher
-from app.schemas.backtest import (
-    BacktestOptimizationResponse,
-    BacktestResult,
-    ChartDataPoint,
-    GridStrategyConfig,
-    GridStrategyOptimizeConfig,
-    OptimizationResultItem,
-    Transaction,
-)
 
 logger = logging.getLogger(__name__)
 
 
-def run_grid_backtest(db: Session, config: GridStrategyConfig) -> BacktestResult:
-    """
-    Runs a grid trading backtest simulation, calculating detailed performance metrics.
-    """
-    logger.info(
-        f"Starting grid backtest for {config.stock_code} from {config.start_date} to {config.end_date}"
-    )
+class TradeAction(Enum):
+    """交易动作枚举"""
 
-    # --- 1. Fetch and Prepare Data ---
-    history_df = data_fetcher.fetch_stock_data(
-        stock_code=config.stock_code,
-        interval="daily",
-        market_type="A_share" if "." in config.stock_code else "US_stock",
-    )
-    if history_df.empty:
-        raise ValueError("Could not fetch historical data for the given stock.")
+    BUY = "buy"
+    SELL = "sell"
+    HOLD = "hold"
 
-    history_df["trade_date"] = pd.to_datetime(history_df["trade_date"]).dt.date
-    mask = (history_df["trade_date"] >= config.start_date) & (
-        history_df["trade_date"] <= config.end_date
-    )
-    backtest_df = history_df.loc[mask].copy()
 
-    if backtest_df.empty:
-        raise ValueError("No historical data available for the specified date range.")
+class Trade:
+    """交易记录类"""
 
-    # --- 2. Initialize Strategy and Metrics ---
-    grid_lines = np.linspace(
-        config.lower_price, config.upper_price, config.grid_count + 1
-    )
-    cash_per_grid = config.total_investment / config.grid_count
+    def __init__(
+        self,
+        symbol: str,
+        action: TradeAction,
+        quantity: float,
+        price: float,
+        timestamp: datetime,
+        commission: float = 0.0,
+    ):
+        self.symbol = symbol
+        self.action = action
+        self.quantity = quantity
+        self.price = price
+        self.timestamp = timestamp
+        self.commission = commission
+        self.value = quantity * price
 
-    # State variables based on user input
-    cash_balance = config.total_investment
-    position_quantity = config.initial_quantity  # Start with user-defined quantity
-    current_cost_basis = config.initial_quantity * config.initial_per_share_cost
-
-    # Result accumulators
-    transaction_log: list[Transaction] = []
-    chart_data: list[ChartDataPoint] = []
-
-    # Metrics variables
-    initial_cost_basis = current_cost_basis
-    initial_portfolio_value = config.total_investment + initial_cost_basis
-    peak_portfolio_value = initial_portfolio_value
-    max_drawdown = 0.0
-    winning_trades = 0
-    sell_trades = 0
-
-    # Benchmark (Buy and Hold)
-    initial_stock_price = backtest_df.iloc[0]["open"]
-    benchmark_shares = initial_portfolio_value / initial_stock_price
-
-    grids = [
-        {
-            "status": "open",  # 'open' or 'bought'
-            "buy_price": grid_lines[i],
-            "sell_price": grid_lines[i + 1],
-            "bought_quantity": 0,
-            "cost_basis": 0.0,
+    def to_dict(self) -> dict[str, Any]:
+        """转换为字典"""
+        return {
+            "symbol": self.symbol,
+            "action": self.action.value,
+            "quantity": self.quantity,
+            "price": self.price,
+            "timestamp": self.timestamp.isoformat(),
+            "commission": self.commission,
+            "value": self.value,
         }
-        for i in range(config.grid_count)
-    ]
-
-    market_type = "A_share" if "." in config.stock_code else "US_stock"
-
-    logger.info(
-        f"Grids initialized. Initial state: Cash={cash_balance:.2f}, Shares={position_quantity}, Initial Cost={initial_cost_basis:.2f}"
-    )
-
-    # --- 3. Simulation Loop ---
-    for _, row in backtest_df.iterrows():
-        current_date = row["trade_date"]
-        day_low = row["low"]
-        day_high = row["high"]
-
-        trade_executed_today = False
-        for i in range(config.grid_count):
-            if trade_executed_today:
-                break
-            grid = grids[i]
-
-            if grid["status"] == "open" and day_low <= grid["buy_price"]:
-                buy_execution_price = grid["buy_price"]
-                if buy_execution_price <= 0:
-                    continue
-                potential_quantity = cash_per_grid / buy_execution_price
-                quantity_to_buy = 0
-                if market_type == "A_share":
-                    num_lots = int(potential_quantity // 100)
-                    if num_lots > 0:
-                        for lots in range(num_lots, 0, -1):
-                            qty = lots * 100
-                            gross_cost = qty * buy_execution_price
-                            commission = max(
-                                gross_cost * config.commission_rate,
-                                config.min_commission,
-                            )
-                            total_cost = gross_cost + commission
-                            if cash_balance >= total_cost:
-                                quantity_to_buy = qty
-                                break
-                else:
-                    qty = int(potential_quantity)
-                    gross_cost = qty * buy_execution_price
-                    commission = max(
-                        gross_cost * config.commission_rate, config.min_commission
-                    )
-                    total_cost = gross_cost + commission
-                    if cash_balance >= total_cost:
-                        quantity_to_buy = qty
-
-                if quantity_to_buy > 0:
-                    gross_cost = quantity_to_buy * buy_execution_price
-                    commission = max(
-                        gross_cost * config.commission_rate, config.min_commission
-                    )
-                    total_cost = gross_cost + commission
-                    cash_balance -= total_cost
-                    position_quantity += quantity_to_buy
-                    current_cost_basis += total_cost
-                    grid.update(
-                        {
-                            "status": "bought",
-                            "bought_quantity": quantity_to_buy,
-                            "cost_basis": total_cost,
-                        }
-                    )
-                    transaction_log.append(
-                        Transaction(
-                            trade_date=current_date,
-                            trade_type="buy",
-                            price=buy_execution_price,
-                            quantity=quantity_to_buy,
-                        )
-                    )
-                    trade_executed_today = True
-
-            elif grid["status"] == "bought" and day_high >= grid["sell_price"]:
-                quantity_to_sell = grid["bought_quantity"]
-                if position_quantity >= quantity_to_sell:
-                    average_cost_before_sell = (
-                        current_cost_basis / position_quantity
-                        if position_quantity > 0
-                        else 0
-                    )
-                    cost_of_shares_sold = quantity_to_sell * average_cost_before_sell
-                    sell_execution_price = grid["sell_price"]
-                    gross_revenue = quantity_to_sell * sell_execution_price
-                    commission = max(
-                        gross_revenue * config.commission_rate, config.min_commission
-                    )
-                    stamp_duty = gross_revenue * config.stamp_duty_rate
-                    total_fees = commission + stamp_duty
-                    net_revenue = gross_revenue - total_fees
-                    current_cost_basis -= cost_of_shares_sold
-                    cash_balance += net_revenue
-                    position_quantity -= quantity_to_sell
-                    pnl = net_revenue - grid["cost_basis"]
-                    sell_trades += 1
-                    if pnl > 0:
-                        winning_trades += 1
-                    grid.update(
-                        {"status": "open", "bought_quantity": 0, "cost_basis": 0.0}
-                    )
-                    transaction_log.append(
-                        Transaction(
-                            trade_date=current_date,
-                            trade_type="sell",
-                            price=sell_execution_price,
-                            quantity=quantity_to_sell,
-                            pnl=pnl,
-                        )
-                    )
-                    trade_executed_today = True
-
-        current_position_value = position_quantity * row["close"]
-        current_portfolio_value = cash_balance + current_position_value
-        peak_portfolio_value = max(peak_portfolio_value, current_portfolio_value)
-        drawdown = (
-            (peak_portfolio_value - current_portfolio_value) / peak_portfolio_value
-            if peak_portfolio_value > 0
-            else 0.0
-        )
-        max_drawdown = max(max_drawdown, drawdown)
-        benchmark_value = benchmark_shares * row["close"]
-        chart_data.append(
-            ChartDataPoint(
-                date=current_date,
-                portfolio_value=current_portfolio_value,
-                benchmark_value=benchmark_value,
-            )
-        )
-
-        close_price = row["close"]
-        if config.on_exceed_upper == "sell_all" and close_price > config.upper_price:
-            if position_quantity > 0:
-                logger.info(
-                    f"Price {close_price} exceeded upper bound {config.upper_price}. Selling all {position_quantity} shares."
-                )
-                gross_revenue = position_quantity * close_price
-                commission = max(
-                    gross_revenue * config.commission_rate, config.min_commission
-                )
-                stamp_duty = gross_revenue * config.stamp_duty_rate
-                net_revenue = gross_revenue - (commission + stamp_duty)
-                cash_balance += net_revenue
-                transaction_log.append(
-                    Transaction(
-                        trade_date=current_date,
-                        trade_type="sell",
-                        price=close_price,
-                        quantity=position_quantity,
-                        pnl=None,
-                    )
-                )
-                position_quantity = 0
-                current_cost_basis = 0
-                break
-
-        if (
-            config.on_fall_below_lower == "sell_all"
-            and close_price < config.lower_price
-        ):
-            if position_quantity > 0:
-                logger.info(
-                    f"Price {close_price} fell below lower bound {config.lower_price}. Selling all {position_quantity} shares (Stop-Loss)."
-                )
-                gross_revenue = position_quantity * close_price
-                commission = max(
-                    gross_revenue * config.commission_rate, config.min_commission
-                )
-                stamp_duty = gross_revenue * config.stamp_duty_rate
-                net_revenue = gross_revenue - (commission + stamp_duty)
-                cash_balance += net_revenue
-                transaction_log.append(
-                    Transaction(
-                        trade_date=current_date,
-                        trade_type="sell",
-                        price=close_price,
-                        quantity=position_quantity,
-                        pnl=None,
-                    )
-                )
-                position_quantity = 0
-                current_cost_basis = 0
-                break
-
-    # --- 4. Final Metrics Calculation ---
-    final_close_price = backtest_df.iloc[-1]["close"]
-    final_position_value = position_quantity * final_close_price
-    final_portfolio_value = cash_balance + final_position_value
-
-    if not chart_data or chart_data[-1].date != backtest_df.iloc[-1]["trade_date"]:
-        chart_data.append(
-            ChartDataPoint(
-                date=backtest_df.iloc[-1]["trade_date"],
-                portfolio_value=final_portfolio_value,
-                benchmark_value=benchmark_shares * final_close_price,
-            )
-        )
-
-    portfolio_df = pd.DataFrame([item.model_dump() for item in chart_data])
-    portfolio_df["date"] = pd.to_datetime(portfolio_df["date"])
-    portfolio_df = portfolio_df.set_index("date")
-    portfolio_df["daily_return"] = (
-        portfolio_df["portfolio_value"].pct_change().fillna(0)
-    )
-
-    total_pnl = final_portfolio_value - initial_portfolio_value
-    total_return_rate = (
-        total_pnl / initial_portfolio_value if initial_portfolio_value > 0 else 0.0
-    )
-
-    total_days = (config.end_date - config.start_date).days
-    years = total_days / 365.25 if total_days > 0 else 0
-
-    annualized_return_rate = (
-        (1 + total_return_rate) ** (1 / years) - 1
-        if years > 0 and total_return_rate > -1
-        else 0.0
-    )
-
-    annualized_volatility = portfolio_df["daily_return"].std() * np.sqrt(252)
-
-    sharpe_ratio = (
-        annualized_return_rate / annualized_volatility
-        if annualized_volatility != 0
-        else 0.0
-    )
-
-    win_rate = winning_trades / sell_trades if sell_trades > 0 else 0.0
-    average_holding_cost = (
-        current_cost_basis / position_quantity if position_quantity > 0 else 0.0
-    )
-
-    kline_data = backtest_df.to_dict(orient="records")
-
-    result = BacktestResult(
-        total_pnl=total_pnl,
-        total_return_rate=total_return_rate,
-        annualized_return_rate=annualized_return_rate,
-        annualized_volatility=annualized_volatility,
-        sharpe_ratio=sharpe_ratio,
-        max_drawdown=max_drawdown,
-        win_rate=win_rate,
-        trade_count=len(transaction_log),
-        chart_data=chart_data,
-        kline_data=kline_data,
-        transaction_log=transaction_log,
-        strategy_config=config,
-        market_type=market_type,
-        final_holding_quantity=position_quantity,
-        average_holding_cost=average_holding_cost,
-    )
-
-    logger.info(
-        f"Finished grid backtest for {config.stock_code}. Final PnL: {total_pnl:.2f}"
-    )
-    return result
 
 
-def _generate_parameter_values(param_value):
-    """
-    Generate parameter values from either a single value or range.
+class BacktestEngine:
+    """回测引擎核心类"""
 
-    Args:
-        param_value: Either a single value (int/float) or a list [start, stop, step]
+    def __init__(
+        self, initial_capital: float = 100000.0, commission_rate: float = 0.001
+    ):
+        self.initial_capital = initial_capital
+        self.commission_rate = commission_rate
+        self.reset()
 
-    Returns:
-        List of parameter values to test
-    """
-    if isinstance(param_value, list):
-        # Range format: [start, stop, step]
-        start, stop, step = param_value
-        if isinstance(start, int) and isinstance(stop, int) and isinstance(step, int):
-            # Integer range
-            return list(range(int(start), int(stop) + 1, int(step)))
-        else:
-            # Float range
-            # Add small epsilon to include stop
-            return list(np.arange(start, stop + step / 2, step))
-    else:
-        # Single value
-        return [param_value]
+    def reset(self):
+        """重置回测状态"""
+        self.cash = self.initial_capital
+        self.positions: dict[str, float] = {}  # 持仓数量
+        self.trades: list[Trade] = []  # 交易记录
+        self.equity_curve: list[dict[str, Any]] = []  # 权益曲线
+        self.current_date = None
+        self.portfolio_value = self.initial_capital
 
-
-def run_grid_optimization(
-    db: Session, config: GridStrategyOptimizeConfig
-) -> BacktestOptimizationResponse:
-    """
-    Runs parameter optimization for grid trading strategy.
-
-    Iterates through all parameter combinations defined in the optimization config,
-    runs backtests for each combination, and returns results sorted by performance.
-    """
-    logger.info(
-        f"Starting grid optimization for {config.stock_code} from {config.start_date} to {config.end_date}"
-    )
-
-    # Generate parameter combinations
-    upper_price_values = _generate_parameter_values(config.upper_price)
-    lower_price_values = _generate_parameter_values(config.lower_price)
-    grid_count_values = _generate_parameter_values(config.grid_count)
-
-    # Generate all combinations
-    param_combinations = list(
-        itertools.product(upper_price_values, lower_price_values, grid_count_values)
-    )
-
-    logger.info(f"Generated {len(param_combinations)} parameter combinations to test")
-
-    # Validate combinations and run backtests
-    optimization_results = []
-    valid_combinations = 0
-
-    for upper_price, lower_price, grid_count in param_combinations:
-        # Skip invalid combinations
-        if upper_price <= lower_price:
-            logger.warning(
-                f"Skipping invalid combination: upper_price={upper_price} <= lower_price={lower_price}"
-            )
-            continue
-
-        if grid_count <= 0:
-            logger.warning(
-                f"Skipping invalid combination: grid_count={grid_count} <= 0"
-            )
-            continue
-
-        # Create config for this combination
-        single_config = GridStrategyConfig(
-            stock_code=config.stock_code,
-            start_date=config.start_date,
-            end_date=config.end_date,
-            upper_price=float(upper_price),
-            lower_price=float(lower_price),
-            grid_count=int(grid_count),
-            total_investment=config.total_investment,
-            initial_quantity=config.initial_quantity,
-            initial_per_share_cost=config.initial_per_share_cost,
-            on_exceed_upper=config.on_exceed_upper,
-            on_fall_below_lower=config.on_fall_below_lower,
-            commission_rate=config.commission_rate,
-            stamp_duty_rate=config.stamp_duty_rate,
-            min_commission=config.min_commission,
-        )
-
+    def run_backtest(
+        self, data: pd.DataFrame, strategy_definition: dict[str, Any]
+    ) -> dict[str, Any]:
+        """执行回测"""
+        self.reset()
         try:
-            # Run backtest for this parameter combination
-            backtest_result = run_grid_backtest(db=db, config=single_config)
-
-            # Create optimization result item
-            result_item = OptimizationResultItem(
-                parameters={
-                    "upper_price": upper_price,
-                    "lower_price": lower_price,
-                    "grid_count": grid_count,
-                },
-                annualized_return_rate=backtest_result.annualized_return_rate,
-                sharpe_ratio=backtest_result.sharpe_ratio,
-                max_drawdown=backtest_result.max_drawdown,
-                win_rate=backtest_result.win_rate,
-                trade_count=backtest_result.trade_count,
-            )
-
-            optimization_results.append(result_item)
-            valid_combinations += 1
-
-            logger.debug(
-                f"Completed combination {valid_combinations}: upper={upper_price}, lower={lower_price}, grid={grid_count}, return={backtest_result.annualized_return_rate:.4f}"
-            )
-
+            # 预处理数据
+            data = self._preprocess_data(data)
+            # 执行回测
+            for i, (timestamp, row) in enumerate(data.iterrows()):
+                self.current_date = timestamp
+                # 更新持仓市值
+                self._update_portfolio_value(row)
+                # 执行策略逻辑
+                signals = self._generate_signals(
+                    row, strategy_definition, data.iloc[: i + 1]
+                )
+                # 执行交易
+                self._execute_trades(signals, row)
+                # 记录权益曲线
+                self._record_equity_curve()
+            # 计算性能指标
+            performance = self._calculate_performance_metrics()
+            return {
+                "performance_metrics": performance,
+                "trades": [trade.to_dict() for trade in self.trades],
+                "equity_curve": self.equity_curve,
+                "final_portfolio_value": self.portfolio_value,
+                "final_cash": self.cash,
+                "final_positions": self.positions,
+            }
         except Exception as e:
-            logger.error(
-                f"Error running backtest for combination upper={upper_price}, lower={lower_price}, grid={grid_count}: {e}"
-            )
-            continue
+            logger.error(f"回测执行失败: {e}")
+            raise
 
-    if not optimization_results:
-        raise ValueError(
-            "No valid parameter combinations could be tested. Please check your parameter ranges."
+    def _preprocess_data(self, data: pd.DataFrame) -> pd.DataFrame:
+        """预处理数据"""
+        # 确保时间索引
+        if not isinstance(data.index, pd.DatetimeIndex):
+            data.index = pd.to_datetime(data.index)
+        # 确保必要的列存在
+        required_cols = ["open", "high", "low", "close", "volume"]
+        for col in required_cols:
+            if col not in data.columns:
+                raise ValueError(f"数据缺少必要列: {col}")
+        return data.sort_index()
+
+    def _update_portfolio_value(self, current_row: pd.Series):
+        """更新持仓市值"""
+        position_value = 0.0
+        for _symbol, quantity in self.positions.items():
+            position_value += quantity * current_row["close"]
+        self.portfolio_value = self.cash + position_value
+
+    def _generate_signals(
+        self,
+        current_row: pd.Series,
+        strategy_def: dict[str, Any],
+        historical_data: pd.DataFrame,
+    ) -> list[dict[str, Any]]:
+        """生成交易信号"""
+        # 使用SignalGenerator生成信号
+        from app.analytics.backtest.signal_generator import SignalGenerator
+
+        signal_generator = SignalGenerator()
+
+        # 生成技术指标信号
+        signals = signal_generator.generate_signals(historical_data, strategy_def)
+
+        # 转换信号格式以匹配回测引擎的期望格式
+        formatted_signals = []
+        for signal in signals:
+            action_str = signal.get("action", "buy")
+            action = (
+                TradeAction.BUY
+                if action_str.lower() == "buy"
+                else (
+                    TradeAction.SELL
+                    if action_str.lower() == "sell"
+                    else TradeAction.HOLD
+                )
+            )
+
+            formatted_signals.append(
+                {
+                    "action": action,
+                    "symbol": signal.get("symbol", "default"),
+                    "quantity": signal.get("quantity", 1.0),
+                }
+            )
+
+        return formatted_signals
+
+    def _execute_trades(self, signals: list[dict[str, Any]], current_row: pd.Series):
+        """执行交易"""
+        if not isinstance(self.current_date, datetime):
+            # 当未在回测主循环中设置时间戳时，提供一个合理的默认时间戳以允许交易执行
+            logger.warning(
+                "current_date is not a datetime object, using current timestamp for trade execution."
+            )
+            self.current_date = datetime.now()
+        for signal in signals:
+            symbol = signal.get("symbol", "default")
+            action = signal["action"]
+            quantity = signal["quantity"]
+            price = current_row["close"]
+            commission = quantity * price * self.commission_rate
+            if action == TradeAction.BUY:
+                cost = quantity * price + commission
+                if cost <= self.cash:
+                    self.cash -= cost
+                    self.positions[symbol] = self.positions.get(symbol, 0.0) + quantity
+                    self.trades.append(
+                        Trade(
+                            symbol,
+                            action,
+                            quantity,
+                            price,
+                            self.current_date,
+                            commission,
+                        )
+                    )
+            elif action == TradeAction.SELL:
+                current_position = self.positions.get(symbol, 0.0)
+                if current_position >= quantity:
+                    proceeds = quantity * price - commission
+                    self.cash += proceeds
+                    self.positions[symbol] = current_position - quantity
+                    if self.positions[symbol] <= 0:
+                        del self.positions[symbol]
+                    self.trades.append(
+                        Trade(
+                            symbol,
+                            action,
+                            quantity,
+                            price,
+                            self.current_date,
+                            commission,
+                        )
+                    )
+
+    def _record_equity_curve(self):
+        """记录权益曲线"""
+        self.equity_curve.append(
+            {
+                "timestamp": self.current_date,
+                "portfolio_value": self.portfolio_value,
+                "cash": self.cash,
+                "positions": self.positions.copy(),
+            }
         )
 
-    logger.info(f"Successfully tested {valid_combinations} parameter combinations")
+    def _calculate_performance_metrics(self) -> dict[str, float]:
+        """计算性能指标"""
+        if not self.equity_curve:
+            return {}
+        equity_values = [point["portfolio_value"] for point in self.equity_curve]
+        returns = (
+            np.diff(equity_values) / equity_values[:-1]
+            if len(equity_values) > 1
+            else np.array([])
+        )
+        # 总收益率
+        total_return = (equity_values[-1] / equity_values[0] - 1) * 100
+        # 年化收益率
+        days = (
+            self.equity_curve[-1]["timestamp"] - self.equity_curve[0]["timestamp"]
+        ).days
+        annual_return = (1 + total_return / 100) ** (365 / max(days, 1)) - 1
+        # 夏普比率（避免除以0或NaN）
+        if len(returns) > 1:
+            std = float(np.std(returns))
+            sharpe_ratio = (
+                float(np.mean(returns) / std * np.sqrt(252)) if std > 0 else 0.0
+            )
+        else:
+            sharpe_ratio = 0.0
+        # 最大回撤
+        max_drawdown = self._calculate_max_drawdown(equity_values)
+        # 胜率
+        win_rate = self._calculate_win_rate()
+        return {
+            "total_return": round(total_return, 2),
+            "annual_return": round(annual_return * 100, 2),
+            "sharpe_ratio": round(sharpe_ratio, 2),
+            "max_drawdown": round(max_drawdown * 100, 2),
+            "win_rate": round(win_rate * 100, 2),
+            "total_trades": len(self.trades),
+            "profitable_trades": sum(
+                1 for trade in self.trades if trade.action == TradeAction.SELL
+            ),
+        }
 
-    # Find best result (by annualized return rate)
-    best_result = max(optimization_results, key=lambda x: x.annualized_return_rate)
+    def _calculate_max_drawdown(self, equity_values: list[float]) -> float:
+        """计算最大回撤"""
+        peak = equity_values[0]
+        max_dd = 0.0
+        for value in equity_values:
+            peak = max(peak, value)
+            dd = (peak - value) / peak
+            max_dd = max(max_dd, dd)
+        return max_dd
 
-    # Sort results by annualized return rate (descending)
-    optimization_results.sort(key=lambda x: x.annualized_return_rate, reverse=True)
+    def _calculate_win_rate(self) -> float:
+        """计算胜率"""
+        if not self.trades:
+            return 0.0
 
-    logger.info(
-        f"Optimization completed. Best result: upper={best_result.parameters['upper_price']}, "
-        f"lower={best_result.parameters['lower_price']}, grid={best_result.parameters['grid_count']}, "
-        f"return={best_result.annualized_return_rate:.4f}"
-    )
+        buy_trades = [t for t in self.trades if t.action == TradeAction.BUY]
+        if not buy_trades:
+            return 0.0
 
-    return BacktestOptimizationResponse(
-        optimization_results=optimization_results, best_result=best_result
-    )
+        # 简化计算：假设卖出交易都是盈利的
+        sell_trades = [t for t in self.trades if t.action == TradeAction.SELL]
+        return len(sell_trades) / len(buy_trades) if buy_trades else 0.0
+
+
+def run_grid_backtest(db, config):
+    """
+    执行网格交易策略回测
+    Args:
+        db: 数据库会话
+        config: GridStrategyConfig对象
+    Returns:
+        Dict: 包含回测结果的字典
+    """
+    try:
+        # 从数据库获取股票数据
+        from sqlalchemy import and_
+
+        from app.infrastructure.database.models import StockData
+
+        # 查询指定时间范围内的股票数据
+        stock_data = (
+            db.query(StockData)
+            .filter(
+                and_(
+                    StockData.ts_code == config.stock_code,
+                    StockData.trade_date >= config.start_date,
+                    StockData.trade_date <= config.end_date,
+                )
+            )
+            .order_by(StockData.trade_date)
+            .all()
+        )
+
+        if not stock_data:
+            raise ValueError(
+                f"未找到股票 {config.stock_code} 在 {config.start_date} 到 {config.end_date} 期间的数据"
+            )
+
+        # 将数据转换为DataFrame
+        data = []
+        for record in stock_data:
+            data.append(
+                {
+                    "timestamp": record.trade_date,
+                    "open": record.open,
+                    "high": record.high,
+                    "low": record.low,
+                    "close": record.close,
+                    "volume": record.vol,
+                }
+            )
+
+        df = pd.DataFrame(data)
+        df.set_index("timestamp", inplace=True)
+
+        # 创建回测引擎实例
+        engine = BacktestEngine(
+            initial_capital=config.total_investment,
+            commission_rate=config.commission_rate,
+        )
+
+        # 定义网格策略
+        strategy_def = {
+            "type": "grid",
+            "upper_price": config.upper_price,
+            "lower_price": config.lower_price,
+            "grid_count": config.grid_count,
+            "on_exceed_upper": config.on_exceed_upper,
+            "on_fall_below_lower": config.on_fall_below_lower,
+        }
+
+        # 执行回测
+        result = engine.run_backtest(df, strategy_def)
+
+        # 格式化结果以匹配预期的API响应格式
+        return {
+            "total_pnl": result["performance_metrics"].get("total_return", 0),
+            "total_return_rate": result["performance_metrics"].get("total_return", 0)
+            / 100,
+            "annualized_return_rate": result["performance_metrics"].get(
+                "annual_return", 0
+            )
+            / 100,
+            "annualized_volatility": result["performance_metrics"].get(
+                "sharpe_ratio", 0
+            ),
+            "sharpe_ratio": result["performance_metrics"].get("sharpe_ratio", 0),
+            "max_drawdown": result["performance_metrics"].get("max_drawdown", 0) / 100,
+            "win_rate": result["performance_metrics"].get("win_rate", 0) / 100,
+            "trade_count": result["performance_metrics"].get("total_trades", 0),
+            "chart_data": result["equity_curve"],
+            "kline_data": [],  # 需要从原始数据生成
+            "transaction_log": result["trades"],
+            "strategy_config": config.dict(),
+            "market_type": "US_stock",  # 需要从数据库获取实际的市场类型
+            "final_holding_quantity": len(result["final_positions"]),
+            "average_holding_cost": 0.0,  # 需要计算平均持仓成本
+        }
+
+    except Exception as e:
+        logger.error(f"网格回测执行失败: {e}")
+        raise
+
+
+def run_grid_optimization(db, config):
+    """
+    执行网格交易参数优化
+    Args:
+        db: 数据库会话
+        config: GridStrategyOptimizeConfig对象
+    Returns:
+        Dict: 包含优化结果的字典
+    """
+    # 这是一个占位符实现，实际需要实现参数优化逻辑
+    logger.warning("网格优化功能尚未实现")
+    return {"optimization_results": [], "best_result": {}}

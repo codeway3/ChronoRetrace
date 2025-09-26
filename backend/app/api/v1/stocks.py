@@ -17,8 +17,6 @@ from app.schemas.corporate_action import CorporateActionResponse
 from app.schemas.fundamental import FundamentalDataInDB
 from app.schemas.stock import StockDataBase, StockInfo
 
-from typing import Union
-
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
@@ -93,7 +91,7 @@ async def get_stock_data(
         "daily", enum=["minute", "5day", "daily", "weekly", "monthly"]
     ),
     market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
-    trade_date: Union[date, None] = Query(
+    trade_date: date | None = Query(
         None, description="Date for 'minute' or '5day' interval, format YYYY-MM-DD"
     ),
 ):
@@ -134,9 +132,9 @@ async def get_stock_data(
         return records
 
     except Exception as e:
-        logger.error(f"Failed to fetch stock data: {str(e)}", exc_info=True)
+        logger.error(f"Failed to fetch stock data: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to fetch data: {str(e)}"
+            status_code=500, detail=f"Failed to fetch data: {e!s}"
         ) from e
 
 

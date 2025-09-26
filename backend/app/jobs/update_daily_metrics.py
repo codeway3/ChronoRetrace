@@ -1,5 +1,3 @@
-from typing import Union
-
 # !/usr/bin/env python3
 """
 股票指标数据更新任务
@@ -28,7 +26,7 @@ from app.infrastructure.database.session import SessionLocal
 logger = logging.getLogger(__name__)
 
 
-def calculate_technical_metrics(df: pd.DataFrame) -> Union[dict[str, Any], None]:
+def calculate_technical_metrics(df: pd.DataFrame) -> dict[str, Any] | None:
     """计算技术指标
 
     约定：

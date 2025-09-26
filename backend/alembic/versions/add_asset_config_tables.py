@@ -6,9 +6,8 @@ Create Date: 2024-01-20 10:00:00.000000
 
 """
 
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "add_asset_config_tables"

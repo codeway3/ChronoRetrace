@@ -10,10 +10,12 @@ import importlib.util
 import os
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, create_engine, text
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import Boolean, DateTime, Integer, String, text
+from sqlalchemy.orm import declarative_base, sessionmaker, Mapped, mapped_column
+from typing import Optional
 
 from app.core.config import settings
+from app.infrastructure.database.session import create_configured_engine
 
 Base = declarative_base()
 
@@ -23,20 +25,24 @@ class MigrationHistory(Base):
 
     __tablename__ = "migration_history"
 
-    id = Column(Integer, primary_key=True, index=True)
-    version = Column(String(50), unique=True, nullable=False, index=True)
-    name = Column(String(200), nullable=False)
-    applied_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    success = Column(Boolean, default=True, nullable=False)
-    error_message = Column(String(1000))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    version: Mapped[str] = mapped_column(
+        String(50), unique=True, nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    applied_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+    success: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    error_message: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
 
 
 class MigrationManager:
     """数据库迁移管理器"""
 
-    def __init__(self, database_url: str = None):
+    def __init__(self, database_url: str | None = None):
         self.database_url = database_url or settings.DATABASE_URL
-        self.engine = create_engine(self.database_url)
+        self.engine = create_configured_engine(self.database_url)
         self.Session = sessionmaker(bind=self.engine)
         self.migrations_dir = os.path.join(os.path.dirname(__file__), "migrations")
 
@@ -106,6 +112,8 @@ class MigrationManager:
     def load_migration_module(self, filepath: str):
         """动态加载迁移模块"""
         spec = importlib.util.spec_from_file_location("migration", filepath)
+        if spec is None:
+            raise ImportError("无法加载迁移模块: spec 为空")
         module = importlib.util.module_from_spec(spec)
         if spec and spec.loader:
             spec.loader.exec_module(module)
@@ -130,11 +138,25 @@ class MigrationManager:
             # 执行迁移
             module.upgrade(self.engine)
 
-            # 记录迁移历史
-            history = MigrationHistory(
-                version=migration["version"], name=migration["name"], success=True
+            # 记录迁移历史（先检查是否已存在）
+            existing = (
+                session.query(MigrationHistory)
+                .filter(MigrationHistory.version == migration["version"])
+                .first()
             )
-            session.add(history)
+
+            if existing:
+                # 更新现有记录
+                existing.success = True
+                # 使用None作为error_message的默认值
+                existing.error_message = None
+                existing.applied_at = datetime.utcnow()
+            else:
+                # 创建新记录
+                history = MigrationHistory(
+                    version=migration["version"], name=migration["name"], success=True
+                )
+                session.add(history)
             session.commit()
 
             print(f"✅ 迁移 {migration['name']} 应用成功")
@@ -206,7 +228,7 @@ class MigrationManager:
         finally:
             session.close()
 
-    def migrate(self, target_version: str = None) -> bool:
+    def migrate(self, target_version: str | None = None) -> bool:
         """执行迁移到指定版本（默认为最新版本）"""
         pending_migrations = self.get_pending_migrations()
 
@@ -233,7 +255,7 @@ class MigrationManager:
         print(f"完成 {success_count}/{len(pending_migrations)} 个迁移")
         return success_count == len(pending_migrations)
 
-    def rollback(self, target_version: str = None, steps: int = 1) -> bool:
+    def rollback(self, target_version: str | None = None, steps: int = 1) -> bool:
         """回滚迁移"""
         applied_migrations = self.get_applied_migrations()
         all_migrations = self.get_migration_files()
@@ -361,7 +383,7 @@ class MigrationManager:
 """
 
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 
 Base = declarative_base()

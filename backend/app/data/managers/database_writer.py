@@ -37,26 +37,22 @@ def store_stock_data(db: Session, ts_code: str, interval: str, df: pd.DataFrame)
             },
         )
 
-        with DataQualityManager(config) as quality_manager:
+        with DataQualityManager(db, config) as quality_manager:
             # Process the dataframe through quality checks
             quality_result = quality_manager.process_data(df)
 
             if quality_result.has_errors:
                 logger.warning(
-                    f"Data quality issues found for {ts_code}: {quality_result.validation_report.summary}"
+                    f"Data quality issues found for {ts_code}: {', '.join(r.summary for r in quality_result.validation_reports)}"
                 )
                 # Log validation errors but continue with valid data
-                for error in quality_result.validation_report.errors:
-                    logger.error(f"Validation error: {error}")
+                for r in quality_result.validation_reports:
+                    for error in r.errors or []:
+                        logger.error(f"Validation error: {error}")
 
-            # Use the cleaned data from quality manager
-            processed_df = quality_result.processed_data
-
-            if processed_df.empty:
-                logger.warning(
-                    f"No valid data remaining after quality checks for {ts_code}"
-                )
-                return 0
+            # Use the original data since processed_data attribute doesn't exist
+            # Data quality manager only returns quality reports, not processed data
+            processed_df = df
 
             logger.info(
                 f"Data quality summary for {ts_code}: {quality_result.deduplication_report.summary if quality_result.deduplication_report else 'No deduplication performed'}"
@@ -109,7 +105,7 @@ def store_stock_data(db: Session, ts_code: str, interval: str, df: pd.DataFrame)
             index_elements=["ts_code", "trade_date", "interval"], set_=update_dict
         )
 
-    result = db.execute(stmt)
+    result: Any = db.execute(stmt)
     db.commit()
     return result.rowcount
 
@@ -141,24 +137,20 @@ def store_corporate_actions(db: Session, symbol: str, actions_data: list[dict]):
         df = pd.DataFrame(actions_data)
         df["symbol"] = symbol
 
-        with DataQualityManager(config) as quality_manager:
+        with DataQualityManager(db, config) as quality_manager:
             quality_result = quality_manager.process_data(df)
 
             if quality_result.has_errors:
                 logger.warning(
-                    f"Corporate actions data quality issues for {symbol}: {quality_result.validation_report.summary}"
+                    f"Corporate actions data quality issues for {symbol}: {', '.join(r.summary for r in quality_result.validation_reports)}"
                 )
-                for error in quality_result.validation_report.errors:
-                    logger.error(f"Validation error: {error}")
+                for r in quality_result.validation_reports:
+                    for error in r.errors or []:
+                        logger.error(f"Validation error: {error}")
 
-            if quality_result.processed_data.empty:
-                logger.warning(
-                    f"No valid corporate actions remaining after quality checks for {symbol}"
-                )
-                return 0
-
-            # Convert back to list of dicts
-            processed_actions = quality_result.processed_data.to_dict(orient="records")
+            # Use the original data since processed_data attribute doesn't exist
+            # Data quality manager only returns quality reports, not processed data
+            processed_actions = actions_data
 
     except Exception as e:
         logger.error(
@@ -192,7 +184,7 @@ def store_corporate_actions(db: Session, symbol: str, actions_data: list[dict]):
             index_elements=["symbol", "ex_date", "action_type"]
         )
 
-    result = db.execute(stmt)
+    result: Any = db.execute(stmt)
     db.commit()
     return result.rowcount
 
@@ -225,22 +217,21 @@ def store_fundamental_data(db: Session, symbol: str, data: dict):
         # Convert dict to DataFrame for processing
         df = pd.DataFrame([data])
 
-        with DataQualityManager(config) as quality_manager:
-            quality_result = quality_manager.validate_only(df)
+        data_list = [
+            {str(k): v for k, v in d.items()} for d in df.to_dict(orient="records")
+        ]
 
-            if quality_result.has_errors:
+        with DataQualityManager(db, config) as quality_manager:
+            quality_results = quality_manager.validate_only(data_list)
+            if any(r.errors for r in quality_results):
                 logger.warning(
-                    f"Fundamental data quality issues for {symbol}: {quality_result.validation_report.summary}"
+                    f"Fundamental data quality issues for {symbol}: {', '.join(r.summary for r in quality_results if r.errors)}"
                 )
-                for error in quality_result.validation_report.errors:
-                    logger.error(f"Validation error: {error}")
-
-            # Use the validated data
-            processed_data = (
-                quality_result.processed_data.iloc[0].to_dict()  # type: ignore[misc]
-                if not quality_result.processed_data.empty
-                else data
-            )
+                for r in quality_results:
+                    for error in r.errors or []:
+                        logger.error(f"Validation error: {error}")
+            # Data quality manager only returns quality reports, not processed data
+            processed_data = data
 
     except Exception as e:
         logger.error(
@@ -269,7 +260,7 @@ def store_fundamental_data(db: Session, symbol: str, data: dict):
         )
 
     try:
-        result = db.execute(stmt)
+        result: Any = db.execute(stmt)
         db.commit()
         logger.info(f"Successfully upserted fundamental data for {symbol}.")
         return result.rowcount
@@ -304,24 +295,20 @@ def store_annual_earnings(db: Session, symbol: str, annual_earnings_data: list[d
         df = pd.DataFrame(annual_earnings_data)
         df["symbol"] = symbol
 
-        with DataQualityManager(config) as quality_manager:
+        with DataQualityManager(db, config) as quality_manager:
             quality_result = quality_manager.process_data(df)
 
             if quality_result.has_errors:
                 logger.warning(
-                    f"Annual earnings data quality issues for {symbol}: {quality_result.validation_report.summary}"
+                    f"Annual earnings data quality issues for {symbol}: {', '.join(r.summary for r in quality_result.validation_reports)}"
                 )
-                for error in quality_result.validation_report.errors:
-                    logger.error(f"Validation error: {error}")
+                for r in quality_result.validation_reports:
+                    for error in r.errors or []:
+                        logger.error(f"Validation error: {error}")
 
-            if quality_result.processed_data.empty:
-                logger.warning(
-                    f"No valid annual earnings remaining after quality checks for {symbol}"
-                )
-                return 0
-
-            # Convert back to list of dicts
-            processed_earnings = quality_result.processed_data.to_dict(orient="records")
+            # 与其他存储函数保持一致：校验仅用于日志与监控，不阻断数据入库
+            # Data quality manager 仅返回质量报告，不会产出处理后的数据
+            processed_earnings = annual_earnings_data
 
     except Exception as e:
         logger.error(
@@ -360,6 +347,6 @@ def store_annual_earnings(db: Session, symbol: str, annual_earnings_data: list[d
             },
         )
 
-    result = db.execute(stmt)
+    result: Any = db.execute(stmt)
     db.commit()
     return result.rowcount

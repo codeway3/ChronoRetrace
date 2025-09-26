@@ -6,7 +6,7 @@
 class WebSocketService {
   constructor() {
     this.ws = null;
-    this.url = process.env.REACT_APP_WS_URL || 'ws://localhost:8000/api/v1/ws/connect';
+    this.url = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_WS_URL) || 'ws://localhost:8000/api/v1/ws/connect';
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectInterval = 1000; // 1秒
@@ -222,119 +222,109 @@ class WebSocketService {
     }
     this.listeners.data.get(topic).push(callback);
 
-    // 发送订阅请求
-    if (this.isConnected() && !this.subscriptions.has(topic) && !this.pendingSubscriptions.has(topic)) {
+    // 如果已连接，立即发送订阅请求，否则加入待订阅列表
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.sendSubscription(topic);
-    } else if (!this.isConnected()) {
-      // 如果未连接，添加到待订阅列表
+    } else {
       this.pendingSubscriptions.add(topic);
     }
-
-    // 返回取消订阅函数
-    return () => this.unsubscribe(topic, callback);
   }
 
   /**
-   * 取消订阅
+   * 取消订阅主题
    */
   unsubscribe(topic, callback = null) {
-    if (this.listeners.data.has(topic)) {
-      if (callback) {
-        // 移除特定回调
+    if (callback) {
+      if (this.listeners.data.has(topic)) {
         const callbacks = this.listeners.data.get(topic);
         const index = callbacks.indexOf(callback);
-        if (index > -1) {
+        if (index !== -1) {
           callbacks.splice(index, 1);
         }
-
-        // 如果没有回调了，取消订阅
         if (callbacks.length === 0) {
           this.listeners.data.delete(topic);
-          this.sendUnsubscription(topic);
         }
-      } else {
-        // 移除所有回调并取消订阅
-        this.listeners.data.delete(topic);
-        this.sendUnsubscription(topic);
       }
+    } else {
+      this.listeners.data.delete(topic);
+    }
+
+    // 如果已连接，发送取消订阅请求
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.sendUnsubscription(topic);
     }
   }
 
   /**
-   * 发送订阅请求
+   * 发送订阅消息
    */
   sendSubscription(topic) {
-    if (this.isConnected()) {
-      this.pendingSubscriptions.add(topic);
-      this.send({
-        type: 'subscribe',
-        data: { topic }
-      });
-    }
+    const message = {
+      type: 'subscribe',
+      topic
+    };
+    this.send(message);
   }
 
   /**
-   * 发送取消订阅请求
+   * 发送取消订阅消息
    */
   sendUnsubscription(topic) {
-    if (this.isConnected()) {
-      this.subscriptions.delete(topic);
-      this.pendingSubscriptions.delete(topic);
-      this.send({
-        type: 'unsubscribe',
-        data: { topic }
-      });
-    }
+    const message = {
+      type: 'unsubscribe',
+      topic
+    };
+    this.send(message);
   }
 
   /**
    * 重新订阅所有主题
    */
   resubscribe() {
-    // 将现有订阅移到待订阅列表
-    this.subscriptions.forEach(topic => {
-      this.pendingSubscriptions.add(topic);
-    });
-    this.subscriptions.clear();
-
-    // 发送订阅请求
     this.pendingSubscriptions.forEach(topic => {
       this.sendSubscription(topic);
+      this.pendingSubscriptions.delete(topic);
     });
   }
 
   /**
-   * 发送消息
+   * 发送消息到服务器
    */
   send(message) {
-    if (this.isConnected()) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     } else {
-      console.warn('WebSocket not connected, cannot send message:', message);
+      console.warn('WebSocket is not connected');
     }
   }
 
   /**
-   * 启动心跳
+   * 启动心跳机制
    */
   startHeartbeat() {
-    this.stopHeartbeat();
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+    }
 
     this.heartbeatInterval = setInterval(() => {
-      if (this.isConnected()) {
-        this.send({ type: 'ping' });
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        const pingMessage = { type: 'ping' };
+        this.ws.send(JSON.stringify(pingMessage));
 
         // 设置心跳超时
+        if (this.heartbeatTimeout) {
+          clearTimeout(this.heartbeatTimeout);
+        }
         this.heartbeatTimeout = setTimeout(() => {
-          console.warn('Heartbeat timeout, reconnecting...');
-          this.ws.close();
+          console.warn('Heartbeat timeout - closing connection');
+          this.ws.close(4000, 'Heartbeat timeout');
         }, this.heartbeatTimeoutMs);
       }
     }, this.heartbeatIntervalMs);
   }
 
   /**
-   * 停止心跳
+   * 停止心跳机制
    */
   stopHeartbeat() {
     if (this.heartbeatInterval) {
@@ -349,18 +339,14 @@ class WebSocketService {
   }
 
   /**
-   * 计划重连
+   * 安排重连
    */
   scheduleReconnect() {
     this.reconnectAttempts++;
-    const delay = Math.min(this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1), 30000);
-
-    console.log(`Scheduling reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
-
+    const delay = Math.min(this.reconnectInterval * Math.pow(2, this.reconnectAttempts), 30000);
+    console.log(`Scheduling reconnect in ${delay}ms`);
     setTimeout(() => {
-      if (!this.isManualClose && !this.isConnected()) {
-        this.connect();
-      }
+      this.connect();
     }, delay);
   }
 
@@ -386,27 +372,24 @@ class WebSocketService {
   removeEventListener(event, callback) {
     if (this.listeners[event]) {
       const index = this.listeners[event].indexOf(callback);
-      if (index > -1) {
+      if (index !== -1) {
         this.listeners[event].splice(index, 1);
       }
     }
   }
 
   /**
-   * 获取连接状态
+   * 获取连接状态信息
    */
   getStatus() {
     return {
-      connected: this.isConnected(),
-      connecting: this.isConnecting,
+      isConnected: this.isConnected(),
       reconnectAttempts: this.reconnectAttempts,
-      subscriptions: Array.from(this.subscriptions),
-      pendingSubscriptions: Array.from(this.pendingSubscriptions)
+      subscriptionsCount: this.subscriptions.size
     };
   }
 }
 
-// 创建单例实例
 const websocketService = new WebSocketService();
 
 export default websocketService;

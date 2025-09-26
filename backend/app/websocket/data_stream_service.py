@@ -5,14 +5,14 @@
 """
 
 import asyncio
-import logging
-from typing import Dict, Set, Optional, Any, List
-from datetime import datetime, timedelta
 import json
+import logging
+from datetime import datetime
+from typing import Any
 
-from .connection_manager import ConnectionManager
 from ..data.managers.data_manager import fetch_stock_data
 from ..infrastructure.cache.redis_manager import RedisCacheManager
+from .connection_manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
 
@@ -27,16 +27,16 @@ class DataStreamService:
         self.redis_manager = redis_manager
 
         # 活跃的数据流: topic -> task
-        self.active_streams: Dict[str, asyncio.Task] = {}
+        self.active_streams: dict[str, asyncio.Task] = {}
 
         # 数据流配置
-        self.stream_configs: Dict[str, Dict[str, Any]] = {}
+        self.stream_configs: dict[str, dict[str, Any]] = {}
 
         # 最后推送的数据: topic -> data
-        self.last_data: Dict[str, Dict[str, Any]] = {}
+        self.last_data: dict[str, dict[str, Any]] = {}
 
         # 数据流统计
-        self.stream_stats: Dict[str, Dict[str, Any]] = {}
+        self.stream_stats: dict[str, dict[str, Any]] = {}
 
         # 清理任务（将在start方法中启动）
         self.cleanup_task = None
@@ -162,7 +162,7 @@ class DataStreamService:
             logger.error(f"停止数据流 {topic} 失败: {e}")
             return False
 
-    async def _data_stream_worker(self, topic: str, topic_info: Dict[str, Any]) -> None:
+    async def _data_stream_worker(self, topic: str, topic_info: dict[str, Any]) -> None:
         """
         数据流工作器
 
@@ -201,9 +201,9 @@ class DataStreamService:
                             # 更新统计
                             if topic in self.stream_stats:
                                 self.stream_stats[topic]["messages_sent"] += 1
-                                self.stream_stats[topic][
-                                    "last_update"
-                                ] = datetime.utcnow()
+                                self.stream_stats[topic]["last_update"] = (
+                                    datetime.utcnow()
+                                )
 
                     # 等待下次更新
                     await asyncio.sleep(update_interval)
@@ -225,7 +225,7 @@ class DataStreamService:
 
     async def _fetch_real_time_data(
         self, data_type: str, symbol: str, interval: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         获取实时数据
 
@@ -256,7 +256,7 @@ class DataStreamService:
 
     async def _fetch_stock_data(
         self, symbol: str, interval: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         获取股票实时数据
 
@@ -278,9 +278,7 @@ class DataStreamService:
             # 从数据获取器获取最新数据
             # 需要确定市场类型，这里简化处理，可以根据symbol前缀判断
             market_type = "A_share" if symbol.endswith((".SH", ".SZ")) else "US_stock"
-            data = await asyncio.get_event_loop().run_in_executor(
-                None, fetch_stock_data, symbol, interval, market_type
-            )
+            data = await fetch_stock_data(symbol, interval, market_type)
 
             if data and len(data) > 0:
                 latest_data = data[-1]  # 获取最新的数据点
@@ -301,10 +299,10 @@ class DataStreamService:
                 }
 
                 # 缓存数据（短时间缓存）
-                await self.redis_manager.setex(
+                await self.redis_manager.set(
                     cache_key,
-                    30,  # 30秒缓存
                     json.dumps(formatted_data, ensure_ascii=False),
+                    ex=30,  # 30秒缓存
                 )
 
                 return formatted_data
@@ -317,7 +315,7 @@ class DataStreamService:
 
     async def _fetch_crypto_data(
         self, symbol: str, interval: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         获取加密货币实时数据
 
@@ -345,7 +343,7 @@ class DataStreamService:
 
     async def _fetch_futures_data(
         self, symbol: str, interval: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         获取期货实时数据
 
@@ -371,7 +369,7 @@ class DataStreamService:
             logger.error(f"获取期货数据失败 {symbol}: {e}")
             return None
 
-    async def _fetch_market_summary(self, market: str) -> Optional[Dict[str, Any]]:
+    async def _fetch_market_summary(self, market: str) -> dict[str, Any] | None:
         """
         获取市场概览数据
 
@@ -397,7 +395,7 @@ class DataStreamService:
             logger.error(f"获取市场概览失败 {market}: {e}")
             return None
 
-    def _parse_topic(self, topic: str) -> Optional[Dict[str, Any]]:
+    def _parse_topic(self, topic: str) -> dict[str, Any] | None:
         """
         解析主题
 
@@ -446,7 +444,7 @@ class DataStreamService:
 
         return interval_map.get(interval, 300)  # 默认5分钟
 
-    def _is_data_updated(self, topic: str, new_data: Dict[str, Any]) -> bool:
+    def _is_data_updated(self, topic: str, new_data: dict[str, Any]) -> bool:
         """
         检查数据是否有更新
 
@@ -478,7 +476,7 @@ class DataStreamService:
             logger.error(f"检查数据更新失败: {e}")
             return True  # 出错时默认认为有更新
 
-    async def _push_data(self, topic: str, data: Dict[str, Any]) -> None:
+    async def _push_data(self, topic: str, data: dict[str, Any]) -> None:
         """
         推送数据到订阅者
 
@@ -543,7 +541,7 @@ class DataStreamService:
         except Exception as e:
             logger.error(f"清理不活跃数据流时出错: {e}")
 
-    def get_stream_stats(self) -> Dict[str, Any]:
+    def get_stream_stats(self) -> dict[str, Any]:
         """
         获取数据流统计信息
 

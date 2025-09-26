@@ -6,9 +6,8 @@
 """
 
 from enum import Enum
-from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AssetType(str, Enum):
@@ -45,7 +44,7 @@ class AssetTypeConfig(BaseModel):
     name: str
     description: str
     enabled: bool = True
-    supported_functions: List[AssetFunction] = Field(default_factory=list)
+    supported_functions: list[AssetFunction] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -53,12 +52,12 @@ class AssetTypeConfig(BaseModel):
 class AssetTypeResponse(BaseModel):
     """资产类型响应模型"""
 
-    asset_types: List[AssetTypeConfig]
+    asset_types: list[AssetTypeConfig]
     total: int
 
 
 # 预定义的资产类型配置
-ASSET_TYPE_CONFIGS: Dict[AssetType, AssetTypeConfig] = {
+ASSET_TYPE_CONFIGS: dict[AssetType, AssetTypeConfig] = {
     AssetType.A_SHARE: AssetTypeConfig(
         code=AssetType.A_SHARE,
         name="A股市场",
@@ -129,12 +128,12 @@ ASSET_TYPE_CONFIGS: Dict[AssetType, AssetTypeConfig] = {
 }
 
 
-def get_asset_type_config(asset_type: AssetType) -> Optional[AssetTypeConfig]:
+def get_asset_type_config(asset_type: AssetType) -> AssetTypeConfig | None:
     """获取资产类型配置"""
     return ASSET_TYPE_CONFIGS.get(asset_type)
 
 
-def get_all_asset_types() -> List[AssetTypeConfig]:
+def get_all_asset_types() -> list[AssetTypeConfig]:
     """获取所有资产类型配置"""
     return list(ASSET_TYPE_CONFIGS.values())
 

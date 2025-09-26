@@ -6,7 +6,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Union
+from typing import Any
 
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
@@ -40,13 +40,13 @@ class DuplicateRecord:
 
     duplicate_type: DuplicateType
     similarity_score: float  # 0.0 - 1.0
-    record_id: Union[int, None] = None
-    conflicting_fields: Union[list[str], None] = None
-    data_source: Union[str, None] = None
+    record_id: int | None = None
+    conflicting_fields: list[str] | None = None
+    data_source: str | None = None
     quality_score: float = 0.0
-    created_at: Union[datetime, None] = None
-    index: Union[int, None] = None  # 记录在列表中的索引
-    data: Union[dict[str, Any], None] = None  # 记录的实际数据
+    created_at: datetime | None = None
+    index: int | None = None  # 记录在列表中的索引
+    data: dict[str, Any] | None = None  # 记录的实际数据
 
 
 @dataclass
@@ -69,9 +69,17 @@ class DeduplicationReport:
     duplicate_groups: list[DuplicateGroup]
     execution_time: float
     processed_at: datetime
-    deduplicated_data: Union[list[dict[str, Any]], None] = (
-        None  # 去重后的数据，用于向后兼容
-    )
+    deduplicated_data: list[dict[str, Any]] | None = None  # 去重后的数据，用于向后兼容
+
+    @property
+    def summary(self) -> str:
+        """生成去重报告的摘要信息"""
+        return (
+            f"去重报告: 处理了 {self.total_processed} 条记录, "
+            f"发现 {self.duplicates_found} 个重复, "
+            f"移除了 {self.duplicates_removed} 个重复记录, "
+            f"执行时间: {self.execution_time:.2f} 秒"
+        )
 
 
 class DataDeduplicationService:
@@ -147,7 +155,7 @@ class DataDeduplicationService:
 
     def _identify_duplicate_type(
         self, data1: dict[str, Any], data2: dict[str, Any]
-    ) -> Union[DuplicateType, None]:
+    ) -> DuplicateType | None:
         """识别重复类型"""
         similarity = self._calculate_similarity(data1, data2)
 
@@ -244,7 +252,7 @@ class DataDeduplicationService:
     def find_database_duplicates(
         self,
         table_name: str = "daily_stock_metrics",
-        date_range: Union[tuple[str, str], None] = None,
+        date_range: tuple[str, str] | None = None,
     ) -> list[DuplicateGroup]:
         """查找数据库中的重复记录
 
@@ -264,10 +272,8 @@ class DataDeduplicationService:
             start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
             end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
             query = query.filter(
-                and_(
-                    DailyStockMetrics.date >= start_date,
-                    DailyStockMetrics.date <= end_date,
-                )
+                DailyStockMetrics.date >= start_date,
+                DailyStockMetrics.date <= end_date,
             )
 
         # 查找具有相同 code + date 的记录
@@ -309,7 +315,7 @@ class DataDeduplicationService:
     def find_duplicates_in_list(
         self,
         data_list: list[dict[str, Any]],
-        unique_fields: Union[list[str], None] = None,
+        unique_fields: list[str] | None = None,
     ) -> list[DuplicateGroup]:
         """在数据列表中查找重复项
 
@@ -326,6 +332,11 @@ class DataDeduplicationService:
         # 按唯一字段分组
         groups = defaultdict(list)
         for i, data in enumerate(data_list):
+            # 检查数据类型，如果不是字典则跳过
+            if not isinstance(data, dict):
+                self.logger.warning(f"跳过非字典类型的数据项 (索引 {i}): {type(data)}")
+                continue
+
             # 构建唯一键
             key_parts = []
             for field in unique_fields:
@@ -386,7 +397,7 @@ class DataDeduplicationService:
         self,
         data_list: list[dict[str, Any]],
         strategy: DeduplicationStrategy = DeduplicationStrategy.KEEP_HIGHEST_QUALITY,
-        unique_fields: Union[list[str], None] = None,
+        unique_fields: list[str] | None = None,
     ) -> DeduplicationReport:
         """批量去重数据
 
@@ -527,7 +538,7 @@ class DataDeduplicationService:
             self.db_session.commit()
 
         except Exception as e:
-            self.logger.error(f"删除重复记录失败: {str(e)}")
+            self.logger.error(f"删除重复记录失败: {e!s}")
             self.db_session.rollback()
             raise
 
@@ -734,12 +745,12 @@ class DataDeduplicationService:
             # 注意：这里不提交，由调用方统一提交
 
         except Exception as e:
-            self.logger.error(f"记录去重日志失败: {str(e)}")
+            self.logger.error(f"记录去重日志失败: {e!s}")
 
     def generate_duplicate_hash(
         self,
-        data: Union[dict[str, Any], None] = None,
-        fields: Union[list[str], None] = None,
+        data: dict[str, Any] | None = None,
+        fields: list[str] | None = None,
     ) -> str:
         """生成数据哈希值用于快速重复检测
 

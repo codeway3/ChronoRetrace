@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any, Union
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -9,20 +9,20 @@ from pydantic import BaseModel, ConfigDict
 class StockDataBase(BaseModel):
     ts_code: str
     trade_date: date
-    open: Union[float, None] = None
-    high: Union[float, None] = None
-    low: Union[float, None] = None
-    close: Union[float, None] = None
-    pre_close: Union[float, None] = None
-    change: Union[float, None] = None
-    pct_chg: Union[float, None] = None
-    vol: Union[float, None] = None
-    amount: Union[float, None] = None
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    pre_close: float | None = None
+    change: float | None = None
+    pct_chg: float | None = None
+    vol: float | None = None
+    amount: float | None = None
     interval: str
-    ma5: Union[float, None] = None
-    ma10: Union[float, None] = None
-    ma20: Union[float, None] = None
-    ma60: Union[float, None] = None
+    ma5: float | None = None
+    ma10: float | None = None
+    ma20: float | None = None
+    ma60: float | None = None
 
 
 class StockDataCreate(StockDataBase):
@@ -61,8 +61,8 @@ class StockScreenerRequest(BaseModel):
 class ScreenedStock(BaseModel):
     code: str
     name: str
-    pe_ratio: Union[float, None] = None
-    market_cap: Union[int, None] = None
+    pe_ratio: float | None = None
+    market_cap: int | None = None
     # Add other fields you want to display in the screener results
     model_config = ConfigDict(from_attributes=True)
 

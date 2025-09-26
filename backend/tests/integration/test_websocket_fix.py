@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 WebSocket修复验证测试脚本
 """
-import asyncio
-import websockets
+
 import json
-import pytest
-import time
 from contextlib import ExitStack
+
+import pytest
 
 
 @pytest.mark.integration
@@ -27,14 +25,14 @@ def test_single_connection(client):
 
             # 测试ping
             websocket.send_text(json.dumps({"type": "ping"}))
-            response = websocket.receive_text()
+            _response = websocket.receive_text()
             print("✅ ping/pong 成功")
 
             # 测试订阅
             websocket.send_text(
                 json.dumps({"type": "subscribe", "topic": "test_topic"})
             )
-            response = websocket.receive_text()
+            _response = websocket.receive_text()
             print("✅ 订阅成功")
 
             # 断开连接
@@ -63,13 +61,13 @@ def test_multiple_connections(client):
                 connections.append((f"lifecycle_test_{i}", websocket))
 
                 # 等待确认
-                ack = websocket.receive_text()
+                _ack = websocket.receive_text()
                 print(f"✅ 连接 {i+1}/5 创建成功")
 
             # 发送消息
             for client_id, websocket in connections:
                 websocket.send_text(json.dumps({"type": "ping"}))
-                response = websocket.receive_text()
+                _response = websocket.receive_text()
                 print(f"✅ {client_id} ping/pong 成功")
 
             print("✅ 多连接测试成功")

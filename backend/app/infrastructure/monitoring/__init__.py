@@ -20,11 +20,11 @@ from .performance_monitor import (
 )
 
 __all__ = [
-    "PerformanceMonitor",
-    "PerformanceMetric",
-    "CacheStats",
     "APIMetrics",
-    "performance_monitor",
-    "monitor_performance",
+    "CacheStats",
+    "PerformanceMetric",
+    "PerformanceMonitor",
     "monitor_cache_operation",
+    "monitor_performance",
+    "performance_monitor",
 ]

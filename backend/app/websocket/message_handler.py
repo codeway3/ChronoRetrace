@@ -6,8 +6,8 @@ WebSocket消息处理器
 
 import json
 import logging
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any
 
 from .connection_manager import ConnectionManager
 
@@ -50,6 +50,12 @@ class MessageHandler:
 
             message_type = data["type"]
 
+            # 任何有效消息都视为一次活动，更新最后心跳时间
+            if client_id in self.connection_manager.connection_metadata:
+                self.connection_manager.connection_metadata[client_id][
+                    "last_heartbeat"
+                ] = datetime.utcnow()
+
             # 查找对应的处理器
             handler = self.message_handlers.get(message_type)
             if handler:
@@ -65,7 +71,7 @@ class MessageHandler:
             logger.error(f"处理客户端 {client_id} 消息时出错: {e}")
             await self._send_error(client_id, "internal_error", "服务器内部错误")
 
-    async def _handle_subscribe(self, client_id: str, data: Dict[str, Any]) -> None:
+    async def _handle_subscribe(self, client_id: str, data: dict[str, Any]) -> None:
         """
         处理订阅消息
 
@@ -98,7 +104,7 @@ class MessageHandler:
             logger.error(f"处理订阅消息时出错: {e}")
             await self._send_error(client_id, "subscribe_error", "订阅处理错误")
 
-    async def _handle_unsubscribe(self, client_id: str, data: Dict[str, Any]) -> None:
+    async def _handle_unsubscribe(self, client_id: str, data: dict[str, Any]) -> None:
         """
         处理取消订阅消息
 
@@ -125,7 +131,7 @@ class MessageHandler:
             await self._send_error(client_id, "unsubscribe_error", "取消订阅处理错误")
 
     async def _handle_heartbeat_response(
-        self, client_id: str, data: Dict[str, Any]
+        self, client_id: str, data: dict[str, Any]
     ) -> None:
         """
         处理心跳响应消息
@@ -147,7 +153,7 @@ class MessageHandler:
             logger.error(f"处理心跳响应时出错: {e}")
 
     async def _handle_get_subscriptions(
-        self, client_id: str, data: Dict[str, Any]
+        self, client_id: str, data: dict[str, Any]
     ) -> None:
         """
         处理获取订阅列表消息
@@ -176,7 +182,7 @@ class MessageHandler:
                 client_id, "get_subscriptions_error", "获取订阅列表错误"
             )
 
-    async def _handle_ping(self, client_id: str, data: Dict[str, Any]) -> None:
+    async def _handle_ping(self, client_id: str, data: dict[str, Any]) -> None:
         """
         处理ping消息
 
@@ -185,6 +191,12 @@ class MessageHandler:
             data: 消息数据
         """
         try:
+            # 将 ping 视为一次心跳，更新最后活跃时间，避免被误判为不活跃
+            if client_id in self.connection_manager.connection_metadata:
+                self.connection_manager.connection_metadata[client_id][
+                    "last_heartbeat"
+                ] = datetime.utcnow()
+
             await self.connection_manager.send_to_client(
                 client_id, {"type": "pong", "timestamp": datetime.utcnow().isoformat()}
             )
@@ -283,7 +295,7 @@ class MessageHandler:
         """
         return list(self.message_handlers.keys())
 
-    def get_topic_examples(self) -> Dict[str, list]:
+    def get_topic_examples(self) -> dict[str, list]:
         """
         获取主题示例
 

@@ -261,3 +261,78 @@ class IndustryClassification(Base):
     level: str
     industry_code_new: str | None
     industry_name_new: str | None
+
+class DataQualityLog(Base):
+    __tablename__: str
+    id: int
+    record_id: int
+    table_name: str
+    operation_type: str
+    status: str
+    message: str | None
+    error_details: str | None
+    execution_time: float | None
+    created_at: datetime
+
+class User(Base):
+    __tablename__: str
+    id: int
+    username: str
+    email: str
+    phone: str | None
+    password_hash: str
+    full_name: str | None
+    avatar_url: str | None
+    is_active: bool
+    is_locked: bool
+    created_at: datetime
+    updated_at: datetime
+    last_login_at: datetime | None
+
+class UserRole(Base):
+    __tablename__: str
+    id: int
+    name: str
+    description: str | None
+    permissions: str | None
+    created_at: datetime
+
+class UserRoleAssignment(Base):
+    __tablename__: str
+    id: int
+    user_id: int
+    role_id: int
+    assigned_at: datetime
+    assigned_by: int | None
+
+class UserPreferences(Base):
+    __tablename__: str
+    id: int
+    user_id: int
+    theme_mode: str
+    language: str
+    timezone: str
+    currency: str
+
+class UserSession(Base):
+    __tablename__: str
+    id: int
+    user_id: int
+    session_token: str
+    ip_address: str | None
+    user_agent: str | None
+    created_at: datetime
+    expires_at: datetime
+
+class UserActivityLog(Base):
+    __tablename__: str
+    id: int
+    user_id: int | None
+    action: str
+    resource: str | None
+    details: str | None
+    ip_address: str | None
+    user_agent: str | None
+    success: bool
+    error_message: str | None
+    created_at: datetime

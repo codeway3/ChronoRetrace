@@ -13,9 +13,6 @@ from app.core.config import settings
 from app.infrastructure.database.models import UserActivityLog
 
 
-from typing import Union
-
-
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """API限流中间件"""
 
@@ -142,9 +139,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 class IPWhitelistMiddleware(BaseHTTPMiddleware):
     """IP白名单中间件"""
 
-    def __init__(
-        self, app, whitelist: Union[list, None] = None, admin_only: bool = True
-    ):
+    def __init__(self, app, whitelist: list | None = None, admin_only: bool = True):
         super().__init__(app)
         self.whitelist = whitelist or []
         self.admin_only = admin_only  # 是否仅对管理员接口启用
@@ -308,7 +303,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
     async def _save_activity_log(
         self,
-        user_id: Union[int, None],
+        user_id: int | None,
         action: str,
         details: dict,
         ip_address: str,
@@ -322,13 +317,13 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
             db = SessionLocal()
             try:
-                activity_log = UserActivityLog(
-                    user_id=user_id,
-                    action=action,
-                    details=str(details),
-                    ip_address=ip_address,
-                    user_agent=user_agent,
-                )
+                # 使用属性赋值，避免类型检查器对构造函数参数的误报
+                activity_log = UserActivityLog()
+                activity_log.user_id = user_id
+                activity_log.action = action
+                activity_log.details = str(details)
+                activity_log.ip_address = ip_address
+                activity_log.user_agent = user_agent
                 db.add(activity_log)
                 db.commit()
             finally:
@@ -344,9 +339,9 @@ class CORSMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app,
-        allow_origins: list = None,
-        allow_methods: list = None,
-        allow_headers: list = None,
+        allow_origins: list[str] | None = None,
+        allow_methods: list[str] | None = None,
+        allow_headers: list[str] | None = None,
         allow_credentials: bool = True,
     ):
         super().__init__(app)
@@ -391,7 +386,7 @@ class CORSMiddleware(BaseHTTPMiddleware):
 
         response.headers["Access-Control-Max-Age"] = "86400"  # 24小时
 
-    def _is_origin_allowed(self, origin: Union[str, None]) -> bool:
+    def _is_origin_allowed(self, origin: str | None) -> bool:
         """检查来源是否被允许"""
         if not origin:
             return True
@@ -406,47 +401,32 @@ class CORSMiddleware(BaseHTTPMiddleware):
 def setup_middleware(app):
     """设置所有中间件"""
 
-    # CORS中间件（最先添加）
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=(
-            settings.ALLOWED_ORIGINS if hasattr(settings, "ALLOWED_ORIGINS") else ["*"]
-        ),
-        allow_credentials=True,
-    )
-
+    # 依赖 main.py 中的 FastAPI 原生 CORSMiddleware 配置，避免重复和预检异常
     # 安全头部中间件
     app.add_middleware(SecurityHeadersMiddleware)
 
     # 限流中间件
-    if hasattr(settings, "RATE_LIMIT_ENABLED") and settings.RATE_LIMIT_ENABLED:
+    if getattr(settings, "RATE_LIMIT_ENABLED", False):
         app.add_middleware(
             RateLimitMiddleware,
-            calls=(
-                settings.RATE_LIMIT_REQUESTS_PER_MINUTE
-                if hasattr(settings, "RATE_LIMIT_REQUESTS_PER_MINUTE")
-                else 100
-            ),
+            calls=getattr(settings, "RATE_LIMIT_REQUESTS_PER_MINUTE", 100),
             period=60,  # 固定为60秒（1分钟）
         )
 
     # IP白名单中间件（如果配置了白名单）
     if (
-        hasattr(settings, "IP_WHITELIST_ENABLED")
-        and settings.IP_WHITELIST_ENABLED
-        and hasattr(settings, "IP_WHITELIST_LIST")
+        getattr(settings, "IP_WHITELIST_ENABLED", False)
+        and getattr(settings, "IP_WHITELIST_LIST", None) is not None
     ):
         app.add_middleware(
-            IPWhitelistMiddleware, whitelist=settings.IP_WHITELIST_LIST, admin_only=True
+            IPWhitelistMiddleware,
+            whitelist=getattr(settings, "IP_WHITELIST_LIST", []),
+            admin_only=True,
         )
 
     # 请求日志中间件
     app.add_middleware(
         RequestLoggingMiddleware,
-        log_requests=(
-            settings.LOG_REQUESTS if hasattr(settings, "LOG_REQUESTS") else True
-        ),
-        log_responses=(
-            settings.LOG_RESPONSES if hasattr(settings, "LOG_RESPONSES") else False
-        ),
+        log_requests=getattr(settings, "LOG_REQUESTS", True),
+        log_responses=getattr(settings, "LOG_RESPONSES", False),
     )

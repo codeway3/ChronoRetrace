@@ -1,10 +1,8 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import anyio
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
-from fastapi_cache import FastAPICache
 
 from app.main import app
 

@@ -52,6 +52,11 @@ jobs:
         cd backend
         black --check .
 
+    - name: Python lint (Ruff)
+      run: |
+        cd backend
+        ruff check .
+
     - name: Python unit tests
       run: |
         cd backend

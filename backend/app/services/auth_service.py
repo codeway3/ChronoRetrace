@@ -3,7 +3,7 @@ from __future__ import annotations
 import secrets
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Union
+from typing import Any
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -41,7 +41,7 @@ class AuthService:
         return self.pwd_context.verify(plain_password, hashed_password)
 
     def create_access_token(
-        self, data: dict[str, Any], expires_delta: Union[timedelta, None] = None
+        self, data: dict[str, Any], expires_delta: timedelta | None = None
     ) -> str:
         """创建访问令牌"""
         to_encode = data.copy()
@@ -65,8 +65,10 @@ class AuthService:
         return encoded_jwt
 
     def verify_token(
-        self, token: str, token_type: str = "access"  # nosec B107
-    ) -> Union[dict[str, Any], None]:
+        self,
+        token: str,
+        token_type: str = "access",  # nosec B107
+    ) -> dict[str, Any] | None:
         """验证令牌"""
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
@@ -78,7 +80,7 @@ class AuthService:
 
     def authenticate_user(
         self, db: Session, username: str, password: str
-    ) -> Union[User, None]:
+    ) -> User | None:
         """用户认证"""
         user = (
             db.query(User)
@@ -137,9 +139,7 @@ class AuthService:
             return True
         return False
 
-    def validate_session(
-        self, db: Session, refresh_token: str
-    ) -> Union[UserSession, None]:
+    def validate_session(self, db: Session, refresh_token: str) -> UserSession | None:
         """验证会话"""
         session = (
             db.query(UserSession)
@@ -166,7 +166,7 @@ class AuthService:
         }
         return jwt.encode(data, self.secret_key, algorithm=self.algorithm)
 
-    def verify_password_reset_token(self, token: str) -> Union[int, None]:
+    def verify_password_reset_token(self, token: str) -> int | None:
         """验证密码重置令牌"""
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])

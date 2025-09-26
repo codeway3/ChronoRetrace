@@ -3,11 +3,13 @@ from __future__ import annotations
 import logging
 from collections.abc import Hashable, Sequence
 from datetime import datetime
-from typing import Any, Union
+from typing import Any
 
 import akshare as ak
 import pandas as pd
 from fastapi_cache.decorator import cache
+
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +172,7 @@ def fetch_industry_hist(industry_name: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def compute_period_return(hist_df: pd.DataFrame, days: int) -> Union[float, None]:
+def compute_period_return(hist_df: pd.DataFrame, days: int) -> float | None:
     if hist_df is None or hist_df.empty or "close" not in hist_df.columns:
         return None
     df = hist_df.copy()
@@ -184,7 +186,7 @@ def compute_period_return(hist_df: pd.DataFrame, days: int) -> Union[float, None
 
 
 @cache(expire=3600)
-def build_overview(
+async def build_overview(
     window: str = "20D", provider: str = "em"
 ) -> list[dict[str, object]]:
     """Build overview metrics for industries.
@@ -213,7 +215,7 @@ def build_overview(
         logger.info(f"Limiting to {max_industries} industries to avoid rate limiting")
         industry_list = industry_list[:max_industries]
 
-    import time
+    # removed: import time
 
     for i, industry in enumerate(industry_list):
         name = industry.get("industry_name")
@@ -226,7 +228,7 @@ def build_overview(
             logger.info(
                 f"Processed {i}/{len(industry_list)} industries, pausing briefly..."
             )
-            time.sleep(2)
+            await asyncio.sleep(2)
 
         hist = fetch_industry_hist(name)
 

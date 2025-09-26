@@ -3,11 +3,12 @@
 # Handles multi-environment configuration loading and validation
 # ============================================================================
 
+import logging
 import os
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
+
 from dotenv import load_dotenv
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class EnvironmentManager:
     SUPPORTED_ENVIRONMENTS = ["development", "testing", "staging", "production"]
     DEFAULT_ENVIRONMENT = "development"
 
-    def __init__(self, base_path: Optional[Path] = None):
+    def __init__(self, base_path: Path | None = None):
         """Initialize the environment manager.
 
         Args:
@@ -27,7 +28,7 @@ class EnvironmentManager:
         self.base_path = base_path or Path(__file__).parent
         self.environments_path = self.base_path / "environments"
         self.current_environment = self._detect_environment()
-        self.config: Dict[str, Any] = {}
+        self.config: dict[str, Any] = {}
 
     def _detect_environment(self) -> str:
         """Detect the current environment from various sources.
@@ -53,9 +54,7 @@ class EnvironmentManager:
         logger.info(f"Detected environment: {env}")
         return env
 
-    def load_environment_config(
-        self, environment: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def load_environment_config(self, environment: str | None = None) -> dict[str, Any]:
         """Load configuration for the specified environment.
 
         Args:
@@ -90,7 +89,7 @@ class EnvironmentManager:
 
         return merged_config
 
-    def _load_base_config(self) -> Dict[str, Any]:
+    def _load_base_config(self) -> dict[str, Any]:
         """Load base configuration that applies to all environments.
 
         Returns:
@@ -106,7 +105,7 @@ class EnvironmentManager:
 
         return base_config
 
-    def _load_env_config(self, environment: str) -> Dict[str, Any]:
+    def _load_env_config(self, environment: str) -> dict[str, Any]:
         """Load environment-specific configuration.
 
         Args:
@@ -131,7 +130,7 @@ class EnvironmentManager:
 
         # Convert environment variables to dictionary
         config = {}
-        with open(env_file, "r") as f:
+        with open(env_file) as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
@@ -140,7 +139,7 @@ class EnvironmentManager:
 
         return config
 
-    def _validate_config(self, config: Dict[str, Any], environment: str) -> None:
+    def _validate_config(self, config: dict[str, Any], environment: str) -> None:
         """Validate the loaded configuration.
 
         Args:
@@ -180,7 +179,7 @@ class EnvironmentManager:
         if environment == "production":
             self._validate_production_config(config)
 
-    def _validate_production_config(self, config: Dict[str, Any]) -> None:
+    def _validate_production_config(self, config: dict[str, Any]) -> None:
         """Validate production-specific configuration.
 
         Args:
@@ -256,7 +255,7 @@ class EnvironmentManager:
         """
         return self.current_environment == "testing"
 
-    def get_environment_info(self) -> Dict[str, Any]:
+    def get_environment_info(self) -> dict[str, Any]:
         """Get information about the current environment.
 
         Returns:
@@ -276,7 +275,7 @@ env_manager = EnvironmentManager()
 
 
 # Convenience functions
-def load_config(environment: Optional[str] = None) -> Dict[str, Any]:
+def load_config(environment: str | None = None) -> dict[str, Any]:
     """Load configuration for the specified environment.
 
     Args:

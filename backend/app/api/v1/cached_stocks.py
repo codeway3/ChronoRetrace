@@ -6,8 +6,6 @@ from __future__ import annotations
 使用新的缓存服务层提供高性能的股票数据API
 """
 
-from typing import Union
-
 import logging
 from datetime import date, datetime, timedelta
 
@@ -69,7 +67,7 @@ async def get_stock_data_cached(
         "daily", enum=["minute", "5day", "daily", "weekly", "monthly"]
     ),
     market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
-    trade_date: Union[date, None] = Query(
+    trade_date: date | None = Query(
         None, description="Date for 'minute' or '5day' interval, format YYYY-MM-DD"
     ),
 ):

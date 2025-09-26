@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Any, Union
+from typing import Any
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @router.post("/validate")
 async def validate_data(
     data: list[dict[str, Any]],
-    validation_rules: Union[dict[str, dict[str, Any]], None] = None,
+    validation_rules: dict[str, dict[str, Any]] | None = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -56,9 +56,7 @@ async def validate_data(
 
     except Exception as e:
         logger.error(f"Data validation failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Validation failed: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Validation failed: {e!s}") from e
 
 
 @router.post("/deduplicate")
@@ -108,15 +106,15 @@ async def deduplicate_data(
     except Exception as e:
         logger.error(f"Data deduplication failed: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Deduplication failed: {str(e)}"
+            status_code=500, detail=f"Deduplication failed: {e!s}"
         ) from e
 
 
 @router.post("/process")
 async def process_data(
     data: list[dict[str, Any]],
-    validation_rules: Union[dict[str, dict[str, Any]], None] = None,
-    deduplication_fields: Union[list[str], None] = None,
+    validation_rules: dict[str, dict[str, Any]] | None = None,
+    deduplication_fields: list[str] | None = None,
     strategy: str = Query(
         "KEEP_FIRST", enum=["KEEP_FIRST", "KEEP_LAST", "KEEP_HIGHEST_QUALITY"]
     ),
@@ -171,9 +169,7 @@ async def process_data(
 
     except Exception as e:
         logger.error(f"Data processing failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Processing failed: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Processing failed: {e!s}") from e
 
 
 @router.get("/health")
@@ -251,5 +247,5 @@ async def get_data_quality_metrics():
     except Exception as e:
         logger.error(f"Failed to get data quality metrics: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to get metrics: {str(e)}"
+            status_code=500, detail=f"Failed to get metrics: {e!s}"
         ) from e

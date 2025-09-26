@@ -3,17 +3,20 @@
 提供资产筛选相关的业务逻辑
 """
 
-from typing import List, Dict, Any, Optional
+from datetime import datetime
+
 from sqlalchemy.orm import Session
+
 from app.infrastructure.database.models import User
+from app.schemas.asset_types import AssetType
 from app.schemas.screener import (
     ScreenerRequest,
     ScreenerResponse,
     ScreenerResultItem,
-    ScreenerTemplateCreate,
-    ScreenerTemplateUpdate,
-    ScreenerTemplateResponse,
     ScreenerStats,
+    ScreenerTemplateCreate,
+    ScreenerTemplateResponse,
+    ScreenerTemplateUpdate,
 )
 
 
@@ -23,15 +26,22 @@ class ScreenerService:
     def __init__(self):
         pass
 
-    async def screen_assets(
-        self, request: ScreenerRequest, user: User, db: Session
+    async def screen_stocks(
+        self,
+        asset_type: AssetType,
+        criteria: ScreenerRequest,
+        limit: int,
+        offset: int,
+        db: Session,
     ) -> ScreenerResponse:
         """
         执行资产筛选
 
         Args:
-            request: 筛选请求
-            user: 用户对象
+            asset_type: 资产类型
+            criteria: 筛选请求
+            limit: 数量限制
+            offset: 偏移量
             db: 数据库会话
 
         Returns:
@@ -73,16 +83,58 @@ class ScreenerService:
         ]
 
         total = len(sample_items)
-        pages = (total + request.size - 1) // request.size
+        pages = (total + limit - 1) // limit if limit > 0 else 0
+        page = offset // limit + 1 if limit > 0 else 1
 
         return ScreenerResponse(
             items=sample_items,
             total=total,
-            page=request.page,
-            size=request.size,
+            page=page,
+            size=limit,
             pages=pages,
-            filters_applied=request.conditions,
+            filters_applied=criteria.conditions,
         )
+
+    async def get_criteria_config(self, asset_type: AssetType) -> dict:
+        """
+        获取指定资产类型的筛选条件配置
+
+        Args:
+            asset_type: 资产类型
+
+        Returns:
+            dict: 筛选条件配置
+        """
+        # 这里是获取筛选条件配置的占位符
+        # 实际实现需要根据资产类型返回不同的配置
+        if asset_type == AssetType.US_STOCK:
+            return {
+                "filters": [
+                    {"id": "market_cap", "label": "Market Cap", "type": "range"},
+                    {"id": "pe_ratio", "label": "P/E Ratio", "type": "range"},
+                    {
+                        "id": "dividend_yield",
+                        "label": "Dividend Yield",
+                        "type": "range",
+                    },
+                ],
+                "sort_options": [
+                    {"id": "market_cap", "label": "Market Cap"},
+                    {"id": "pe_ratio", "label": "P/E Ratio"},
+                ],
+            }
+        elif asset_type == AssetType.CRYPTO:
+            return {
+                "filters": [
+                    {"id": "market_cap", "label": "Market Cap", "type": "range"},
+                    {"id": "volume_24h", "label": "24h Volume", "type": "range"},
+                ],
+                "sort_options": [
+                    {"id": "market_cap", "label": "Market Cap"},
+                    {"id": "volume_24h", "label": "24h Volume"},
+                ],
+            }
+        return {"filters": [], "sort_options": []}
 
     async def get_screener_stats(
         self, asset_type: str, user: User, db: Session
@@ -127,7 +179,6 @@ class ScreenerService:
             创建的模板
         """
         # 这里是创建模板的占位符
-        from datetime import datetime
 
         return ScreenerTemplateResponse(
             id=1,
@@ -144,8 +195,8 @@ class ScreenerService:
         )
 
     async def get_user_templates(
-        self, user: User, asset_type: Optional[str] = None, db: Session = None
-    ) -> List[ScreenerTemplateResponse]:
+        self, user: User, db: Session, asset_type: str | None = None
+    ) -> list[ScreenerTemplateResponse]:
         """
         获取用户的筛选器模板
 
@@ -166,7 +217,7 @@ class ScreenerService:
         template_data: ScreenerTemplateUpdate,
         user: User,
         db: Session,
-    ) -> Optional[ScreenerTemplateResponse]:
+    ) -> ScreenerTemplateResponse | None:
         """
         更新筛选器模板
 
@@ -198,8 +249,8 @@ class ScreenerService:
         return True
 
     async def get_public_templates(
-        self, asset_type: Optional[str] = None, db: Session = None
-    ) -> List[ScreenerTemplateResponse]:
+        self, db: Session, asset_type: str | None = None
+    ) -> list[ScreenerTemplateResponse]:
         """
         获取公开的筛选器模板
 

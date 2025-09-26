@@ -11,7 +11,6 @@ import {
   ThunderboltOutlined,
   WarningOutlined,
   FireOutlined,
-  ClockCircleOutlined,
 } from '@ant-design/icons';
 import AssetScreener from '../components/AssetScreener';
 import AssetBacktest from '../components/AssetBacktest';

@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Union
 
 # !/usr/bin/env python3
 """
@@ -213,7 +212,7 @@ class DatabaseMigration:
         session.execute(text("DROP TABLE IF EXISTS cache_metadata"))
         session.commit()
 
-    def migrate_up(self, target_version: Union[str, None] = None) -> dict[str, Any]:
+    def migrate_up(self, target_version: str | None = None) -> dict[str, Any]:
         """
         执行向上迁移
 
@@ -352,7 +351,7 @@ class DatabaseMigration:
 db_migration = DatabaseMigration()
 
 
-def run_database_migrations(target_version: Union[str, None] = None) -> dict[str, Any]:
+def run_database_migrations(target_version: str | None = None) -> dict[str, Any]:
     """
     执行数据库迁移的便捷函数
 

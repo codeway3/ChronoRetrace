@@ -1,9 +1,9 @@
-import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import MagicMock
 
-from app.main import app
+from fastapi.testclient import TestClient
+
 from app.infrastructure.database.session import get_db
+from app.main import app
 
 
 def override_get_db():

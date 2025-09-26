@@ -4,20 +4,19 @@ ChronoRetrace 监控系统健康检查脚本
 定期检查监控组件的运行状态，确保监控系统正常工作
 """
 
+import json
+import logging
 import os
+import smtplib
+import subprocess
 import sys
 import time
-import json
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 import requests
-import subprocess
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
-import logging
-from dataclasses import dataclass, asdict
-from pathlib import Path
-import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
 
 # 配置日志
 logging.basicConfig(
@@ -43,7 +42,7 @@ class ServiceStatus:
     last_check: str = ""
     uptime: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
 
@@ -79,7 +78,7 @@ class HealthCheckConfig:
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
-    alert_recipients: Optional[List[str]] = None
+    alert_recipients: list[str] | None = None
 
     # Slack通知
     enable_slack_alerts: bool = False
@@ -99,10 +98,10 @@ class MonitoringHealthChecker:
     def __init__(self, config: HealthCheckConfig):
         self.config = config
         self.services = self._initialize_services()
-        self.failure_counts = {service: 0 for service in self.services.keys()}
-        self.last_alert_time = {service: None for service in self.services.keys()}
+        self.failure_counts = dict.fromkeys(self.services.keys(), 0)
+        self.last_alert_time = dict.fromkeys(self.services.keys())
 
-    def _initialize_services(self) -> Dict[str, Dict]:
+    def _initialize_services(self) -> dict[str, dict]:
         """初始化服务配置"""
         return {
             "prometheus": {
@@ -156,7 +155,7 @@ class MonitoringHealthChecker:
         except Exception as e:
             logger.error(f"健康检查异常: {e}")
 
-    def check_all_services(self) -> Dict[str, ServiceStatus]:
+    def check_all_services(self) -> dict[str, ServiceStatus]:
         """检查所有服务状态"""
         logger.info("执行健康检查...")
 
@@ -261,7 +260,7 @@ class MonitoringHealthChecker:
                         url=url,
                         status="unknown",
                         response_time=0,
-                        error_message=f"未知错误: {str(e)}",
+                        error_message=f"未知错误: {e!s}",
                         last_check=datetime.now().isoformat(),
                     )
                 time.sleep(1)
@@ -288,6 +287,7 @@ class MonitoringHealthChecker:
                     "--format",
                     "{{.State.StartedAt}}",
                 ],
+                check=False,
                 capture_output=True,
                 text=True,
             )
@@ -302,13 +302,13 @@ class MonitoringHealthChecker:
                     datetime.now().replace(tzinfo=start_time.tzinfo) - start_time
                 ).total_seconds() / 3600
                 return round(uptime, 2)
-        except:
+        except Exception:
             pass
 
         return 0.0
 
     def _check_alert_conditions(
-        self, service_key: str, service_config: Dict, status: ServiceStatus
+        self, service_key: str, service_config: dict, status: ServiceStatus
     ):
         """检查告警条件"""
         failure_count = self.failure_counts[service_key]
@@ -318,7 +318,6 @@ class MonitoringHealthChecker:
             "unhealthy",
             "unknown",
         ]:
-
             # 检查是否需要发送告警（避免重复告警）
             last_alert = self.last_alert_time[service_key]
             now = datetime.now()
@@ -326,7 +325,6 @@ class MonitoringHealthChecker:
             if (
                 last_alert is None or (now - last_alert).total_seconds() > 3600
             ):  # 1小时内不重复告警
-
                 self._send_alert(service_config["name"], status, failure_count)
                 self.last_alert_time[service_key] = now
 
@@ -365,11 +363,11 @@ URL: {status.url}
     def _send_email_alert(self, service_name: str, message: str):
         """发送邮件告警"""
         try:
-            msg = MimeMultipart()
+            msg = MIMEMultipart()
             msg["From"] = self.config.smtp_user
             msg["Subject"] = f"[ChronoRetrace] {service_name} 服务告警"
 
-            msg.attach(MimeText(message, "plain", "utf-8"))
+            msg.attach(MIMEText(message, "plain", "utf-8"))
 
             server = smtplib.SMTP(self.config.smtp_host, self.config.smtp_port)
             server.starttls()
@@ -410,7 +408,7 @@ URL: {status.url}
         except Exception as e:
             logger.error(f"发送Slack告警失败: {e}")
 
-    def _save_status(self, results: Dict[str, ServiceStatus], overall_healthy: bool):
+    def _save_status(self, results: dict[str, ServiceStatus], overall_healthy: bool):
         """保存状态到文件"""
         try:
             status_data = {
@@ -427,14 +425,14 @@ URL: {status.url}
             logger.error(f"保存状态文件失败: {e}")
 
     def _print_status_summary(
-        self, results: Dict[str, ServiceStatus], overall_healthy: bool
+        self, results: dict[str, ServiceStatus], overall_healthy: bool
     ):
         """打印状态摘要"""
         print("\n" + "=" * 60)
         print(f"监控系统健康检查 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("=" * 60)
 
-        for service_key, status in results.items():
+        for _, status in results.items():
             status_icon = "✓" if status.status == "healthy" else "✗"
             print(
                 f"{status_icon} {status.name:<20} {status.status:<10} {status.response_time:.2f}s"
@@ -447,17 +445,17 @@ URL: {status.url}
         print(f"整体状态: {overall_status}")
         print("=" * 60)
 
-    def get_status_report(self) -> Dict:
+    def get_status_report(self) -> dict:
         """获取状态报告"""
         try:
-            with open(self.config.status_file, "r", encoding="utf-8") as f:
+            with open(self.config.status_file, encoding="utf-8") as f:
                 return json.load(f)
         except FileNotFoundError:
             return {"error": "状态文件不存在"}
         except Exception as e:
             return {"error": f"读取状态文件失败: {e}"}
 
-    def check_prometheus_targets(self) -> Dict:
+    def check_prometheus_targets(self) -> dict:
         """检查Prometheus目标状态"""
         try:
             response = requests.get(
@@ -515,7 +513,7 @@ def main():
     if args.config and os.path.exists(args.config):
         import yaml
 
-        with open(args.config, "r") as f:
+        with open(args.config) as f:
             config_data = yaml.safe_load(f)
             for key, value in config_data.items():
                 if hasattr(config, key):

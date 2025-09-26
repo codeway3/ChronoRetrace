@@ -1,11 +1,27 @@
 import axios from 'axios';
 
+const apiBaseURL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL) || '/api/v1';
 const apiClient = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api/v1',
+  baseURL: apiBaseURL,
   headers: {
     'Content-Type': 'application/json',
+    // 禁用浏览器端缓存，避免命中“from disk cache”导致的旧数据
+    'Cache-Control': 'no-cache',
+    Pragma: 'no-cache',
+    Expires: '0',
   },
 });
+
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token') || localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 
 
@@ -52,7 +68,8 @@ export const getCryptoHistory = (symbol, interval = 'daily') => {
 
 // Commodity APIs
 export const getCommodityList = () => {
-  return apiClient.get('/commodities/list');
+  // 添加时间戳以穿透浏览器磁盘缓存
+  return apiClient.get(`/commodities/list?_=${Date.now()}`);
 };
 
 export const getCommodityData = (symbol, interval = 'daily') => {

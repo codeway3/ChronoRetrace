@@ -1,0 +1,28 @@
+{
+  "include": [
+    "app"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/venv",
+    "**/tests"
+  ],
+  "venvPath": ".",
+  "venv": "venv",
+  "pythonVersion": "3.10",
+  "pythonPlatform": "Linux",
+  "typeCheckingMode": "basic",
+  "useLibraryCodeForTypes": true,
+  "stubPath": "",
+  "reportMissingImports": "error",
+  "reportMissingTypeStubs": false,
+  "extraPaths": ["app", "."],
+  "executionEnvironments": [
+    {
+      "root": "app",
+      "pythonVersion": "3.10",
+      "extraPaths": ["app"]
+    }
+  ]
+}

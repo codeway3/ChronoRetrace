@@ -3,13 +3,12 @@
 缓存中间件
 为FastAPI应用提供缓存功能集成
 """
-from typing import Union
 
 import hashlib
 import logging
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TypedDict
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -20,13 +19,21 @@ from .cache_service import cache_service
 logger = logging.getLogger(__name__)
 
 
+class CacheData(TypedDict):
+    content: Any
+    status_code: int
+    headers: dict[str, str]
+    cached_at: float
+    processing_time: float
+
+
 class CacheMiddleware(BaseHTTPMiddleware):
     """缓存中间件
 
     为HTTP请求提供自动缓存功能
     """
 
-    def __init__(self, app, cache_config: Union[dict[str, Any], None] = None):
+    def __init__(self, app, cache_config: dict[str, Any] | None = None):
         """初始化缓存中间件
 
         Args:
@@ -232,7 +239,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
         """
         try:
             # 准备缓存数据
-            cache_data = {
+            cache_data: CacheData = {
                 "content": None,
                 "status_code": response.status_code,
                 "headers": dict(response.headers),
@@ -241,18 +248,11 @@ class CacheMiddleware(BaseHTTPMiddleware):
             }
 
             # 获取响应内容
-            if hasattr(response, "body") and response.body:
-                # 对于JSONResponse等
+            if hasattr(response, "body") and isinstance(response.body, bytes):
                 import json
 
-                try:
-                    cache_data["content"] = json.loads(response.body.decode())
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    cache_data["content"] = response.body.decode(
-                        "utf-8", errors="ignore"
-                    )
-            elif hasattr(response, "content"):
-                cache_data["content"] = response.content
+                decoded_body = response.body.decode("utf-8", errors="ignore")
+                cache_data["content"] = decoded_body
 
             # 设置TTL
             ttl = config.get("ttl", config["default_ttl"])
@@ -275,7 +275,7 @@ class CacheInvalidationMiddleware(BaseHTTPMiddleware):
     在数据更新时自动失效相关缓存
     """
 
-    def __init__(self, app, invalidation_config: Union[dict[str, Any], None] = None):
+    def __init__(self, app, invalidation_config: dict[str, Any] | None = None):
         """初始化缓存失效中间件
 
         Args:
@@ -402,7 +402,7 @@ class CacheInvalidationMiddleware(BaseHTTPMiddleware):
             logger.error(f"Error in cache invalidation: {e}")
 
 
-def create_cache_middleware(cache_config: Union[dict[str, Any], None] = None):
+def create_cache_middleware(cache_config: dict[str, Any] | None = None):
     """创建缓存中间件实例
 
     Args:
@@ -415,7 +415,7 @@ def create_cache_middleware(cache_config: Union[dict[str, Any], None] = None):
 
 
 def create_invalidation_middleware(
-    invalidation_config: Union[dict[str, Any], None] = None,
+    invalidation_config: dict[str, Any] | None = None,
 ):
     """创建缓存失效中间件实例
 

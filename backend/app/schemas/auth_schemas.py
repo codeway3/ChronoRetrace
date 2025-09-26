@@ -7,15 +7,12 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from ..core.config import settings
 
 
-from typing import Union
-
-
 class UserBase(BaseModel):
     """用户基础模型"""
 
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
-    full_name: Union[str, None] = Field(None, max_length=100)
+    full_name: str | None = Field(None, max_length=100)
     is_active: bool = True
 
 
@@ -49,9 +46,9 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     """用户更新模型"""
 
-    full_name: Union[str, None] = Field(None, max_length=100)
-    email: Union[EmailStr, None] = None
-    is_active: Union[bool, None] = None
+    full_name: str | None = Field(None, max_length=100)
+    email: EmailStr | None = None
+    is_active: bool | None = None
 
 
 class UserResponse(UserBase):
@@ -59,8 +56,8 @@ class UserResponse(UserBase):
 
     id: int
     created_at: datetime
-    updated_at: Union[datetime, None] = None
-    last_login: Union[datetime, None] = None
+    updated_at: datetime | None = None
+    last_login_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -80,7 +77,7 @@ class Token(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int  # 秒数
-    user: Union[UserResponse, None] = None  # 添加用户信息
+    user: UserResponse | None = None  # 添加用户信息
 
 
 class TokenRefresh(BaseModel):
@@ -157,11 +154,11 @@ class UserPreferencesCreate(UserPreferencesBase):
 class UserPreferencesUpdate(BaseModel):
     """用户偏好设置更新模型"""
 
-    theme_mode: Union[str, None] = None
-    language: Union[str, None] = None
-    timezone: Union[str, None] = None
-    email_notifications: Union[bool, None] = None
-    push_notifications: Union[bool, None] = None
+    theme_mode: str | None = None
+    language: str | None = None
+    timezone: str | None = None
+    email_notifications: bool | None = None
+    push_notifications: bool | None = None
 
 
 class UserPreferencesResponse(UserPreferencesBase):
@@ -170,7 +167,7 @@ class UserPreferencesResponse(UserPreferencesBase):
     id: int
     user_id: int
     created_at: datetime
-    updated_at: Union[datetime, None] = None
+    updated_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -182,7 +179,7 @@ class UserSessionResponse(BaseModel):
     ip_address: str
     user_agent: str
     created_at: datetime
-    last_activity: Union[datetime, None] = None
+    last_activity: datetime | None = None
     expires_at: datetime
     is_active: bool
 
@@ -194,7 +191,7 @@ class UserActivityLogResponse(BaseModel):
 
     id: int
     action: str
-    details: Union[str, None] = None
+    details: str | None = None
     ip_address: str
     user_agent: str
     created_at: datetime
@@ -207,7 +204,7 @@ class ApiResponse(BaseModel):
 
     success: bool
     message: str
-    data: Union[dict, None] = None
+    data: dict | None = None
 
 
 class PaginatedResponse(BaseModel):

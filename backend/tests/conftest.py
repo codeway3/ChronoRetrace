@@ -4,7 +4,6 @@ pytest 配置文件
 包含通用的测试工具和 fixture
 """
 
-import asyncio
 import os
 import sys
 from unittest.mock import AsyncMock, MagicMock, Mock
@@ -17,9 +16,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.main import app
-from app.infrastructure.database.session import get_db
 from app.infrastructure.database.models import Base
+from app.infrastructure.database.session import get_db
+from app.main import app
 
 # import akshare as ak  # Removed to avoid initialization issues in tests
 # Mock akshare module completely to avoid initialization issues

@@ -3,16 +3,15 @@
 提供系统级别的健康检查，整合所有模块的健康状态
 """
 
-import asyncio
+import logging
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-import logging
 from app.infrastructure.cache.cache_service import cache_service
 from app.infrastructure.cache.cache_warming import cache_warming_service
 from app.infrastructure.monitoring.performance_monitor import performance_monitor
@@ -28,7 +27,7 @@ class HealthChecker:
     def __init__(self):
         self.base_url = f"http://localhost:{settings.PORT or 8000}"
 
-    async def check_monitoring_health(self) -> Dict[str, Any]:
+    async def check_monitoring_health(self) -> dict[str, Any]:
         """检查监控模块健康状态"""
         try:
             async with httpx.AsyncClient() as client:
@@ -46,7 +45,7 @@ class HealthChecker:
             logger.error(f"监控模块健康检查失败: {e}")
             return {"status": "unhealthy", "error": str(e)}
 
-    async def check_cache_health(self) -> Dict[str, Any]:
+    async def check_cache_health(self) -> dict[str, Any]:
         """检查缓存模块健康状态"""
         try:
             # 直接调用缓存服务的健康检查
@@ -68,7 +67,7 @@ class HealthChecker:
             logger.error(f"缓存模块健康检查失败: {e}")
             return {"status": "unhealthy", "error": str(e)}
 
-    async def check_stock_service_health(self) -> Dict[str, Any]:
+    async def check_stock_service_health(self) -> dict[str, Any]:
         """检查股票服务健康状态"""
         try:
             health_result = await stock_service.health_check()
@@ -80,7 +79,7 @@ class HealthChecker:
             logger.error(f"股票服务健康检查失败: {e}")
             return {"status": "unhealthy", "error": str(e)}
 
-    async def check_data_quality_health(self) -> Dict[str, Any]:
+    async def check_data_quality_health(self) -> dict[str, Any]:
         """检查数据质量模块健康状态"""
         try:
             async with httpx.AsyncClient() as client:
@@ -99,7 +98,7 @@ class HealthChecker:
             logger.error(f"数据质量模块健康检查失败: {e}")
             return {"status": "unhealthy", "error": str(e)}
 
-    async def check_database_health(self) -> Dict[str, Any]:
+    async def check_database_health(self) -> dict[str, Any]:
         """检查数据库健康状态"""
         try:
             # 通过监控模块获取数据库状态
@@ -133,7 +132,7 @@ class HealthChecker:
             logger.error(f"数据库健康检查失败: {e}")
             return {"status": "unhealthy", "error": str(e)}
 
-    async def perform_comprehensive_health_check(self) -> Dict[str, Any]:
+    async def perform_comprehensive_health_check(self) -> dict[str, Any]:
         """执行全面的健康检查"""
         start_time = datetime.now()
 

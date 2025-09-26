@@ -7,22 +7,22 @@ WebSocket API路由
 import json
 import logging
 from datetime import datetime
-from typing import Optional
+
 from fastapi import (
     APIRouter,
+    HTTPException,
     WebSocket,
     WebSocketDisconnect,
-    Depends,
-    HTTPException,
     status,
 )
 from fastapi.security import HTTPBearer
 
-from app.websocket.connection_manager import ConnectionManager
-from app.websocket.message_handler import MessageHandler
-from app.websocket.data_stream_service import DataStreamService
 from app.infrastructure.cache.redis_manager import RedisCacheManager
 from app.services.auth_service import auth_service
+from app.websocket.connection_manager import ConnectionManager
+from app.websocket.data_stream_service import DataStreamService
+from app.websocket.message_handler import MessageHandler
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +33,9 @@ router = APIRouter()
 security = HTTPBearer()
 
 # 全局实例（将在应用启动时初始化）
-connection_manager: Optional[ConnectionManager] = None
-message_handler: Optional[MessageHandler] = None
-data_stream_service: Optional[DataStreamService] = None
+connection_manager: ConnectionManager | None = None
+message_handler: MessageHandler | None = None
+data_stream_service: DataStreamService | None = None
 
 
 def init_websocket_services(redis_manager: RedisCacheManager):
@@ -48,13 +48,15 @@ def init_websocket_services(redis_manager: RedisCacheManager):
     global connection_manager, message_handler
 
     # 使用传入的redis_manager创建连接管理器
-    connection_manager = ConnectionManager()
+    connection_manager = ConnectionManager(
+        heartbeat_interval_seconds=settings.WEBSOCKET_HEARTBEAT_INTERVAL_SECONDS
+    )
     message_handler = MessageHandler(connection_manager)
 
     print("WebSocket services initialized successfully")
 
 
-async def get_current_user_from_token(token: str) -> Optional[dict]:
+async def get_current_user_from_token(token: str) -> dict | None:
     """
     从token获取当前用户信息
 
@@ -76,7 +78,7 @@ async def get_current_user_from_token(token: str) -> Optional[dict]:
 
 @router.websocket("/{client_id}")
 async def websocket_endpoint(
-    websocket: WebSocket, client_id: str, token: Optional[str] = None
+    websocket: WebSocket, client_id: str, token: str | None = None
 ):
     """
     WebSocket连接端点
@@ -267,6 +269,28 @@ async def get_websocket_stats():
     }
 
 
+@router.get("/ws/activity")
+async def get_websocket_activity():
+    """
+    获取WebSocket活动简要指标，仅返回计数，不包含敏感信息。
+
+    Returns:
+        dict: 活动计数信息
+    """
+    if not connection_manager:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="WebSocket服务未初始化",
+        )
+
+    stats = connection_manager.get_connection_stats()
+    return {
+        "total_connections": stats.get("total_connections", 0),
+        "total_subscriptions": stats.get("total_subscriptions", 0),
+        "topics_count": stats.get("topics_count", 0),
+    }
+
+
 @router.get("/ws/connections")
 async def get_active_connections():
     """
@@ -364,7 +388,7 @@ async def broadcast_message(topic: str, message: dict):
         logger.error(f"广播消息失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"广播消息失败: {str(e)}",
+            detail=f"广播消息失败: {e!s}",
         )
 
 
@@ -397,7 +421,7 @@ async def disconnect_client(client_id: str):
         logger.error(f"断开客户端连接失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"断开连接失败: {str(e)}",
+            detail=f"断开连接失败: {e!s}",
         )
 
 
@@ -431,7 +455,7 @@ async def cleanup_inactive_connections():
         logger.error(f"清理不活跃连接失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"清理失败: {str(e)}",
+            detail=f"清理失败: {e!s}",
         )
 
 
@@ -443,7 +467,6 @@ def get_connection_manager() -> ConnectionManager:
     Returns:
         ConnectionManager: 连接管理器实例
     """
-    from fastapi import Request
 
     # 这个函数需要在依赖注入中使用，暂时保留原有逻辑
     if not connection_manager:

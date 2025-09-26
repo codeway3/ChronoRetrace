@@ -3,6 +3,26 @@ import { Select, message, Spin, Row, Col, Card, Typography, Radio } from 'antd';
 import StockChart from '../components/StockChart';
 import { getCommodityData, getCommodityList } from '../api/stockApi';
 
+// 轻量重试与延迟工具
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+const retryAsync = async (fn, opts = {}) => {
+  const { retries = 2, delay = 800, factor = 2 } = opts;
+  let attempt = 0;
+  let lastErr;
+  while (attempt <= retries) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt === retries) break;
+      const wait = delay * Math.pow(factor, attempt);
+      await sleep(wait);
+    }
+    attempt += 1;
+  }
+  throw lastErr;
+};
+
 const { Option } = Select;
 const { Title, Text } = Typography;
 
@@ -16,6 +36,7 @@ const CommodityDashboard = () => {
   const [selectedInterval, setSelectedInterval] = useState('daily');
   const [error, setError] = useState(null);
   const debounceTimeout = useRef(null);
+  const lastRequestIdRef = useRef(0);
 
   const title = '大宗商品市场';
   const placeholder = '搜索或选择大宗商品 (例如: GC=F)';
@@ -28,17 +49,23 @@ const CommodityDashboard = () => {
     setError(null);
 
     debounceTimeout.current = setTimeout(() => {
-      getCommodityData(symbol, interval)
-        .then(response => {
+      const reqId = Date.now();
+      lastRequestIdRef.current = reqId;
+      retryAsync(() => getCommodityData(symbol, interval), { retries: 1, delay: 800 })
+        .then((response) => {
+          if (lastRequestIdRef.current !== reqId) return;
           setChartData(response.data);
         })
-        .catch(error => {
+        .catch((error) => {
+          if (lastRequestIdRef.current !== reqId) return;
           const errorMsg = error.response?.data?.detail || `加载 ${symbol} 数据失败。`;
           setError(errorMsg);
           message.error(errorMsg);
           setChartData([]);
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          if (lastRequestIdRef.current === reqId) setLoading(false);
+        });
     }, 500);
   }, []);
 
@@ -49,9 +76,11 @@ const CommodityDashboard = () => {
   }, [selectedCommodity, selectedInterval, fetchData]);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    getCommodityList()
-      .then(response => {
+    retryAsync(() => getCommodityList(), { retries: 2, delay: 700 })
+      .then((response) => {
+        if (cancelled) return;
         const commodities = Object.entries(response.data).map(([symbol, name]) => ({
           ts_code: symbol,
           name: `${name} (${symbol})`,
@@ -65,16 +94,50 @@ const CommodityDashboard = () => {
           setDisplayedCommodityName(initialCommodity.raw_name);
         }
       })
-      .catch(error => {
+      .catch((error) => {
+        if (cancelled) return;
         const errorMsg = '加载大宗商品列表失败。';
         setError(errorMsg);
+        message.error(errorMsg);
+        // 重置状态，避免使用无效的历史选中值
+        setAllCommodities([]);
+        setSelectedCommodity(null);
+        setDisplayedCommodityCode(null);
+        setDisplayedCommodityName(null);
         console.error(errorMsg, error);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 当当前选中的商品不在最新列表中时，自动重置为列表第一个合法项
+  useEffect(() => {
+    if (allCommodities.length > 0) {
+      const exists = allCommodities.some((c) => c.ts_code === selectedCommodity);
+      if (!exists) {
+        const initialCommodity = allCommodities[0];
+        setSelectedCommodity(initialCommodity.ts_code);
+        setDisplayedCommodityCode(initialCommodity.ts_code);
+        setDisplayedCommodityName(initialCommodity.raw_name);
+      }
+    }
+  }, [allCommodities, selectedCommodity]);
+
+  // 组件卸载时清理防抖与中断标记
+  useEffect(() => {
+    return () => {
+      if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+      lastRequestIdRef.current += 1; // 失效旧请求
+    };
   }, []);
 
   const handleCommodityChange = (commodityCode) => {
-    const commodity = allCommodities.find(c => c.ts_code === commodityCode);
+    const commodity = allCommodities.find((c) => c.ts_code === commodityCode);
     if (commodity) {
       setSelectedCommodity(commodity.ts_code);
       setDisplayedCommodityCode(commodity.ts_code);
@@ -91,7 +154,11 @@ const CommodityDashboard = () => {
     <div>
       <Title level={4}>{title}</Title>
       <Text type="secondary">从列表中选择一个商品以查看其价格走势图。</Text>
-      {error && <Text type="danger" style={{ display: 'block', marginTop: '10px' }}>{error}</Text>}
+      {error && (
+        <Text type="danger" style={{ display: 'block', marginTop: '10px' }}>
+          {error}
+        </Text>
+      )}
       <Card style={{ margin: '20px 0' }}>
         <Row gutter={[16, 16]} align="middle">
           <Col>
@@ -102,10 +169,10 @@ const CommodityDashboard = () => {
               style={{ width: 300 }}
               onChange={handleCommodityChange}
               filterOption={(input, option) =>
-                option.children.toLowerCase().includes(input.toLowerCase())
+                String(option.children).toLowerCase().includes(input.toLowerCase())
               }
             >
-              {allCommodities.map(commodity => (
+              {allCommodities.map((commodity) => (
                 <Option key={commodity.ts_code} value={commodity.ts_code}>
                   {commodity.name}
                 </Option>

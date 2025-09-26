@@ -6,10 +6,11 @@
 import asyncio
 import logging
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from app.core.config import settings
 from app.infrastructure.database.migration_manager import MigrationManager
+from app.infrastructure.database.session import create_configured_engine
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +18,11 @@ logger = logging.getLogger(__name__)
 class DatabaseInitializer:
     """数据库初始化器"""
 
-    def __init__(self, database_url: str = None):
+    def __init__(self, database_url: str | None = None):
         self.database_url = database_url or settings.DATABASE_URL
         self.migration_manager = MigrationManager(self.database_url)
-        self.engine = create_engine(self.database_url)
+        # 使用统一的引擎创建函数，确保连接池与 pool_pre_ping 等参数一致
+        self.engine = create_configured_engine(self.database_url)
 
     def check_database_connection(self) -> bool:
         """检查数据库连接"""
@@ -42,11 +44,12 @@ class DatabaseInitializer:
             # 对于PostgreSQL，创建连接到postgres数据库的URL
             if "postgresql" in self.database_url:
                 base_url = self.database_url.rsplit("/", 1)[0] + "/postgres"
-                base_engine = create_engine(base_url)
+                base_engine = create_configured_engine(base_url)
 
                 with base_engine.connect() as conn:
                     result = conn.execute(
-                        text(f"SELECT 1 FROM pg_database WHERE datname = '{db_name}'")
+                        text("SELECT 1 FROM pg_database WHERE datname = :name"),
+                        {"name": db_name},
                     )
                     exists = result.fetchone() is not None
 
@@ -73,7 +76,7 @@ class DatabaseInitializer:
             if "postgresql" in self.database_url:
                 # PostgreSQL数据库创建
                 base_url = self.database_url.rsplit("/", 1)[0] + "/postgres"
-                base_engine = create_engine(base_url)
+                base_engine = create_configured_engine(base_url)
 
                 with base_engine.connect() as conn:
                     # PostgreSQL需要autocommit模式来执行CREATE DATABASE
@@ -131,6 +134,9 @@ class DatabaseInitializer:
             "user_preferences",
             "user_watchlists",
             "watchlist_stocks",
+            "strategies",
+            "backtest_results",
+            "stock_info",
         ]
 
         try:
@@ -252,8 +258,14 @@ class DatabaseInitializer:
                 }
 
         except Exception as e:
-            logger.error(f"获取数据库信息失败: {e}")
-            return {"error": str(e)}
+            logger.error(f"❌ 获取数据库信息失败: {e}")
+            return {
+                "database_name": "unknown",
+                "database_version": "unknown",
+                "table_count": 0,
+                "migration_status": {},
+                "connection_url": self.database_url,
+            }
 
 
 # 便捷函数

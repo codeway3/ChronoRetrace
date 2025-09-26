@@ -22,11 +22,9 @@ async def get_futures_list():
     """
     try:
         futures_df = await run_in_threadpool(ak.futures_display_main_sina)
-        return dict(zip(futures_df["symbol"], futures_df["name"]))
+        return dict(zip(futures_df["symbol"], futures_df["name"], strict=False))
     except Exception as e:
-        logger.error(
-            f"Failed to fetch futures list from Akshare: {str(e)}", exc_info=True
-        )
+        logger.error(f"Failed to fetch futures list from Akshare: {e!s}", exc_info=True)
         return {"ES=F": "E-mini S&P 500", "NQ=F": "E-mini NASDAQ 100"}
 
 

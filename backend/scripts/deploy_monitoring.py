@@ -4,17 +4,17 @@ ChronoRetrace 监控系统部署脚本
 自动化部署Prometheus、Grafana、Alertmanager等监控组件
 """
 
-import os
-import sys
-import subprocess
-import yaml
 import json
-import time
-import requests
-from pathlib import Path
-from typing import Dict, List, Optional
 import logging
+import os
+import subprocess
+import sys
+import time
 from dataclasses import dataclass
+from pathlib import Path
+
+import requests
+import yaml
 
 # 配置日志
 logging.basicConfig(
@@ -145,6 +145,7 @@ class MonitoringDeployer:
                     "--format",
                     "{{.Name}}",
                 ],
+                check=False,
                 capture_output=True,
                 text=True,
             )
@@ -428,7 +429,7 @@ class MonitoringDeployer:
         datasource_config = {
             "name": "Prometheus",
             "type": "prometheus",
-            "url": f"http://chronoretrace-prometheus:9090",
+            "url": "http://chronoretrace-prometheus:9090",
             "access": "proxy",
             "isDefault": True,
             "basicAuth": False,
@@ -466,7 +467,7 @@ class MonitoringDeployer:
             return
 
         try:
-            with open(dashboard_file, "r", encoding="utf-8") as f:
+            with open(dashboard_file, encoding="utf-8") as f:
                 dashboard_json = json.load(f)
 
             # 包装仪表板配置
@@ -506,8 +507,12 @@ class MonitoringDeployer:
     def _stop_container(self, container_name: str):
         """停止并删除容器"""
         try:
-            subprocess.run(["docker", "stop", container_name], capture_output=True)
-            subprocess.run(["docker", "rm", container_name], capture_output=True)
+            subprocess.run(
+                ["docker", "stop", container_name], check=False, capture_output=True
+            )
+            subprocess.run(
+                ["docker", "rm", container_name], check=False, capture_output=True
+            )
         except:
             pass  # 容器可能不存在
 
@@ -598,6 +603,7 @@ class MonitoringDeployer:
         try:
             subprocess.run(
                 ["docker", "network", "rm", self.config.network_name],
+                check=False,
                 capture_output=True,
             )
             logger.info(f"已删除网络: {self.config.network_name}")
@@ -622,7 +628,7 @@ def main():
     # 加载配置
     config = MonitoringConfig()
     if args.config and os.path.exists(args.config):
-        with open(args.config, "r") as f:
+        with open(args.config) as f:
             config_data = yaml.safe_load(f)
             for key, value in config_data.items():
                 if hasattr(config, key):

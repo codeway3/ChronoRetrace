@@ -11,12 +11,9 @@ PostgreSQL数据库设置脚本
 
 from __future__ import annotations
 
-from typing import Union
-
-
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 # 添加项目根目录到Python路径
@@ -117,7 +114,7 @@ def create_database_and_user(env="development"):
 
     for cmd in commands:
         if not run_command(cmd, check=False):
-            print(f"❌ 数据库设置失败")
+            print("❌ 数据库设置失败")
             return False
 
     print(f"✅ 数据库 {db_name} 和用户 {db_user} 创建成功")

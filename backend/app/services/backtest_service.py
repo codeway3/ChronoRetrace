@@ -4,8 +4,10 @@
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any
+
 from sqlalchemy.orm import Session
+
 from app.infrastructure.database.models import User
 from app.schemas.asset_config import AssetBacktestTemplateResponse
 
@@ -24,7 +26,7 @@ class BacktestService:
         end_date: datetime,
         initial_capital: float,
         db: Session,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         创建回测任务
 
@@ -57,7 +59,7 @@ class BacktestService:
 
     async def get_backtest_results(
         self, backtest_id: str, user: User, db: Session
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         获取回测结果
 
@@ -73,8 +75,8 @@ class BacktestService:
         return None
 
     async def list_user_backtests(
-        self, user: User, page: int = 1, size: int = 20, db: Session = None
-    ) -> Dict[str, Any]:
+        self, user: User, page: int = 1, size: int = 20, db: Session | None = None
+    ) -> dict[str, Any]:
         """
         获取用户的回测列表
 
@@ -106,8 +108,8 @@ class BacktestService:
         return True
 
     async def get_backtest_templates(
-        self, asset_type: Optional[str] = None, db: Session = None
-    ) -> List[AssetBacktestTemplateResponse]:
+        self, asset_type: str | None = None, db: Session | None = None
+    ) -> list[AssetBacktestTemplateResponse]:
         """
         获取回测模板列表
 

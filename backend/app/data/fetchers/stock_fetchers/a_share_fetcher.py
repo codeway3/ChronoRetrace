@@ -12,9 +12,10 @@ import pandas as pd
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database import models
+# 新增：按方言引入 PostgreSQL insert（最小范围引入，不影响 SQLite）
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from typing import Union
+from app.infrastructure.database import models
 
 logger = logging.getLogger(__name__)
 baostock_lock = threading.Lock()
@@ -348,14 +349,25 @@ def update_stock_list_from_akshare(db: Session):
         combined_df["last_updated"] = datetime.utcnow()
         records = combined_df.to_dict(orient="records")
         if records:
-            stmt = sqlite_insert(models.StockInfo).values(records)
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["ts_code", "market_type"],
-                set_={
-                    "name": stmt.excluded.name,
-                    "last_updated": stmt.excluded.last_updated,
-                },
-            )
+            # 按数据库方言选择 upsert 实现，避免 OnConflictDoUpdate 方言不匹配
+            if db.bind is not None and db.bind.dialect.name == "sqlite":
+                stmt = sqlite_insert(models.StockInfo).values(records)
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["ts_code", "market_type"],
+                    set_={
+                        "name": stmt.excluded.name,
+                        "last_updated": stmt.excluded.last_updated,
+                    },
+                )
+            else:
+                stmt = pg_insert(models.StockInfo).values(records)
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["ts_code", "market_type"],
+                    set_={
+                        "name": stmt.excluded.name,
+                        "last_updated": stmt.excluded.last_updated,
+                    },
+                )
             db.execute(stmt)
             db.commit()
             logger.info(
@@ -363,7 +375,7 @@ def update_stock_list_from_akshare(db: Session):
             )
 
 
-def fetch_fundamental_data_from_baostock(symbol: str) -> Union[dict, None]:
+def fetch_fundamental_data_from_baostock(symbol: str) -> dict | None:
     with baostock_session():
         # This function can also be refactored to use the _baostock_query_with_retry wrapper
         # For now, keeping it as is to focus on the main error source.
@@ -415,7 +427,7 @@ def fetch_corporate_actions_from_baostock(symbol: str) -> list[dict]:
 
 
 def fetch_a_share_data_from_akshare(
-    stock_code: str, interval: str, trade_date: Union[date, None] = None
+    stock_code: str, interval: str, trade_date: date | None = None
 ) -> pd.DataFrame:
     """
     Fetches historical or intraday data for a specific A-share stock or ETF using AKShare,

@@ -101,6 +101,9 @@ class Settings(BaseSettings):
     RELOAD: bool = False
     AUTO_RELOAD: bool = False
 
+    # WebSocket Settings
+    WEBSOCKET_HEARTBEAT_INTERVAL_SECONDS: int = 30
+
     # Computed properties for backward compatibility
     @property
     def ALLOWED_ORIGINS(self) -> list[str]:

@@ -26,7 +26,7 @@ To run the frontend development server, follow these steps:
 2.  **Run the Development Server**:
     ```bash
     # From the project root directory
-    npm start --prefix frontend
+    npm run dev --prefix frontend
     ```
     The application will open automatically in your browser at `http://localhost:3000`.
 
@@ -50,7 +50,7 @@ frontend/
 
 In the `frontend` directory, you can run:
 
-- `npm start`: Runs the app in development mode.
+- `npm run dev`: Runs the app in development mode.
 - `npm test`: Launches the test runner.
 - `npm run build`: Builds the app for production.
 - `npm run eject`: Ejects from Create React App.

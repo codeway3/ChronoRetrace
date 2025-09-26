@@ -562,8 +562,8 @@ spec:
       - name: frontend
         image: chronoretrace-frontend:latest
         env:
-        - name: REACT_APP_API_URL
-          value: "https://api.chronoretrace.com"
+        - name: VITE_API_BASE_URL
+        value: "https://api.chronoretrace.com"
         ports:
         - containerPort: 3000
         livenessProbe:

@@ -19,7 +19,7 @@ def get_top_cryptos(limit: int = 100) -> list[dict[str, Any]]:
         data = response.json()
         if "Data" in data:
             result = data["Data"]
-            return cast(list[dict[str, Any]], result)
+            return cast("list[dict[str, Any]]", result)
         return []
     except requests.exceptions.RequestException as e:
         print(f"Error fetching crypto data: {e}")
@@ -60,7 +60,7 @@ def aggregate_ohlcv(data: list[dict[str, Any]], interval: str) -> list[dict[str,
     agg_df.reset_index(inplace=True)
     agg_df["time"] = agg_df["time"].apply(lambda x: int(x.timestamp()))
 
-    result = cast(list[dict[str, Any]], agg_df.to_dict(orient="records"))
+    result = cast("list[dict[str, Any]]", agg_df.to_dict(orient="records"))
     return result
 
 
@@ -88,7 +88,7 @@ def get_crypto_ohlcv(
             # Calculate MAs for daily data
             df = pd.DataFrame(daily_data)
             df = calculate_ma(df)
-            result = cast(list[dict[str, Any]], df.to_dict(orient="records"))
+            result = cast("list[dict[str, Any]]", df.to_dict(orient="records"))
             return result
 
         return []

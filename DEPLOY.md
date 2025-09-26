@@ -20,7 +20,7 @@ cd ChronoRetrace
 - 🔧 后端 API: http://localhost:8000
 - 👤 管理后台: http://localhost:8000/admin
 
-**默认账号**: admin / admin123
+**默认账号**: admin / ChronoAdmin2024!
 
 ## 📋 支持的系统
 
@@ -37,6 +37,9 @@ cd ChronoRetrace
 # 查看日志
 tail -f logs/backend.log
 tail -f logs/frontend.log
+
+# 手动启动前端(开发模式)
+cd frontend && npm run dev
 
 # Docker 方式查看状态
 docker-compose ps

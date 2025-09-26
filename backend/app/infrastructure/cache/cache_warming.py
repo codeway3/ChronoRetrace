@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Union
 
 # !/usr/bin/env python3
 """
@@ -420,7 +419,7 @@ class CacheWarmingService:
 
     async def _fetch_stock_data(
         self, db: Session, ts_code: str, interval: str
-    ) -> Union[list[dict], None]:
+    ) -> list[dict] | None:
         """
         获取股票数据
 
@@ -469,9 +468,7 @@ class CacheWarmingService:
             logger.error(f"获取股票数据失败 {ts_code}: {e}")
             return None
 
-    async def _fetch_market_metrics(
-        self, db: Session, market: str
-    ) -> Union[dict, None]:
+    async def _fetch_market_metrics(self, db: Session, market: str) -> dict | None:
         """
         获取市场指标
 
@@ -535,9 +532,7 @@ class CacheWarmingService:
             logger.error(f"获取市场指标失败 {market}: {e}")
             return None
 
-    async def _fetch_fundamental_data(
-        self, db: Session, ts_code: str
-    ) -> Union[dict, None]:
+    async def _fetch_fundamental_data(self, db: Session, ts_code: str) -> dict | None:
         """
         获取基本面数据
 
@@ -690,7 +685,7 @@ class CacheWarmingService:
                         updated_count += 1
 
                 except Exception as e:
-                    error_msg = f"Failed to update {ts_code}: {str(e)}"
+                    error_msg = f"Failed to update {ts_code}: {e!s}"
                     errors.append(error_msg)
                     logger.error(error_msg)
                     continue

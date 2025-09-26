@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime
-from typing import Literal, Union
+from typing import Literal
 
 import akshare as ak
 import numpy as np
@@ -250,7 +250,7 @@ def fetch_china_futures_from_akshare(
         candidates = [upper_symbol]
 
     df = pd.DataFrame()
-    last_exc: Union[Exception, None] = None
+    last_exc: Exception | None = None
     for cand in candidates:
         try:
             logger.info(f"Trying Akshare contract: {cand}")

@@ -5,8 +5,8 @@ WebSocket订阅功能测试
 """
 
 import json
+
 import pytest
-from datetime import datetime
 
 
 @pytest.mark.integration
@@ -14,7 +14,7 @@ def test_subscription(client):
     """测试WebSocket订阅功能"""
     client_id = "test_subscription_client"
 
-    print(f"=== WebSocket订阅测试开始 ===")
+    print("=== WebSocket订阅测试开始 ===")
 
     try:
         with client.websocket_connect(f"/api/v1/ws/{client_id}") as websocket:
@@ -60,7 +60,7 @@ def test_ping(client):
     """测试ping功能"""
     client_id = "test_ping_client"
 
-    print(f"\n=== Ping测试开始 ===")
+    print("\n=== Ping测试开始 ===")
 
     try:
         with client.websocket_connect(f"/api/v1/ws/{client_id}") as websocket:

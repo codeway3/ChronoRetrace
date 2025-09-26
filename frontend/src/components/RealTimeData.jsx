@@ -208,7 +208,7 @@ export const WebSocketStatus = ({ className = '' }) => {
 
       {statusDetails && (
         <div className="status-details">
-          <div>订阅数: {statusDetails.subscriptions.length}</div>
+          <div>订阅数: {statusDetails.subscriptionsCount ?? 0}</div>
           {statusDetails.reconnectAttempts > 0 && (
             <div>重连次数: {statusDetails.reconnectAttempts}</div>
           )}

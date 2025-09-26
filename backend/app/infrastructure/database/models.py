@@ -1,24 +1,27 @@
-# -*- coding: utf-8 -*-
-from datetime import datetime
 import enum
+from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
     Date,
     DateTime,
-    Enum as SQLEnum,
+    Enum,
     Float,
     ForeignKey,
     Index,
     Integer,
-    JSON,
     Numeric,
     String,
     Text,
     text,
+    func,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy import (
+    Enum as SQLEnum,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.schema import UniqueConstraint
 
 from .session import Base
@@ -293,9 +296,9 @@ class UserPreferences(Base):
     currency = Column(String(10), default="CNY")
 
     # 通知设置
-    email_notifications = Column(Boolean, default=True)
+    email_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
     sms_notifications = Column(Boolean, default=False)
-    push_notifications = Column(Boolean, default=True)
+    push_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # 数据展示偏好
     default_chart_type = Column(String(20), default="candlestick")
@@ -311,11 +314,16 @@ class UserPreferences(Base):
         String(20), nullable=True
     )  # short_term, medium_term, long_term
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    currency_preference: Mapped[str] = mapped_column(String(10), default="USD")
 
-    # 关系
-    user = relationship("User", back_populates="preferences")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user: Mapped["User"] = relationship("User", back_populates="preferences")
 
 
 class UserWatchlist(Base):
@@ -580,9 +588,7 @@ class AssetConfig(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):
-        return "<AssetConfig(asset_type={}, name={})>".format(
-            self.asset_type, self.name
-        )
+        return f"<AssetConfig(asset_type={self.asset_type}, name={self.name})>"
 
 
 class AssetSymbol(Base):
@@ -621,9 +627,7 @@ class AssetSymbol(Base):
     )
 
     def __repr__(self):
-        return "<AssetSymbol(asset_type={}, symbol={}, name={})>".format(
-            self.asset_type, self.symbol, self.name
-        )
+        return f"<AssetSymbol(asset_type={self.asset_type}, symbol={self.symbol}, name={self.name})>"
 
 
 class AssetMarketData(Base):
@@ -673,9 +677,7 @@ class AssetMarketData(Base):
     )
 
     def __repr__(self):
-        return "<AssetMarketData(asset_type={}, symbol={}, trade_date={})>".format(
-            self.asset_type, self.symbol, self.trade_date
-        )
+        return f"<AssetMarketData(asset_type={self.asset_type}, symbol={self.symbol}, trade_date={self.trade_date})>"
 
 
 class AssetScreenerTemplate(Base):
@@ -709,8 +711,8 @@ class AssetScreenerTemplate(Base):
     )
 
     def __repr__(self):
-        return "<AssetScreenerTemplate(asset_type={}, name={})>".format(
-            self.asset_type, self.name
+        return (
+            f"<AssetScreenerTemplate(asset_type={self.asset_type}, name={self.name})>"
         )
 
 
@@ -748,8 +750,4 @@ class AssetBacktestTemplate(Base):
     )
 
     def __repr__(self):
-        return (
-            "<AssetBacktestTemplate(asset_type={}, name={}, strategy_type={})>".format(
-                self.asset_type, self.name, self.strategy_type
-            )
-        )
+        return f"<AssetBacktestTemplate(asset_type={self.asset_type}, name={self.name}, strategy_type={self.strategy_type})>"

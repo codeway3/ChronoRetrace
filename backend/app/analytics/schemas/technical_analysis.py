@@ -1,11 +1,11 @@
+from typing import Any
+
 from pydantic import BaseModel
-from typing import List, Dict, Any
-import datetime
 
 
 class Indicator(BaseModel):
     name: str
-    params: Dict[str, int] = {}
+    params: dict[str, int] = {}
 
 
 class TechnicalIndicatorsRequest(BaseModel):
@@ -13,9 +13,9 @@ class TechnicalIndicatorsRequest(BaseModel):
     interval: str
     start_date: str
     end_date: str
-    indicators: List[Indicator]
+    indicators: list[Indicator]
 
 
 class TechnicalIndicatorsResponse(BaseModel):
     symbol: str
-    data: List[Dict[str, Any]]
+    data: list[dict[str, Any]]

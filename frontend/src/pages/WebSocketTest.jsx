@@ -21,7 +21,9 @@ const WebSocketTest = () => {
   const connect = () => {
     try {
       // 连接到WebSocket服务器
-      const websocket = new WebSocket('ws://localhost:8000/api/v1/ws/frontend_client');
+      const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const wsUrl = `${scheme}://${window.location.host}/api/v1/ws/frontend_client`;
+      const websocket = new WebSocket(wsUrl);
 
       websocket.onopen = () => {
         console.log('WebSocket连接已建立');

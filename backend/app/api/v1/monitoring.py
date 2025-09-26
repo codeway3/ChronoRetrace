@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Union
 
 # !/usr/bin/env python3
 """
@@ -283,7 +282,7 @@ async def get_cache_stats():
 
 @router.get("/metrics", response_model=MetricsResponse)
 async def get_metrics(
-    metric_type: Union[str, None] = Query(None, description="指标类型过滤"),
+    metric_type: str | None = Query(None, description="指标类型过滤"),
     time_range: tuple[datetime, datetime] = Depends(get_time_range),
 ):
     """
@@ -359,9 +358,7 @@ async def clear_cache(
 
 @router.get("/alerts")
 async def get_alerts(
-    severity: Union[str, None] = Query(
-        None, description="告警级别: info, warning, error"
-    ),
+    severity: str | None = Query(None, description="告警级别: info, warning, error"),
 ):
     """
     获取系统告警信息

@@ -144,8 +144,9 @@ SECRET_KEY=your-secret-key-change-in-production
 DEBUG=false
 ALLOWED_HOSTS=localhost,127.0.0.1
 
-# 前端配置
-REACT_APP_API_URL=http://localhost:8000
+# 前端配置（Vite）
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_WS_URL=ws://localhost:8000/api/v1/ws/connect
 EOF
     fi
 
@@ -289,16 +290,17 @@ deploy_frontend() {
     # 安装依赖
     npm install
 
-    # 创建环境配置
+    # 创建环境配置（Vite）
     if [ ! -f ".env" ]; then
         cat > .env << EOF
-REACT_APP_API_URL=http://localhost:8000
+VITE_API_BASE_URL=/api/v1
+VITE_WS_URL=ws://localhost:8000/api/v1/ws/connect
 PORT=3000
 EOF
     fi
 
-    # 启动前端服务
-    nohup npm start > ../logs/frontend.log 2>&1 &
+    # 启动前端服务（Vite 开发服务器）
+    nohup npm run dev > ../logs/frontend.log 2>&1 &
     echo $! > ../logs/frontend.pid
 
     cd ..
@@ -427,6 +429,7 @@ show_deployment_info() {
     else
         log_info "  查看后端日志: tail -f logs/backend.log"
         log_info "  查看前端日志: tail -f logs/frontend.log"
+        log_info "  手动启动前端(开发模式): cd frontend && npm run dev"
         log_info "  停止服务: ./quick-deploy.sh stop"
     fi
     echo

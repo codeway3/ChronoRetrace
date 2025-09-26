@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
-from typing import Any, Union
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -45,7 +45,7 @@ class ValidationRule:
 
     field_name: str
     rule_type: str  # 'format', 'range', 'type', 'logic'
-    rule_config: Union[dict[str, Any], None] = None
+    rule_config: dict[str, Any] | None = None
     severity: ValidationSeverity = ValidationSeverity.ERROR
     error_message: str = ""
     is_enabled: bool = True
@@ -59,8 +59,8 @@ class ValidationResult:
     field_name: str
     message: str
     severity: ValidationSeverity
-    suggested_value: Union[Any, None] = None
-    error_code: Union[str, None] = None
+    suggested_value: Any | None = None
+    error_code: str | None = None
 
 
 @dataclass
@@ -72,10 +72,10 @@ class ValidationReport:
     results: list[ValidationResult]
     execution_time: float
     validated_at: datetime
-    record_id: Union[str, None] = None
-    validation_time: Union[float, None] = None
-    errors: Union[list[str], None] = None
-    warnings: Union[list[str], None] = None
+    record_id: str | None = None
+    validation_time: float | None = None
+    errors: list[str] | None = None
+    warnings: list[str] | None = None
 
     def __post_init__(self):
         if self.errors is None:
@@ -93,6 +93,20 @@ class ValidationReport:
         # 如果没有提供validation_time，使用execution_time
         if self.validation_time is None:
             self.validation_time = self.execution_time
+
+    @property
+    def summary(self) -> str:
+        """生成校验报告的摘要信息"""
+        error_count = len(self.errors) if self.errors else 0
+        warning_count = len(self.warnings) if self.warnings else 0
+
+        return (
+            f"校验报告: 数据{'有效' if self.is_valid else '无效'}, "
+            f"质量评分: {self.quality_score:.2f}, "
+            f"错误: {error_count} 个, "
+            f"警告: {warning_count} 个, "
+            f"执行时间: {self.execution_time:.3f} 秒"
+        )
 
 
 class DataValidationService:
@@ -123,7 +137,7 @@ class DataValidationService:
         }
 
     def validate_stock_data(
-        self, data: Union[dict[str, Any], None], market_type: str = "A_share"
+        self, data: dict[str, Any] | None, market_type: str = "A_share"
     ) -> ValidationReport:
         """校验股票数据
 
@@ -137,9 +151,19 @@ class DataValidationService:
         start_time = datetime.now()
         results: list[ValidationResult] = []
 
-        # 检查数据是否为None
-        if data is None:
+        # 检查数据是否为None或非字典类型
+        if data is None or not isinstance(data, dict):
             data = {}
+            # 添加数据类型错误的结果
+            results.append(
+                ValidationResult(
+                    is_valid=False,
+                    field_name="data",
+                    message="数据格式错误，期望字典类型",
+                    severity=ValidationSeverity.ERROR,
+                    error_code="INVALID_DATA_TYPE",
+                )
+            )
 
         # 必填字段校验
         required_fields = ["code", "date", "close"]
@@ -195,7 +219,7 @@ class DataValidationService:
 
     def _validate_required_field(
         self, data: dict[str, Any], field_name: str
-    ) -> Union[ValidationResult, None]:
+    ) -> ValidationResult | None:
         """校验必填字段"""
         if data is None or field_name not in data or data[field_name] is None:
             return ValidationResult(
@@ -520,7 +544,7 @@ class DataValidationService:
         return is_valid, quality_score
 
     def get_validation_rules(
-        self, table_name: Union[str, None] = None
+        self, table_name: str | None = None
     ) -> list[ValidationRule]:
         """获取所有验证规则"""
         rules = []
@@ -580,12 +604,10 @@ class DataValidationService:
             self.db_session.commit()
 
         except Exception as e:
-            self.logger.error(f"记录校验日志失败: {str(e)}")
+            self.logger.error(f"记录校验日志失败: {e!s}")
             self.db_session.rollback()
 
-    def _format_validation_errors(
-        self, results: list[ValidationResult]
-    ) -> Union[str, None]:
+    def _format_validation_errors(self, results: list[ValidationResult]) -> str | None:
         """格式化校验错误信息"""
         if not results:
             return None

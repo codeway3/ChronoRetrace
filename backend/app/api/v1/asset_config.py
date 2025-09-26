@@ -1,42 +1,39 @@
-from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from app.infrastructure.database.session import get_db
+
 from app.infrastructure.database.models import (
+    AssetBacktestTemplate,
     AssetConfig,
-    AssetSymbol,
     AssetMarketData,
     AssetScreenerTemplate,
-    AssetBacktestTemplate,
+    AssetSymbol,
 )
+from app.infrastructure.database.session import get_db
 from app.schemas.asset_config import (
+    AssetBacktestTemplateCreate,
+    AssetBacktestTemplateResponse,
     AssetConfigCreate,
-    AssetConfigUpdate,
     AssetConfigResponse,
-    AssetSymbolCreate,
-    AssetSymbolUpdate,
-    AssetSymbolResponse,
+    AssetConfigUpdate,
     AssetMarketDataCreate,
-    AssetMarketDataUpdate,
     AssetMarketDataResponse,
     AssetScreenerTemplateCreate,
-    AssetScreenerTemplateUpdate,
     AssetScreenerTemplateResponse,
-    AssetBacktestTemplateCreate,
-    AssetBacktestTemplateUpdate,
-    AssetBacktestTemplateResponse,
+    AssetSymbolCreate,
+    AssetSymbolResponse,
+    AssetSymbolUpdate,
 )
 
 router = APIRouter()
 
 
 # Asset Config endpoints
-@router.get("/configs", response_model=List[AssetConfigResponse])
+@router.get("/configs", response_model=list[AssetConfigResponse])
 def get_asset_configs(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    asset_type: Optional[str] = None,
-    is_enabled: Optional[bool] = None,
+    asset_type: str | None = None,
+    is_enabled: bool | None = None,
     db: Session = Depends(get_db),
 ):
     """获取资产配置列表"""
@@ -115,16 +112,16 @@ def delete_asset_config(config_id: int, db: Session = Depends(get_db)):
 
 
 # Asset Symbol endpoints
-@router.get("/symbols", response_model=List[AssetSymbolResponse])
+@router.get("/symbols", response_model=list[AssetSymbolResponse])
 def get_asset_symbols(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    asset_type: Optional[str] = None,
-    exchange: Optional[str] = None,
-    sector: Optional[str] = None,
-    is_active: Optional[bool] = None,
-    is_tradable: Optional[bool] = None,
-    search: Optional[str] = None,
+    asset_type: str | None = None,
+    exchange: str | None = None,
+    sector: str | None = None,
+    is_active: bool | None = None,
+    is_tradable: bool | None = None,
+    search: str | None = None,
     db: Session = Depends(get_db),
 ):
     """获取资产标的列表"""
@@ -188,14 +185,14 @@ def update_asset_symbol(
 
 
 # Market Data endpoints
-@router.get("/market-data", response_model=List[AssetMarketDataResponse])
+@router.get("/market-data", response_model=list[AssetMarketDataResponse])
 def get_market_data(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    asset_type: Optional[str] = None,
-    symbol: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    asset_type: str | None = None,
+    symbol: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
 ):
     """获取市场数据"""
@@ -230,13 +227,13 @@ def create_market_data(data: AssetMarketDataCreate, db: Session = Depends(get_db
 
 
 # Screener Template endpoints
-@router.get("/screener-templates", response_model=List[AssetScreenerTemplateResponse])
+@router.get("/screener-templates", response_model=list[AssetScreenerTemplateResponse])
 def get_screener_templates(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    asset_type: Optional[str] = None,
-    is_public: Optional[bool] = None,
-    is_system: Optional[bool] = None,
+    asset_type: str | None = None,
+    is_public: bool | None = None,
+    is_system: bool | None = None,
     db: Session = Depends(get_db),
 ):
     """获取筛选器模板列表"""
@@ -271,14 +268,14 @@ def create_screener_template(
 
 
 # Backtest Template endpoints
-@router.get("/backtest-templates", response_model=List[AssetBacktestTemplateResponse])
+@router.get("/backtest-templates", response_model=list[AssetBacktestTemplateResponse])
 def get_backtest_templates(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    asset_type: Optional[str] = None,
-    strategy_type: Optional[str] = None,
-    is_public: Optional[bool] = None,
-    is_system: Optional[bool] = None,
+    asset_type: str | None = None,
+    strategy_type: str | None = None,
+    is_public: bool | None = None,
+    is_system: bool | None = None,
     db: Session = Depends(get_db),
 ):
     """获取回测模板列表"""

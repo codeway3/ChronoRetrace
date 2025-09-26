@@ -65,7 +65,7 @@ cd ChronoRetrace
 - 🔧 后端API：http://localhost:8000
 - 👤 管理面板：http://localhost:8000/admin
 
-**默认凭据：** `admin` / `admin123`
+**默认凭据：** `admin` / `ChronoAdmin2024!`
 
 **监控服务 (如果已部署):**
 - 🔥 Prometheus: http://localhost:9090

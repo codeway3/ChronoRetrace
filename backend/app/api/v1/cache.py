@@ -1,17 +1,5 @@
 from __future__ import annotations
 
-# !/usr/bin/env python3
-"""
-ChronoRetrace - 缓存管理API
-
-本模块提供缓存管理相关的API端点，包括缓存预热、清理和状态查询等功能。
-
-Author: ChronoRetrace Team
-Date: 2024
-"""
-
-from typing import Union
-
 import logging
 from datetime import datetime
 
@@ -22,6 +10,16 @@ from app.infrastructure.cache.cache_service import cache_service
 from app.infrastructure.cache.cache_warming import cache_warming_service
 from app.infrastructure.monitoring.performance_monitor import performance_monitor
 
+# !/usr/bin/env python3
+"""
+ChronoRetrace - 缓存管理API
+
+本模块提供缓存管理相关的API端点，包括缓存预热、清理和状态查询等功能。
+
+Author: ChronoRetrace Team
+Date: 2024
+"""
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/cache", tags=["cache"])
@@ -30,7 +28,7 @@ router = APIRouter(prefix="/cache", tags=["cache"])
 class CacheWarmingRequest(BaseModel):
     """缓存预热请求模型"""
 
-    stock_codes: Union[list[str], None] = None
+    stock_codes: list[str] | None = None
     force_refresh: bool = False
     warm_hot_stocks: bool = True
     warm_stock_info: bool = True
@@ -45,13 +43,13 @@ class CacheStatsResponse(BaseModel):
     hit_rate: float
     miss_rate: float
     warming_stats: dict
-    last_warming_time: Union[datetime, None]
+    last_warming_time: datetime | None
 
 
 class CacheClearRequest(BaseModel):
     """缓存清理请求模型"""
 
-    pattern: Union[str, None] = None
+    pattern: str | None = None
     clear_all: bool = False
 
 
@@ -108,7 +106,7 @@ async def warm_cache(request: CacheWarmingRequest, background_tasks: BackgroundT
 
     except Exception as e:
         logger.error(f"缓存预热失败: {e}")
-        raise HTTPException(status_code=500, detail=f"缓存预热失败: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"缓存预热失败: {e!s}") from e
 
 
 @router.get("/stats")
@@ -135,9 +133,7 @@ async def get_cache_stats() -> CacheStatsResponse:
 
     except Exception as e:
         logger.error(f"获取缓存统计失败: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"获取缓存统计失败: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"获取缓存统计失败: {e!s}") from e
 
 
 @router.post("/clear")
@@ -181,12 +177,13 @@ async def clear_cache(request: CacheClearRequest):
 
     except Exception as e:
         logger.error(f"清理缓存失败: {e}")
-        raise HTTPException(status_code=500, detail=f"清理缓存失败: {str(e)}") from e
+        raise HTTPException(status_code=500, detail=f"清理缓存失败: {e!s}") from e
 
 
 @router.post("/refresh")
 async def refresh_cache(
-    stock_codes: Union[list[str], None] = None, background_tasks: BackgroundTasks = None
+    background_tasks: BackgroundTasks,
+    stock_codes: list[str] | None = None,
 ):
     """
     刷新缓存数据
@@ -201,6 +198,7 @@ async def refresh_cache(
     try:
         start_time = datetime.now()
 
+        # 使用 FastAPI 注入的 BackgroundTasks 直接添加任务
         if stock_codes:
             # 刷新指定股票的缓存
             background_tasks.add_task(
@@ -212,16 +210,22 @@ async def refresh_cache(
             background_tasks.add_task(cache_warming_service.refresh_all_cache)
             message = "已启动全量缓存刷新任务"
 
+        # 记录性能指标
+        performance_monitor.record_api_metric(
+            endpoint="/cache/refresh", method="POST", status_code=200, response_time=0.0
+        )
+
         return {
             "status": "success",
             "message": message,
             "task_started_at": start_time,
-            "stock_codes": stock_codes,
         }
 
     except Exception as e:
-        logger.error(f"刷新缓存失败: {e}")
-        raise HTTPException(status_code=500, detail=f"刷新缓存失败: {str(e)}") from e
+        logger.error(f"刷新缓存任务启动失败: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"刷新缓存任务启动失败: {e!s}"
+        ) from e
 
 
 @router.get("/health")

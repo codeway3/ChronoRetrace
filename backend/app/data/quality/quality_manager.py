@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Union
 
+import pandas as pd
+
 from sqlalchemy.orm import Session
 
 from ...infrastructure.error_handling_service import ErrorHandlingService
@@ -33,7 +35,7 @@ class DataQualityConfig:
     enable_logging: bool = True
 
     # 校验配置
-    validation_rules: Union[dict[str, Any], None] = None
+    validation_rules: dict[str, Any] | None = None
 
     # 去重配置
     deduplication_strategy: DeduplicationStrategy = DeduplicationStrategy.KEEP_FIRST
@@ -63,16 +65,21 @@ class DataQualityResult:
     processing_time: float
     quality_score: float
     validation_reports: list[ValidationReport]
-    deduplication_report: Union[DeduplicationReport, None]
+    deduplication_report: DeduplicationReport | None
     error_messages: list[str]
     warnings: list[str]
     performance_metrics: dict[str, Any]
+
+    @property
+    def has_errors(self) -> bool:
+        """检查是否有错误"""
+        return len(self.error_messages) > 0
 
 
 class DataQualityManager:
     """数据质量管理器 - 统一的数据质量处理入口"""
 
-    def __init__(self, session: Session, config: Union[DataQualityConfig, None] = None):
+    def __init__(self, session: Session, config: DataQualityConfig | None = None):
         """
         初始化数据质量管理器
 
@@ -124,18 +131,26 @@ class DataQualityManager:
         self.logger = logging.getLogger(__name__)
 
     def process_data(
-        self, data: list[dict[str, Any]], data_type: str = "A_share"
+        self,
+        data: Union[list[dict[str, Any]], pd.DataFrame],
+        data_type: str = "A_share",
     ) -> DataQualityResult:
         """
         处理数据质量 - 主要入口方法
 
         Args:
-            data: 待处理的数据列表
+            data: 待处理的数据列表或DataFrame
             data_type: 数据类型
 
         Returns:
             DataQualityResult: 处理结果
         """
+        # 如果是DataFrame，转换为字典列表
+        if isinstance(data, pd.DataFrame):
+            data = [
+                {str(k): v for k, v in d.items()}
+                for d in data.to_dict(orient="records")
+            ]
         start_time = datetime.now()
 
         try:
@@ -226,29 +241,50 @@ class DataQualityManager:
 
         except Exception as e:
             # 错误处理
+            from ...infrastructure.error_handling_service import ErrorContext
+
             error_response = self.error_service.handle_exception(
                 exception=e,
-                context={
-                    "operation": "data_quality_processing",
-                    "data_count": len(data),
-                    "data_type": data_type,
-                },
+                context=ErrorContext(
+                    operation="data_quality_processing",
+                    additional_data={"data_count": len(data), "data_type": data_type},
+                ),
             )
 
             # 记录错误日志
             if self.config.enable_logging:
                 from ...infrastructure.logging_service import LogLevel
+                import json
+
+                # 将ErrorResponse对象序列化为JSON字符串
+                error_details_json = json.dumps(
+                    {
+                        "success": error_response.success,
+                        "error_code": error_response.error_code,
+                        "error_message": error_response.error_message,
+                        "user_message": error_response.user_message,
+                        "details": error_response.details,
+                        "timestamp": (
+                            error_response.timestamp.isoformat()
+                            if error_response.timestamp
+                            else None
+                        ),
+                        "request_id": error_response.request_id,
+                    },
+                    ensure_ascii=False,
+                    default=str,
+                )
 
                 self.logging_service.log_operation(
                     operation_id=str(uuid.uuid4()),
                     operation_type=OperationType.PIPELINE,
                     status=LogStatus.FAILED,
                     level=LogLevel.ERROR,
-                    message=f"数据质量处理失败: {str(e)}",
-                    error_details=error_response,
+                    message=f"数据质量处理失败: {e!s}",
+                    error_details=error_details_json,
                 )
 
-            self.logger.error(f"数据质量处理失败: {str(e)}")
+            self.logger.error(f"数据质量处理失败: {e!s}")
 
             # 返回错误结果
             end_time = datetime.now()
@@ -301,7 +337,7 @@ class DataQualityManager:
             }
 
         except Exception as e:
-            self.logger.error(f"数据校验失败: {str(e)}")
+            self.logger.error(f"数据校验失败: {e!s}")
             raise
 
     def _deduplicate_data(self, data: list[dict[str, Any]]) -> dict[str, Any]:
@@ -315,8 +351,10 @@ class DataQualityManager:
             if duplicates_found > 0:
                 if self.config.enable_performance_optimization:
                     # 使用性能优化的批量去重
-                    dedup_report = self.performance_service.batch_deduplicate_data(
-                        data, self.config.deduplication_strategy
+                    dedup_report = (
+                        self.performance_service.batch_deduplicate_memory_data(
+                            data, self.config.deduplication_strategy
+                        )
                     )
                 else:
                     # 使用标准批量去重
@@ -343,7 +381,7 @@ class DataQualityManager:
             }
 
         except Exception as e:
-            self.logger.error(f"数据去重失败: {str(e)}")
+            self.logger.error(f"数据去重失败: {e!s}")
             raise
 
     def _collect_performance_metrics(self, start_time: datetime) -> dict[str, Any]:
@@ -359,7 +397,7 @@ class DataQualityManager:
                     "elapsed_time": (current_time - start_time).total_seconds(),
                 }
         except Exception as e:
-            self.logger.warning(f"性能指标收集失败: {str(e)}")
+            self.logger.warning(f"性能指标收集失败: {e!s}")
             return {}
 
     def validate_only(
@@ -383,7 +421,7 @@ class DataQualityManager:
     def deduplicate_only(
         self,
         data: list[dict[str, Any]],
-        strategy: Union[DeduplicationStrategy, None] = None,
+        strategy: DeduplicationStrategy | None = None,
     ) -> DeduplicationReport:
         """
         仅执行数据去重
@@ -414,7 +452,7 @@ class DataQualityManager:
             else:
                 return {"message": "日志功能未启用，无法获取统计信息"}
         except Exception as e:
-            self.logger.error(f"获取质量统计失败: {str(e)}")
+            self.logger.error(f"获取质量统计失败: {e!s}")
             return {"error": str(e)}
 
     def cleanup_resources(self):
@@ -429,9 +467,9 @@ class DataQualityManager:
             self.logger.info("资源清理完成")
 
         except Exception as e:
-            self.logger.error(f"资源清理失败: {str(e)}")
+            self.logger.error(f"资源清理失败: {e!s}")
 
-    def __enter__(self):
+    def __enter__(self) -> "DataQualityManager":
         """上下文管理器入口"""
         return self
 
@@ -442,7 +480,7 @@ class DataQualityManager:
 
 # 便捷函数
 def create_data_quality_manager(
-    session: Session, config: Union[DataQualityConfig, None] = None
+    session: Session, config: DataQualityConfig | None = None
 ) -> DataQualityManager:
     """
     创建数据质量管理器的便捷函数
@@ -473,4 +511,4 @@ def quick_quality_check(
     """
     with create_data_quality_manager(session) as manager:
         result = manager.process_data(data, data_type)
-        return result  # type: ignore
+        return result

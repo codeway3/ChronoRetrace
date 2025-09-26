@@ -7,8 +7,9 @@ WebSocket连接管理器
 import asyncio
 import json
 import logging
-from typing import Dict, Set, Optional, Any
 from datetime import datetime
+from typing import Any
+
 from fastapi import WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
@@ -17,24 +18,22 @@ logger = logging.getLogger(__name__)
 class ConnectionManager:
     """WebSocket连接管理器"""
 
-    def __init__(self):
+    def __init__(self, heartbeat_interval_seconds: int = 30):
         # 活跃连接: client_id -> WebSocket
-        self.active_connections: Dict[str, WebSocket] = {}
-
+        self.active_connections: dict[str, WebSocket] = {}
         # 订阅关系: topic -> set of client_ids
-        self.subscriptions: Dict[str, Set[str]] = {}
-
+        self.subscriptions: dict[str, set[str]] = {}
         # 客户端订阅: client_id -> set of topics
-        self.client_subscriptions: Dict[str, Set[str]] = {}
-
+        self.client_subscriptions: dict[str, set[str]] = {}
         # 连接元数据
-        self.connection_metadata: Dict[str, Dict[str, Any]] = {}
-
+        self.connection_metadata: dict[str, dict[str, Any]] = {}
         # 心跳任务
-        self.heartbeat_tasks: Dict[str, asyncio.Task] = {}
+        self.heartbeat_tasks: dict[str, asyncio.Task] = {}
+        # 心跳间隔（秒）
+        self.heartbeat_interval_seconds: int = heartbeat_interval_seconds
 
     async def connect(
-        self, websocket: WebSocket, client_id: str, user_id: Optional[str] = None
+        self, websocket: WebSocket, client_id: str, user_id: str | None = None
     ) -> bool:
         """
         建立WebSocket连接
@@ -124,6 +123,41 @@ class ConnectionManager:
             except Exception as cleanup_error:
                 logger.error(f"强制清理客户端 {client_id} 连接时出错: {cleanup_error}")
 
+    async def _cleanup_connection(self, client_id: str) -> None:
+        """
+        清理连接的内部方法，避免重复调用disconnect
+
+        Args:
+            client_id: 客户端唯一标识
+        """
+        try:
+            # 取消心跳任务
+            if client_id in self.heartbeat_tasks:
+                self.heartbeat_tasks[client_id].cancel()
+                del self.heartbeat_tasks[client_id]
+
+            # 清理订阅关系
+            if client_id in self.client_subscriptions:
+                for topic in self.client_subscriptions[client_id].copy():
+                    if topic in self.subscriptions:
+                        self.subscriptions[topic].discard(client_id)
+                        if not self.subscriptions[topic]:
+                            del self.subscriptions[topic]
+                del self.client_subscriptions[client_id]
+
+            # 移除连接
+            if client_id in self.active_connections:
+                del self.active_connections[client_id]
+
+            # 清理元数据
+            if client_id in self.connection_metadata:
+                del self.connection_metadata[client_id]
+
+            logger.debug(f"客户端 {client_id} 连接清理完成")
+
+        except Exception as e:
+            logger.error(f"清理客户端 {client_id} 连接时出错: {e}")
+
     async def subscribe(self, client_id: str, topic: str) -> bool:
         """
         订阅主题
@@ -207,7 +241,7 @@ class ConnectionManager:
             logger.error(f"客户端 {client_id} 取消订阅主题 {topic} 失败: {e}")
             return False
 
-    async def send_to_client(self, client_id: str, message: Dict[str, Any]) -> bool:
+    async def send_to_client(self, client_id: str, message: dict[str, Any]) -> bool:
         """
         向指定客户端发送消息
 
@@ -265,42 +299,7 @@ class ConnectionManager:
 
             return False
 
-    async def _cleanup_connection(self, client_id: str) -> None:
-        """
-        清理连接的内部方法，避免重复调用disconnect
-
-        Args:
-            client_id: 客户端唯一标识
-        """
-        try:
-            # 取消心跳任务
-            if client_id in self.heartbeat_tasks:
-                self.heartbeat_tasks[client_id].cancel()
-                del self.heartbeat_tasks[client_id]
-
-            # 清理订阅关系
-            if client_id in self.client_subscriptions:
-                for topic in self.client_subscriptions[client_id].copy():
-                    if topic in self.subscriptions:
-                        self.subscriptions[topic].discard(client_id)
-                        if not self.subscriptions[topic]:
-                            del self.subscriptions[topic]
-                del self.client_subscriptions[client_id]
-
-            # 移除连接
-            if client_id in self.active_connections:
-                del self.active_connections[client_id]
-
-            # 清理元数据
-            if client_id in self.connection_metadata:
-                del self.connection_metadata[client_id]
-
-            logger.debug(f"客户端 {client_id} 连接清理完成")
-
-        except Exception as e:
-            logger.error(f"清理客户端 {client_id} 连接时出错: {e}")
-
-    async def broadcast_to_topic(self, topic: str, message: Dict[str, Any]) -> int:
+    async def broadcast_to_topic(self, topic: str, message: dict[str, Any]) -> int:
         """
         向订阅指定主题的所有客户端广播消息
 
@@ -362,7 +361,7 @@ class ConnectionManager:
         """
         try:
             while client_id in self.active_connections:
-                await asyncio.sleep(30)  # 每30秒发送一次心跳
+                await asyncio.sleep(self.heartbeat_interval_seconds)
 
                 # 双重检查连接是否还存在
                 if client_id not in self.active_connections:
@@ -396,9 +395,9 @@ class ConnectionManager:
 
                     # 更新最后心跳时间
                     if client_id in self.connection_metadata:
-                        self.connection_metadata[client_id][
-                            "last_heartbeat"
-                        ] = datetime.utcnow()
+                        self.connection_metadata[client_id]["last_heartbeat"] = (
+                            datetime.utcnow()
+                        )
 
                     logger.debug(f"向客户端 {client_id} 发送心跳")
 
@@ -439,7 +438,7 @@ class ConnectionManager:
                 del self.heartbeat_tasks[client_id]
             logger.debug(f"客户端 {client_id} 心跳监控任务结束")
 
-    def get_connection_stats(self) -> Dict[str, Any]:
+    def get_connection_stats(self) -> dict[str, Any]:
         """
         获取连接统计信息
 
@@ -463,7 +462,7 @@ class ConnectionManager:
             },
         }
 
-    def get_topic_subscribers(self, topic: str) -> Set[str]:
+    def get_topic_subscribers(self, topic: str) -> set[str]:
         """
         获取主题的订阅者列表
 

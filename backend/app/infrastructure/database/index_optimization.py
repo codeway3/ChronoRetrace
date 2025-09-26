@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Union
 
 # !/usr/bin/env python3
 """
@@ -23,7 +22,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .models import DailyStockMetrics
-from .session import engine, get_db
+from .session import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ class DatabaseIndexOptimizer:
     特别针对股票数据查询的性能优化。
     """
 
-    def __init__(self, engine: Union[Engine, None] = None):
+    def __init__(self, engine: Engine | None = None):
         """初始化索引优化器"""
         self.engine = engine or engine
         self.optimization_history: list[dict] = []

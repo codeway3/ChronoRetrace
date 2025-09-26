@@ -3,8 +3,8 @@
 股票数据服务层
 集成多级缓存的股票数据查询和管理服务
 """
+
 from __future__ import annotations
-from typing import Union
 
 import hashlib
 import logging
@@ -87,7 +87,7 @@ class CachedStockService:
         except Exception as e:
             logger.error(f"Error fetching stock list for {market_type}: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to fetch stock list: {str(e)}"
+                status_code=500, detail=f"Failed to fetch stock list: {e!s}"
             ) from e
 
     async def refresh_stock_list(
@@ -126,7 +126,7 @@ class CachedStockService:
         except Exception as e:
             logger.error(f"Error refreshing stock list for {market_type}: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to refresh stock list: {str(e)}"
+                status_code=500, detail=f"Failed to refresh stock list: {e!s}"
             ) from e
 
     async def get_stock_data(
@@ -134,7 +134,7 @@ class CachedStockService:
         stock_code: str,
         interval: str = "daily",
         market_type: str = "A_share",
-        trade_date: Union[date, None] = None,
+        trade_date: date | None = None,
     ) -> list[StockDataBase]:
         """获取股票数据（带缓存）
 
@@ -188,7 +188,7 @@ class CachedStockService:
         except Exception as e:
             logger.error(f"Error fetching stock data for {stock_code}: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to fetch stock data: {str(e)}"
+                status_code=500, detail=f"Failed to fetch stock data: {e!s}"
             ) from e
 
     async def _fetch_stock_data_direct(
@@ -196,7 +196,7 @@ class CachedStockService:
         stock_code: str,
         interval: str,
         market_type: str,
-        trade_date: Union[date, None],
+        trade_date: date | None,
     ) -> list[StockDataBase]:
         """直接从数据源获取股票数据
 
@@ -237,7 +237,7 @@ class CachedStockService:
         return records
 
     @smart_cache("stock_info", lambda self, symbol: f"fundamental_{symbol}")
-    async def get_fundamental_data(self, db: Session, symbol: str) -> Union[Any, None]:
+    async def get_fundamental_data(self, db: Session, symbol: str) -> Any | None:
         """获取基本面数据（带缓存）
 
         Args:
@@ -269,7 +269,7 @@ class CachedStockService:
         except Exception as e:
             logger.error(f"Error fetching fundamental data for {symbol}: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to fetch fundamental data: {str(e)}"
+                status_code=500, detail=f"Failed to fetch fundamental data: {e!s}"
             ) from e
 
     @smart_cache("stock_info", lambda self, symbol: f"corporate_actions_{symbol}")
@@ -305,7 +305,7 @@ class CachedStockService:
         except Exception as e:
             logger.error(f"Error fetching corporate actions for {symbol}: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to fetch corporate actions: {str(e)}"
+                status_code=500, detail=f"Failed to fetch corporate actions: {e!s}"
             ) from e
 
     @smart_cache("stock_info", lambda self, symbol: f"annual_earnings_{symbol}")
@@ -341,7 +341,7 @@ class CachedStockService:
         except Exception as e:
             logger.error(f"Error fetching annual earnings for {symbol}: {e}")
             raise HTTPException(
-                status_code=500, detail=f"Failed to fetch annual earnings: {str(e)}"
+                status_code=500, detail=f"Failed to fetch annual earnings: {e!s}"
             ) from e
 
     async def invalidate_stock_cache(

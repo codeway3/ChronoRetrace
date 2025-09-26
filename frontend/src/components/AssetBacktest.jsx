@@ -9,13 +9,11 @@ import {
   Button,
   DatePicker,
   message,
-  Spin,
   Space,
   Tag,
   Tooltip,
   Tabs,
   Table,
-  Progress,
 } from 'antd';
 import {
   PlayCircleOutlined,
@@ -28,6 +26,7 @@ import {
 import { Line } from '@ant-design/plots';
 import { assetBacktestApi } from '../api/assetApi';
 import dayjs from 'dayjs';
+import { getAllStocks } from '../api/stockApi';
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -41,6 +40,29 @@ const AssetBacktest = ({ assetType, title }) => {
   const [supportedStrategies, setSupportedStrategies] = useState([]);
   const [optimizationResult, setOptimizationResult] = useState(null);
   const [activeTab, setActiveTab] = useState('config');
+  const [stockList, setStockList] = useState([]);
+
+  useEffect(() => {
+    const fetchStocks = async () => {
+      try {
+        const marketTypeMap = {
+          'a_share': 'A_share',
+          'us_stock': 'US_stock',
+          // add more if needed
+        };
+        const marketType = marketTypeMap[assetType] || assetType;
+        const response = await getAllStocks(marketType);
+        const formatted = response.data.map(stock => ({
+          value: stock.ts_code,
+          label: `${stock.ts_code} - ${stock.name}`
+        }));
+        setStockList(formatted);
+      } catch (err) {
+        message.error('无法加载股票列表');
+      }
+    };
+    fetchStocks();
+  }, [assetType]);
 
   // 获取支持的策略列表
   useEffect(() => {
@@ -91,32 +113,7 @@ const AssetBacktest = ({ assetType, title }) => {
   };
 
   // 执行策略优化
-  const handleOptimize = async (values) => {
-    if (!assetType) {
-      message.warning('请选择资产类型');
-      return;
-    }
 
-    try {
-      setLoading(true);
-      const config = {
-        ...values,
-        start_date: values.date_range[0].format('YYYY-MM-DD'),
-        end_date: values.date_range[1].format('YYYY-MM-DD'),
-      };
-      delete config.date_range;
-
-      const response = await assetBacktestApi.optimizeGridStrategy(assetType, config);
-      setOptimizationResult(response.data);
-      setActiveTab('optimization');
-      message.success('策略优化完成');
-    } catch (error) {
-      console.error('策略优化失败:', error);
-      message.error('策略优化失败，请检查配置参数');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // 重置配置
   const handleReset = () => {
@@ -177,8 +174,11 @@ const AssetBacktest = ({ assetType, title }) => {
               }
             >
               {/* 这里可以根据资产类型动态加载标的列表 */}
-              <Option value="000001">000001 - 平安银行</Option>
-              <Option value="000002">000002 - 万科A</Option>
+              {stockList.map(stock => (
+                <Option key={stock.value} value={stock.value}>
+                  {stock.label}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
         </Col>

@@ -34,7 +34,7 @@ async def get_industry_overview(
     try:
         logger.info(f"Fetching industry overview: window={window}, provider={provider}")
         data = cast(
-            list[dict[str, object]], await fetcher.build_overview(window, provider)
+            "list[dict[str, object]]", await fetcher.build_overview(window, provider)
         )
         logger.info(f"Industry overview fetched: count={len(data)}")
         return data

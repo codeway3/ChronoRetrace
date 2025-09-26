@@ -1,14 +1,14 @@
 import pandas as pd
-from ta.trend import SMAIndicator, EMAIndicator, MACD
 from ta.momentum import RSIIndicator, StochasticOscillator
+from ta.trend import MACD, EMAIndicator, SMAIndicator
 from ta.volatility import BollingerBands
+
 from app.analytics.schemas.technical_analysis import Indicator
-from typing import List
 
 
 class TechnicalAnalysisService:
     def calculate_indicators(
-        self, df: pd.DataFrame, indicators: List[Indicator]
+        self, df: pd.DataFrame, indicators: list[Indicator]
     ) -> pd.DataFrame:
         for ind in indicators:
             name = ind.name.upper()

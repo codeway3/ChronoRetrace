@@ -3,8 +3,8 @@
 Redis缓存管理器
 提供统一的缓存操作接口，包括键管理、过期策略和失效机制
 """
+
 from __future__ import annotations
-from typing import Union
 
 import hashlib
 import json
@@ -56,8 +56,8 @@ class CacheKeyManager:
         cls,
         key_type: str,
         identifier: str,
-        date_str: Union[str, None] = None,
-        market: Union[str, None] = None,
+        date_str: str | None = None,
+        market: str | None = None,
         version: str = "v1",
     ) -> str:
         """生成标准化的缓存键
@@ -118,7 +118,7 @@ class CacheKeyManager:
         cls,
         key_type: str,
         identifier: str,
-        params: Union[dict[str, Any], None] = None,
+        params: dict[str, Any] | None = None,
         version: str = "v1",
     ) -> str:
         """生成带参数哈希的缓存键
@@ -183,7 +183,7 @@ class CacheKeyManager:
 class RedisCacheManager:
     """Redis缓存管理器"""
 
-    def __init__(self, redis_url: Union[str, None] = None):
+    def __init__(self, redis_url: str | None = None):
         """初始化Redis连接
 
         Args:
@@ -244,7 +244,7 @@ class RedisCacheManager:
         self.stats["errors"] += 1
         logger.error(f"Redis {operation} operation failed for key '{key}': {error}")
 
-    async def get(self, key: str) -> Union[Any, None]:
+    async def get(self, key: str) -> Any | None:
         """获取缓存值
 
         Args:
@@ -269,8 +269,8 @@ class RedisCacheManager:
         self,
         key: str,
         value: Any,
-        ttl: Union[int, None] = None,
-        key_type: Union[str, None] = None,
+        ttl: int | None = None,
+        key_type: str | None = None,
     ) -> bool:
         """设置缓存值
 
@@ -395,8 +395,8 @@ class RedisCacheManager:
             return -2
 
     def increment(
-        self, key: str, amount: int = 1, ttl: Union[int, None] = None
-    ) -> Union[int, None]:
+        self, key: str, amount: int = 1, ttl: int | None = None
+    ) -> int | None:
         """原子性递增操作
 
         Args:
@@ -535,8 +535,8 @@ cache_manager = RedisCacheManager()
 
 def cache_result(
     key_type: str,
-    ttl: Union[int, None] = None,
-    key_generator: Union[Callable, None] = None,
+    ttl: int | None = None,
+    key_generator: Callable | None = None,
 ):
     """缓存装饰器
 

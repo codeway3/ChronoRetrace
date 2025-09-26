@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-from typing import Any, Union
+from typing import Any
 
 import psutil
 from sqlalchemy.orm import Session, sessionmaker
@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.data.quality.deduplication_service import (
     DataDeduplicationService,
     DeduplicationReport,
+    DeduplicationStrategy,
 )
 from app.data.quality.validation_service import DataValidationService, ValidationReport
 
@@ -62,7 +63,7 @@ class PerformanceMetrics:
     """性能指标数据类"""
 
     start_time: datetime
-    end_time: Union[datetime, None] = None
+    end_time: datetime | None = None
     total_records: int = 0
     processed_records: int = 0
     processing_rate: float = 0.0  # 记录/秒
@@ -125,7 +126,7 @@ class CacheManager:
         self.miss_count = 0
         self.logger = logging.getLogger(__name__)
 
-    def get_cached_value(self, key: str) -> Union[Any, None]:
+    def get_cached_value(self, key: str) -> Any | None:
         """获取缓存值"""
         if key in self.cache:
             self.access_times[key] = datetime.now()
@@ -193,7 +194,7 @@ def performance_monitor(func: Callable) -> Callable:
 
         except Exception as e:
             logger = logging.getLogger(func.__module__)
-            logger.error(f"函数 {func.__name__} 执行失败: {str(e)}")
+            logger.error(f"函数 {func.__name__} 执行失败: {e!s}")
             raise
 
     return wrapper
@@ -202,9 +203,7 @@ def performance_monitor(func: Callable) -> Callable:
 class PerformanceOptimizationService:
     """性能优化服务类"""
 
-    def __init__(
-        self, db_session: Session, config: Union[PerformanceConfig, None] = None
-    ):
+    def __init__(self, db_session: Session, config: PerformanceConfig | None = None):
         self.db_session = db_session
         self.config = config or PerformanceConfig()
         self.logger = logging.getLogger(__name__)
@@ -270,7 +269,7 @@ class PerformanceOptimizationService:
                     self.logger.info(f"已处理 {i + 1}/{len(data_list)} 条记录")
 
             except Exception as e:
-                self.logger.error(f"校验第 {i} 条记录失败: {str(e)}")
+                self.logger.error(f"校验第 {i} 条记录失败: {e!s}")
                 self.metrics.error_count += 1
 
         self.metrics.end_time = datetime.now()
@@ -300,7 +299,7 @@ class PerformanceOptimizationService:
                     batch_reports.append(report)
                     self.metrics.processed_records += 1
                 except Exception as e:
-                    self.logger.error(f"批量校验失败: {str(e)}")
+                    self.logger.error(f"批量校验失败: {e!s}")
                     self.metrics.error_count += 1
 
             reports.extend(batch_reports)
@@ -342,7 +341,7 @@ class PerformanceOptimizationService:
                 reports.extend(chunk_reports)
                 self.metrics.processed_records += len(chunk_reports)
             except Exception as e:
-                self.logger.error(f"并行校验块失败: {str(e)}")
+                self.logger.error(f"并行校验块失败: {e!s}")
                 self.metrics.error_count += 1
 
         self.metrics.end_time = datetime.now()
@@ -368,7 +367,7 @@ class PerformanceOptimizationService:
                     report = validation_service.validate_stock_data(data, market_type)
                     reports.append(report)
                 except Exception as e:
-                    self.logger.error(f"校验数据块中的记录失败: {str(e)}")
+                    self.logger.error(f"校验数据块中的记录失败: {e!s}")
 
             return reports
 
@@ -379,7 +378,7 @@ class PerformanceOptimizationService:
     def batch_deduplicate_data(
         self,
         table_name: str = "daily_stock_metrics",
-        date_range: Union[tuple, None] = None,
+        date_range: tuple | None = None,
     ) -> DeduplicationReport:
         """批量去重处理
 
@@ -413,6 +412,27 @@ class PerformanceOptimizationService:
         else:
             return self._batch_deduplicate(dedup_service, duplicate_groups)
 
+    def batch_deduplicate_memory_data(
+        self,
+        data_list: list[dict[str, Any]],
+        strategy: DeduplicationStrategy = DeduplicationStrategy.KEEP_HIGHEST_QUALITY,
+        unique_fields: list[str] | None = None,
+    ) -> DeduplicationReport:
+        """批量去重内存中的数据
+
+        Args:
+            data_list: 待去重的数据列表
+            strategy: 去重策略
+            unique_fields: 用于判断重复的字段列表
+
+        Returns:
+            DeduplicationReport: 去重报告
+        """
+        dedup_service = DataDeduplicationService(self.db_session)
+
+        # 使用标准去重服务处理内存数据
+        return dedup_service.batch_deduplicate_data(data_list, strategy, unique_fields)
+
     def _batch_deduplicate(
         self, dedup_service: DataDeduplicationService, duplicate_groups: list
     ) -> DeduplicationReport:
@@ -436,7 +456,7 @@ class PerformanceOptimizationService:
                 )
 
             except Exception as e:
-                self.logger.error(f"批量去重失败: {str(e)}")
+                self.logger.error(f"批量去重失败: {e!s}")
                 self.metrics.error_count += 1
 
         execution_time = (datetime.now() - start_time).total_seconds()
@@ -475,7 +495,7 @@ class PerformanceOptimizationService:
                 removed_count = future.result()
                 total_removed += removed_count
             except Exception as e:
-                self.logger.error(f"并行去重块失败: {str(e)}")
+                self.logger.error(f"并行去重块失败: {e!s}")
                 self.metrics.error_count += 1
 
         execution_time = (datetime.now() - start_time).total_seconds()
@@ -557,7 +577,7 @@ class PerformanceOptimizationService:
             self.logger.info("数据库查询优化完成")
 
         except Exception as e:
-            self.logger.error(f"数据库查询优化失败: {str(e)}")
+            self.logger.error(f"数据库查询优化失败: {e!s}")
 
     def get_performance_report(self) -> dict[str, Any]:
         """获取性能报告"""
@@ -623,7 +643,7 @@ class PerformanceOptimizationService:
             self.logger.info("资源清理完成")
 
         except Exception as e:
-            self.logger.error(f"资源清理失败: {str(e)}")
+            self.logger.error(f"资源清理失败: {e!s}")
 
     def __del__(self):
         """析构函数"""

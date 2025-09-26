@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Union
 
 # !/usr/bin/env python3
 """
@@ -227,7 +226,7 @@ class PerformanceMonitor:
         self,
         name: str,
         value: float,
-        tags: Union[dict[str, str], None] = None,
+        tags: dict[str, str] | None = None,
         unit: str = "",
         description: str = "",
     ):
@@ -332,9 +331,7 @@ class PerformanceMonitor:
         )
 
     @contextmanager
-    def measure_time(
-        self, operation_name: str, tags: Union[dict[str, str], None] = None
-    ):
+    def measure_time(self, operation_name: str, tags: dict[str, str] | None = None):
         """
         测量操作耗时的上下文管理器
 
@@ -353,9 +350,7 @@ class PerformanceMonitor:
                 tags or {"type": "operation"},
             )
 
-    def get_cache_stats(
-        self, cache_name: Union[str, None] = None
-    ) -> dict[str, CacheStats]:
+    def get_cache_stats(self, cache_name: str | None = None) -> dict[str, CacheStats]:
         """
         获取缓存统计信息
 
@@ -372,9 +367,7 @@ class PerformanceMonitor:
                 }
             return self.cache_stats.copy()
 
-    def get_api_metrics(
-        self, endpoint: Union[str, None] = None
-    ) -> dict[str, APIMetrics]:
+    def get_api_metrics(self, endpoint: str | None = None) -> dict[str, APIMetrics]:
         """
         获取API性能指标
 
@@ -510,9 +503,7 @@ class PerformanceMonitor:
             ),
         }
 
-    def reset_stats(
-        self, cache_name: Union[str, None] = None, endpoint: Union[str, None] = None
-    ):
+    def reset_stats(self, cache_name: str | None = None, endpoint: str | None = None):
         """
         重置统计信息
 
@@ -573,7 +564,7 @@ performance_monitor = PerformanceMonitor()
 
 # 装饰器函数
 def monitor_performance(
-    operation_name: Union[str, None] = None, tags: Union[dict[str, str], None] = None
+    operation_name: str | None = None, tags: dict[str, str] | None = None
 ):
     """
     性能监控装饰器

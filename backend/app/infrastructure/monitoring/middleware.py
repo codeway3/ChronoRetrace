@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Union
 
 # !/usr/bin/env python3
 """
@@ -36,7 +35,7 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        exclude_paths: Union[list, None] = None,
+        exclude_paths: list | None = None,
         include_request_body: bool = False,
         include_response_body: bool = False,
     ):
@@ -84,7 +83,7 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         endpoint = self._extract_endpoint(request)
 
         # 初始化响应变量
-        response: Union[Response, None] = None
+        response: Response | None = None
         success = True
         status_code = 200
 
@@ -186,7 +185,7 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
     def _record_detailed_metrics(
         self,
         request: Request,
-        response: Union[Response, None],
+        response: Response | None,
         endpoint: str,
         method: str,
         response_time_ms: float,
@@ -366,7 +365,7 @@ def create_monitoring_middleware(
     app: ASGIApp,
     enable_performance: bool = True,
     enable_cache: bool = True,
-    exclude_paths: Union[list, None] = None,
+    exclude_paths: list | None = None,
 ) -> ASGIApp:
     """
     创建监控中间件的工厂函数

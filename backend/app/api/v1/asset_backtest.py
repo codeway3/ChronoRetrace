@@ -10,6 +10,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.analytics.services.strategy_service import BacktestService
 from app.infrastructure.database.session import get_db
 from app.schemas.asset_types import AssetFunction, AssetType, is_function_supported
 from app.schemas.backtest import (
@@ -18,10 +19,11 @@ from app.schemas.backtest import (
     GridStrategyConfig,
     GridStrategyOptimizeConfig,
 )
-from app.services.backtest_service import backtest_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+backtest_service = BacktestService(db=Depends(get_db))
 
 
 @router.post("/backtest/{asset_type}/grid", response_model=BacktestResult)
@@ -58,11 +60,11 @@ async def backtest_grid_strategy_by_asset(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"执行 {asset_type.value} 类型回溯测试时发生错误: {str(e)}")
+        logger.error(f"执行 {asset_type.value} 类型回溯测试时发生错误: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"执行回溯测试时发生错误: {str(e)}",
-        )
+            detail=f"执行回溯测试时发生错误: {e!s}",
+        ) from e
 
 
 @router.post(
@@ -103,11 +105,11 @@ async def optimize_grid_strategy_by_asset(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"优化 {asset_type.value} 类型策略参数时发生错误: {str(e)}")
+        logger.error(f"优化 {asset_type.value} 类型策略参数时发生错误: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"优化策略参数时发生错误: {str(e)}",
-        )
+            detail=f"优化策略参数时发生错误: {e!s}",
+        ) from e
 
 
 @router.get("/backtest/{asset_type}/strategies")
@@ -137,11 +139,11 @@ async def get_supported_strategies(asset_type: AssetType):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取 {asset_type.value} 支持的策略列表时发生错误: {str(e)}")
+        logger.error(f"获取 {asset_type.value} 支持的策略列表时发生错误: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取策略列表时发生错误: {str(e)}",
-        )
+            detail=f"获取策略列表时发生错误: {e!s}",
+        ) from e
 
 
 @router.get("/backtest/asset-types")
@@ -166,8 +168,8 @@ async def get_backtest_supported_asset_types():
         return {"supported_asset_types": supported_types, "total": len(supported_types)}
 
     except Exception as e:
-        logger.error(f"获取支持回溯测试的资产类型列表时发生错误: {str(e)}")
+        logger.error(f"获取支持回溯测试的资产类型列表时发生错误: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取资产类型列表时发生错误: {str(e)}",
-        )
+            detail=f"获取资产类型列表时发生错误: {e!s}",
+        ) from e

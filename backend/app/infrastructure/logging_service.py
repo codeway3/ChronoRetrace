@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
@@ -60,14 +60,14 @@ class LogEntry:
     level: LogLevel
     message: str
     timestamp: datetime
-    record_id: Union[int, None] = None
-    table_name: Union[str, None] = None
-    user_id: Union[int, None] = None
-    session_id: Union[str, None] = None
-    execution_time: Union[float, None] = None
-    details: Union[dict[str, Any], None] = None
-    error_details: Union[str, None] = None
-    metrics: Union[dict[str, Union[int, float]], None] = None
+    record_id: int | None = None
+    table_name: str | None = None
+    user_id: int | None = None
+    session_id: str | None = None
+    execution_time: float | None = None
+    details: dict[str, Any] | None = None
+    error_details: str | None = None
+    metrics: dict[str, int | float] | None = None
 
 
 @dataclass
@@ -84,8 +84,8 @@ class OperationMetrics:
     validation_errors: int = 0
     warnings: int = 0
     execution_time: float = 0.0
-    memory_usage: Union[float, None] = None
-    cpu_usage: Union[float, None] = None
+    memory_usage: float | None = None
+    cpu_usage: float | None = None
 
 
 @dataclass
@@ -95,11 +95,11 @@ class BatchOperationLog:
     batch_id: str
     operation_type: OperationType
     start_time: datetime
-    end_time: Union[datetime, None] = None
+    end_time: datetime | None = None
     status: LogStatus = LogStatus.STARTED
-    metrics: Union[OperationMetrics, None] = None
-    sub_operations: Union[list[str], None] = None  # 子操作ID列表
-    error_summary: Union[str, None] = None
+    metrics: OperationMetrics | None = None
+    sub_operations: list[str] | None = None  # 子操作ID列表
+    error_summary: str | None = None
 
     def __post_init__(self):
         if self.metrics is None:
@@ -111,7 +111,7 @@ class BatchOperationLog:
 class LoggingService:
     """日志记录服务类"""
 
-    def __init__(self, db_session: Session, log_file_path: Union[str, None] = None):
+    def __init__(self, db_session: Session, log_file_path: str | None = None):
         self.db_session = db_session
         self.logger = logging.getLogger(__name__)
 
@@ -145,8 +145,8 @@ class LoggingService:
         self,
         operation_type: OperationType,
         description: str = "",
-        user_id: Union[int, None] = None,
-        session_id: Union[str, None] = None,
+        user_id: int | None = None,
+        session_id: str | None = None,
     ) -> str:
         """开始一个操作并返回操作ID
 
@@ -190,14 +190,14 @@ class LoggingService:
         status: LogStatus,
         level: LogLevel,
         message: str,
-        record_id: Union[int, None] = None,
-        table_name: Union[str, None] = None,
-        user_id: Union[int, None] = None,
-        session_id: Union[str, None] = None,
-        execution_time: Union[float, None] = None,
-        details: Union[dict[str, Any], None] = None,
-        error_details: Union[str, None] = None,
-        metrics: Union[dict[str, Union[int, float]], None] = None,
+        record_id: int | None = None,
+        table_name: str | None = None,
+        user_id: int | None = None,
+        session_id: str | None = None,
+        execution_time: float | None = None,
+        details: dict[str, Any] | None = None,
+        error_details: str | None = None,
+        metrics: dict[str, int | float] | None = None,
     ) -> None:
         """记录操作日志
 
@@ -250,7 +250,7 @@ class LoggingService:
         table_name: str,
         is_valid: bool,
         quality_score: float,
-        validation_errors: Union[list[str], None] = None,
+        validation_errors: list[str] | None = None,
         execution_time: float = 0.0,
     ) -> None:
         """记录数据校验结果
@@ -352,7 +352,7 @@ class LoggingService:
         operation_id: str,
         status: LogStatus = LogStatus.SUCCESS,
         final_message: str = "",
-        final_metrics: Union[OperationMetrics, None] = None,
+        final_metrics: OperationMetrics | None = None,
     ) -> None:
         """结束操作
 
@@ -394,11 +394,11 @@ class LoggingService:
 
     def get_operation_logs(
         self,
-        operation_id: Union[str, None] = None,
-        operation_type: Union[OperationType, None] = None,
-        status: Union[LogStatus, None] = None,
-        start_time: Union[datetime, None] = None,
-        end_time: Union[datetime, None] = None,
+        operation_id: str | None = None,
+        operation_type: OperationType | None = None,
+        status: LogStatus | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """查询操作日志
@@ -456,7 +456,7 @@ class LoggingService:
         return result
 
     def get_operation_statistics(
-        self, operation_type: Union[OperationType, None] = None, days: int = 7
+        self, operation_type: OperationType | None = None, days: int = 7
     ) -> dict[str, Any]:
         """获取操作统计信息
 
@@ -552,7 +552,7 @@ class LoggingService:
             return deleted_count
 
         except Exception as e:
-            self.logger.error(f"清理日志失败: {str(e)}")
+            self.logger.error(f"清理日志失败: {e!s}")
             self.db_session.rollback()
             return 0
 
@@ -581,8 +581,11 @@ class LoggingService:
     def _log_to_database(self, log_entry: LogEntry) -> None:
         """记录到数据库"""
         try:
+            # 对于系统级别的日志（没有具体record_id），使用默认值0
+            record_id = log_entry.record_id if log_entry.record_id is not None else 0
+
             db_log = DataQualityLog(
-                record_id=log_entry.record_id,
+                record_id=record_id,
                 table_name=log_entry.table_name or "system",
                 operation_type=log_entry.operation_type.value,
                 status=log_entry.status.value,
@@ -595,7 +598,7 @@ class LoggingService:
             self.db_session.commit()
 
         except Exception as e:
-            self.logger.error(f"记录日志到数据库失败: {str(e)}")
+            self.logger.error(f"记录日志到数据库失败: {e!s}")
             self.db_session.rollback()
 
     def _update_batch_operation(self, operation_id: str, log_entry: LogEntry) -> None:

@@ -26,21 +26,14 @@ pip-wheel-metadata/
 
 # 后端数据库和运行时文件
 *.db
-backend/app.main:app
-backend/uvicorn
-
-# 测试覆盖率文件
-.coverage*
-htmlcov/
-.pytest_cache/
-
-# Ruff缓存文件
-.ruff_cache/
+# (removed invalid entry) backend/app.main:app
+# (removed invalid entry) backend/uvicorn
 
 # Node / 前端
 frontend/node_modules/
 frontend/build/
 frontend/coverage/
+frontend/.eslintcache
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -53,3 +46,11 @@ backend/.benchmarks/
 # mypy caches (root and backend)
 .mypy_cache/
 backend/.mypy_cache/
+
+# Ruff caches (root and backend)
+.ruff_cache/
+backend/.ruff_cache/
+
+# Pytest caches (root and backend)
+.pytest_cache/
+backend/.pytest_cache/

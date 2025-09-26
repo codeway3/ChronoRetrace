@@ -68,7 +68,7 @@ class GridStrategyOptimizeConfig(BaseModel):
     # Parameters that can be optimized are defined as ranges
     upper_price: RangeValue
     lower_price: RangeValue
-    grid_count: Union[int, list[int]]  # Grid count must be integer
+    grid_count: int | list[int]  # Grid count must be integer
 
     total_investment: float
     initial_quantity: int = 0
@@ -107,7 +107,7 @@ class Transaction(BaseModel):
     trade_type: str
     price: float
     quantity: int
-    pnl: Union[float, None] = None
+    pnl: float | None = None
 
 
 class ChartDataPoint(BaseModel):

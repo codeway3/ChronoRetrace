@@ -23,7 +23,7 @@ async def get_option_expirations(underlying_symbol: str):
         return expirations
     except Exception as e:
         logger.error(
-            f"Failed to fetch expiration dates for {underlying_symbol}: {str(e)}",
+            f"Failed to fetch expiration dates for {underlying_symbol}: {e!s}",
             exc_info=True,
         )
         raise HTTPException(
@@ -46,7 +46,7 @@ async def get_option_chain_for_date(
         return chain
     except Exception as e:
         logger.error(
-            f"Failed to fetch option chain for {underlying_symbol} on {expiration_date}: {str(e)}",
+            f"Failed to fetch option chain for {underlying_symbol} on {expiration_date}: {e!s}",
             exc_info=True,
         )
         raise HTTPException(
@@ -95,9 +95,7 @@ async def get_options_data(
             record["interval"] = interval
         return [StockDataBase.model_validate(record) for record in dict_records]
     except Exception as e:
-        logger.error(
-            f"Failed to fetch options data for {symbol}: {str(e)}", exc_info=True
-        )
+        logger.error(f"Failed to fetch options data for {symbol}: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to fetch data for {symbol}: {str(e)}"
+            status_code=500, detail=f"Failed to fetch data for {symbol}: {e!s}"
         ) from e

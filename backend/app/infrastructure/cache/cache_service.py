@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Union
 
 # !/usr/bin/env python3
 """
@@ -8,6 +7,7 @@ from typing import Union
 整合Redis缓存和内存缓存，提供简单易用的缓存API
 """
 
+import asyncio
 import logging
 from collections.abc import Callable
 from datetime import datetime
@@ -79,7 +79,7 @@ class CacheService:
 
     async def get_stock_info(
         self, stock_code: str, market: str = "A_share"
-    ) -> Union[Any, None]:
+    ) -> Any | None:
         """获取股票基本信息
 
         Args:
@@ -122,7 +122,7 @@ class CacheService:
 
     async def get_stock_daily_data(
         self, stock_code: str, date_str: str, market: str = "A_share"
-    ) -> Union[Any, None]:
+    ) -> Any | None:
         """获取股票日线数据
 
         Args:
@@ -169,7 +169,7 @@ class CacheService:
 
     async def get_stock_metrics(
         self, stock_code: str, date_str: str, market: str = "A_share"
-    ) -> Union[Any, None]:
+    ) -> Any | None:
         """获取股票技术指标
 
         Args:
@@ -218,7 +218,7 @@ class CacheService:
             success = await self.redis_cache.set(key, data, ttl=strategy["redis_ttl"])
             return success
 
-    async def get_filter_result(self, filter_hash: str) -> Union[Any, None]:
+    async def get_filter_result(self, filter_hash: str) -> Any | None:
         """获取筛选结果
 
         Args:
@@ -267,7 +267,7 @@ class CacheService:
         # 注意：这里简化处理，实际应该实现更精确的模式匹配删除
         logger.info(f"Invalidated cache for stock: {stock_code}")
 
-    def invalidate_market_data(self, market: str, date_str: Union[str, None] = None):
+    def invalidate_market_data(self, market: str, date_str: str | None = None):
         """失效市场相关的缓存
 
         Args:
@@ -325,7 +325,7 @@ class CacheService:
 
         logger.info("Preload completed")
 
-    async def get(self, key: str) -> Union[Any, None]:
+    async def get(self, key: str) -> Any | None:
         """获取缓存数据
 
         Args:
@@ -350,7 +350,7 @@ class CacheService:
             logger.error(f"Failed to get cache for key {key}: {e}")
             return None
 
-    async def set(self, key: str, value: Any, ttl: Union[int, None] = None) -> bool:
+    async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
         """设置缓存数据
 
         Args:
@@ -571,8 +571,8 @@ cache_service = CacheService()
 
 def smart_cache(
     key_type: str,
-    identifier_func: Union[Callable, None] = None,
-    ttl: Union[int, None] = None,
+    identifier_func: Callable | None = None,
+    ttl: int | None = None,
 ):
     """智能缓存装饰器
 
@@ -616,14 +616,25 @@ def smart_cache(
                 return cached_result
 
             # 执行函数并缓存结果
-            result = func(*args, **kwargs)
+            if asyncio.iscoroutinefunction(func):
+                result = await func(*args, **kwargs)
+            else:
+                result = func(*args, **kwargs)
+
             if result is not None:
-                # 注意：由于装饰器在同步上下文中，暂时跳过缓存设置
-                # 在实际使用中，建议使用异步装饰器或在异步上下文中调用
+                # 设置缓存结果
                 try:
-                    logger.debug(f"Skipping cache set for {key} in sync context")
+                    if strategy["use_multi_level"]:
+                        await cache_service.multi_cache.set(
+                            key, result, ttl=strategy.get("redis_ttl", 3600)
+                        )
+                    else:
+                        await cache_service.redis_cache.set(
+                            key, result, ttl=strategy.get("redis_ttl", 3600)
+                        )
+                    logger.debug(f"Cached result for {key}")
                 except Exception as e:
-                    logger.warning(f"Failed to cache result: {e}")
+                    logger.warning(f"Failed to cache result for {key}: {e}")
 
             return result
 

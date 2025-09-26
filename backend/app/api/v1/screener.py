@@ -28,8 +28,8 @@ async def screen_stocks_endpoint(
         import logging
         import traceback
 
-        error_msg = f"Screener error: {str(e)}\n{traceback.format_exc()}"
-        logging.error(error_msg)
+        error_msg = f"Screener error: {e!s}\n{traceback.format_exc()}"
+        logging.exception(error_msg)
         # Generic error handler for unexpected issues
         raise HTTPException(
             status_code=500, detail="An internal error occurred."

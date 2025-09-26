@@ -5,8 +5,9 @@ WebSocket基础功能测试
 """
 
 import json
-import pytest
 import sys
+
+import pytest
 
 
 @pytest.mark.integration
@@ -14,7 +15,7 @@ def test_websocket_subscription(client):
     client_id = "test_client_001"
 
     try:
-        print(f"正在连接...")
+        print("正在连接...")
         with client.websocket_connect(f"/api/v1/ws/{client_id}") as websocket:
             print("✅ WebSocket连接成功!")
 
@@ -77,7 +78,7 @@ def test_websocket_connection_only(client):
     client_id = "test_client_connection"
 
     try:
-        print(f"测试连接...")
+        print("测试连接...")
         with client.websocket_connect(f"/api/v1/ws/{client_id}") as websocket:
             print("✅ WebSocket连接测试成功!")
 

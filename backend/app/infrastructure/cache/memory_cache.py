@@ -3,8 +3,8 @@
 应用级内存缓存管理器
 实现L1级别的高速内存缓存，与Redis缓存形成多级缓存架构
 """
+
 from __future__ import annotations
-from typing import Union
 
 import logging
 import threading
@@ -24,7 +24,7 @@ class CacheItem:
 
     value: Any
     created_at: float
-    expires_at: Union[float, None]
+    expires_at: float | None
     access_count: int = 0
     last_accessed: float = 0
 
@@ -107,7 +107,7 @@ class LRUMemoryCache:
             self.stats["evictions"] += 1
             logger.debug(f"Evicted LRU item: {evicted_key}")
 
-    def get(self, key: str) -> Union[Any, None]:
+    def get(self, key: str) -> Any | None:
         """获取缓存值
 
         Args:
@@ -137,7 +137,7 @@ class LRUMemoryCache:
 
             return item.value
 
-    def set(self, key: str, value: Any, ttl: Union[int, None] = None) -> bool:
+    def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
         """设置缓存值
 
         Args:
@@ -253,7 +253,7 @@ class LRUMemoryCache:
                 "last_updated": datetime.now().isoformat(),
             }
 
-    def get_item_info(self, key: str) -> Union[dict[str, Any], None]:
+    def get_item_info(self, key: str) -> dict[str, Any] | None:
         """获取缓存项详细信息
 
         Args:
@@ -342,7 +342,7 @@ class MultiLevelCache:
             "l1_to_l2_promotions": 0,
         }
 
-    async def get(self, key: str) -> Union[Any, None]:
+    async def get(self, key: str) -> Any | None:
         """多级缓存获取
 
         先从L1获取，如果未命中则从L2获取并提升到L1
@@ -377,8 +377,8 @@ class MultiLevelCache:
         self,
         key: str,
         value: Any,
-        ttl: Union[int, None] = None,
-        l1_ttl: Union[int, None] = None,
+        ttl: int | None = None,
+        l1_ttl: int | None = None,
     ) -> bool:
         """多级缓存设置
 

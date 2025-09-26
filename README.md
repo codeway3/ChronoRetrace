@@ -66,7 +66,7 @@ cd ChronoRetrace
 - 🔧 Backend API: http://localhost:8000
 - 👤 Admin Panel: http://localhost:8000/admin
 
-**Default credentials:** `admin` / `admin123`
+**Default credentials:** `admin` / `ChronoAdmin2024!`
 
 **Monitoring Services (if deployed):**
 - 🔥 Prometheus: http://localhost:9090
@@ -247,6 +247,7 @@ make security
 ## 🔍 Troubleshooting
 
 ### Common Issues
+
 
 **Backend won't start:**
 - Check if Redis is running: `redis-cli ping`

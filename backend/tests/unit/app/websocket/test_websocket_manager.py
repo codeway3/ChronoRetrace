@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 WebSocket连接管理器单元测试
 不依赖服务器启动，直接测试WebSocket连接管理器的逻辑
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 import json
-import asyncio
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from fastapi import WebSocket
 
 from app.websocket.connection_manager import ConnectionManager

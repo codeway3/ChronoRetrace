@@ -2,20 +2,24 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime, timedelta
+from typing import cast
 
 import pandas as pd
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import Selectable
 from starlette.concurrency import run_in_threadpool
 
-from app.infrastructure.database import models
+from app.infrastructure.database.models import (
+    AnnualEarnings,
+    CorporateAction,
+    FundamentalData,
+    StockData,
+    StockInfo,
+)
 from app.infrastructure.database.session import get_db
-
 from ..fetchers.stock_fetchers import a_share_fetcher, us_stock_fetcher
 from . import database_writer as db_writer
 from .data_utils import calculate_ma
-
-from typing import Union, Optional, cast
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +29,7 @@ def get_all_stocks_list(db: Session, market_type: str = "A_share"):
     Get stock list for a specific market. It serves from a local DB cache.
     If the cache is empty or older than 24 hours for that market, it refreshes from data sources.
     """
-    query = db.query(models.StockInfo).filter(
-        getattr(models.StockInfo, "market_type") == market_type
-    )
+    query = db.query(StockInfo).filter(StockInfo.market_type == market_type)
 
     # Simplified logic: if the list is empty, try to refresh it.
     # More complex logic (e.g., checking age) can be added if needed.
@@ -70,9 +72,9 @@ class StockDataFetcher:
         stock_code: str,
         interval: str,
         market_type: str,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
-        trade_date: Optional[date] = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        trade_date: date | None = None,
     ):
         self.db = db
         self.stock_code = stock_code
@@ -132,23 +134,39 @@ class StockDataFetcher:
         )
 
         query = (
-            self.db.query(models.StockData)
+            self.db.query(StockData)
             .filter(
-                getattr(models.StockData, "ts_code") == self.stock_code,
-                getattr(models.StockData, "interval") == self.interval,
-                getattr(models.StockData, "trade_date") >= self.start_date,
-                getattr(models.StockData, "trade_date") <= self.end_date,
+                StockData.ts_code == self.stock_code,
+                StockData.interval == self.interval,
+                StockData.trade_date >= self.start_date,
+                StockData.trade_date <= self.end_date,
             )
-            .order_by(getattr(models.StockData, "trade_date"))
+            .order_by(StockData.trade_date.asc())
         )
 
-        with self.db.connection() as connection:
-            df = pd.read_sql(cast(Selectable, query.statement), connection)
+        # 使用 engine 而不是直接打开会话连接，避免在内存 SQLite + StaticPool 下出现连接被关闭的问题
+        engine = self.db.get_bind()
+        df = pd.read_sql(cast("Selectable", query.statement), engine)
         if not df.empty:
             logger.info(f"Found {len(df)} records in DB for {self.stock_code}.")
             # Drop the 'id' column as it's not needed for the frontend.
             df = df.drop(columns=["id"])
         return df
+
+    def _store_in_db(self, df: pd.DataFrame):
+        """Stores the fetched DataFrame into the stock_data table."""
+        logger.info(
+            f"Storing {len(df)} records for {self.stock_code} into the database."
+        )
+        try:
+            # 直接使用当前 fetcher 的会话，确保与测试环境共享同一内存数据库
+            db_writer.store_stock_data(self.db, self.stock_code, self.interval, df)
+            logger.info("Successfully stored data in DB.")
+        except Exception as e:
+            logger.error(
+                f"Failed to store stock data for {self.stock_code} in DB: {e}",
+                exc_info=True,
+            )
 
     def _fetch_from_api(self):
         """Fetches stock data from the appropriate external API based on market type."""
@@ -166,28 +184,14 @@ class StockDataFetcher:
         else:
             raise ValueError(f"Unsupported market type: {self.market_type}")
 
-    def _store_in_db(self, df: pd.DataFrame):
-        """Stores the fetched DataFrame into the stock_data table."""
-        logger.info(
-            f"Storing {len(df)} records for {self.stock_code} into the database."
-        )
-        try:
-            db_writer.store_stock_data(self.db, self.stock_code, self.interval, df)
-            logger.info("Successfully stored data in DB.")
-        except Exception as e:
-            logger.error(
-                f"Failed to store stock data for {self.stock_code} in DB: {e}",
-                exc_info=True,
-            )
-
 
 def fetch_stock_data(
     stock_code: str,
     interval: str,
     market_type: str,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    trade_date: Optional[date] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    trade_date: date | None = None,
 ):
     """
     Main entry point for fetching stock data.
@@ -211,11 +215,7 @@ async def sync_financial_data(symbol: str):
     db_gen = get_db()
     db: Session = next(db_gen)
     try:
-        stock_info = (
-            db.query(models.StockInfo)
-            .filter(getattr(models.StockInfo, "ts_code") == symbol)
-            .first()
-        )
+        stock_info = db.query(StockInfo).filter(StockInfo.ts_code == symbol).first()
 
         market_type = (
             stock_info.market_type
@@ -313,9 +313,7 @@ async def _sync_us_stock_data(db: Session, symbol: str):
         )
 
 
-def get_fundamental_data_from_db(
-    db: Session, symbol: str
-) -> Union[models.FundamentalData, None]:
+def get_fundamental_data_from_db(db: Session, symbol: str) -> FundamentalData | None:
     """
     从数据库中获取指定股票的基本面数据。
 
@@ -326,16 +324,10 @@ def get_fundamental_data_from_db(
     Returns:
         基本面数据对象，如果不存在则返回None
     """
-    return (
-        db.query(models.FundamentalData)
-        .filter(getattr(models.FundamentalData, "symbol") == symbol)
-        .first()
-    )
+    return db.query(FundamentalData).filter(FundamentalData.symbol == symbol).first()
 
 
-def get_corporate_actions_from_db(
-    db: Session, symbol: str
-) -> list[models.CorporateAction]:
+def get_corporate_actions_from_db(db: Session, symbol: str) -> list[CorporateAction]:
     """
     从数据库中获取指定股票的公司行为数据。
 
@@ -347,25 +339,23 @@ def get_corporate_actions_from_db(
         按除权除息日期排序的公司行为数据列表
     """
     return (
-        db.query(models.CorporateAction)
-        .filter(getattr(models.CorporateAction, "symbol") == symbol)
-        .order_by(getattr(models.CorporateAction, "ex_date"))
+        db.query(CorporateAction)
+        .filter(CorporateAction.symbol == symbol)
+        .order_by(CorporateAction.ex_date.desc())
         .all()
     )
 
 
-def get_annual_earnings_from_db(
-    db: Session, symbol: str
-) -> list[models.AnnualEarnings]:
+def get_annual_earnings_from_db(db: Session, symbol: str) -> list[AnnualEarnings]:
     return (
-        db.query(models.AnnualEarnings)
-        .filter(getattr(models.AnnualEarnings, "symbol") == symbol)
-        .order_by(getattr(models.AnnualEarnings, "year"))
+        db.query(AnnualEarnings)
+        .filter(AnnualEarnings.symbol == symbol)
+        .order_by(AnnualEarnings.year.desc())
         .all()
     )
 
 
-def resolve_symbol(db: Session, symbol: str) -> Union[str, None]:
+def resolve_symbol(db: Session, symbol: str) -> str | None:
     """
     Resolves a potentially incomplete stock symbol to its full ts_code.
     """
@@ -373,10 +363,10 @@ def resolve_symbol(db: Session, symbol: str) -> Union[str, None]:
         return symbol
 
     a_share_info = (
-        db.query(models.StockInfo)
+        db.query(StockInfo)
         .filter(
-            getattr(models.StockInfo, "market_type") == "A_share",
-            getattr(models.StockInfo, "ts_code").ilike(f"{symbol}.%"),
+            StockInfo.market_type == "A_share",
+            StockInfo.ts_code.ilike(f"{symbol}.%"),
         )
         .first()
     )
@@ -384,10 +374,10 @@ def resolve_symbol(db: Session, symbol: str) -> Union[str, None]:
         return str(a_share_info.ts_code)
 
     us_stock_info = (
-        db.query(models.StockInfo)
+        db.query(StockInfo)
         .filter(
-            getattr(models.StockInfo, "market_type") == "US_stock",
-            getattr(models.StockInfo, "ts_code").ilike(symbol),
+            StockInfo.market_type == "US_stock",
+            StockInfo.ts_code == symbol,
         )
         .first()
     )

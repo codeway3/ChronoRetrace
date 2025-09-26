@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import ipaddress
 from datetime import datetime
-from typing import Union
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -36,14 +35,15 @@ def get_current_user(
         if payload is None:
             raise credentials_exception
 
-        user_id = int(payload.get("sub")) if payload.get("sub") is not None else None
+        sub = payload.get("sub")
+        user_id = int(sub) if sub is not None else None
         if user_id is None:
             raise credentials_exception
 
     except Exception:
         raise credentials_exception from None
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter_by(id=user_id).first()
     if user is None or not user.is_active:
         raise credentials_exception
 
@@ -53,7 +53,7 @@ def get_current_user(
 def get_current_user_optional(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
-) -> Union[User, None]:
+) -> User | None:
     """获取当前用户（可选，不抛出异常）"""
     if not credentials:
         return None
@@ -63,14 +63,15 @@ def get_current_user_optional(
         if payload is None:
             return None
 
-        user_id = int(payload.get("sub")) if payload.get("sub") is not None else None
+        sub = payload.get("sub")
+        user_id = int(sub) if sub is not None else None
         if user_id is None:
             return None
 
     except Exception:
         return None
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter_by(id=user_id).first()
     if user is None or not user.is_active:
         return None
 
@@ -94,9 +95,9 @@ def require_roles(required_roles: list[str]):
         db: Session = Depends(get_db),
     ):
         user_roles = (
-            db.query(UserRole.name)
-            .join(UserRoleAssignment, UserRole.id == UserRoleAssignment.role_id)
-            .filter(UserRoleAssignment.user_id == current_user.id)
+            db.query(UserRole)
+            .join(UserRoleAssignment)
+            .filter_by(user_id=current_user.id)
             .all()
         )
 
@@ -132,7 +133,7 @@ class RateLimiter:
     def __init__(self, max_requests: int = 100, window_seconds: int = 3600):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        self.requests = {}  # 在生产环境中应使用Redis
+        self.requests: dict[str, list[float]] = {}  # 在生产环境中应使用Redis
 
     def is_allowed(self, key: str) -> bool:
         """检查是否允许请求"""
@@ -163,10 +164,9 @@ rate_limiter = RateLimiter()
 
 def check_rate_limit(request: Request):
     """检查请求频率限制"""
-    client_ip = request.client if request.client else None
-    client_ip = getattr(client_ip, "host", None) if client_ip else None
+    client_ip = request.client.host if request.client else None
 
-    if not rate_limiter.is_allowed(client_ip):
+    if client_ip and not rate_limiter.is_allowed(client_ip):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="请求过于频繁，请稍后再试",
@@ -174,11 +174,11 @@ def check_rate_limit(request: Request):
 
 
 def log_user_activity(
-    user: Union[User, None],
+    user: User | None,
     action: str,
-    details: Union[str, None] = None,
-    request: Union[Request, None] = None,
-    db: Session = None,
+    details: str | None = None,
+    request: Request | None = None,
+    db: Session | None = None,
 ):
     """记录用户活动"""
     if db is None:
@@ -195,19 +195,18 @@ def log_user_activity(
         )
         user_agent = request.headers.get("user-agent", "unknown")
 
-    activity_log = UserActivityLog(
-        user_id=user.id if user else None,
-        action=action,
-        details=details,
-        ip_address=ip_address,
-        user_agent=user_agent,
-    )
+    activity_log = UserActivityLog()
+    activity_log.user_id = user.id if user else None
+    activity_log.action = action
+    activity_log.details = details
+    activity_log.ip_address = ip_address
+    activity_log.user_agent = user_agent
 
     db.add(activity_log)
     db.commit()
 
 
-def validate_ip_whitelist(request: Request, whitelist: list[str] = None):
+def validate_ip_whitelist(request: Request, whitelist: list[str] | None = None):
     """验证IP白名单"""
     if not whitelist:
         return True
@@ -217,6 +216,10 @@ def validate_ip_whitelist(request: Request, whitelist: list[str] = None):
         if request.client and hasattr(request.client, "host")
         else None
     )
+    if not client_ip:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="无法确定IP地址"
+        )
 
     try:
         client_addr = ipaddress.ip_address(client_ip)
@@ -224,9 +227,8 @@ def validate_ip_whitelist(request: Request, whitelist: list[str] = None):
             if "/" in allowed_ip:  # CIDR notation
                 if client_addr in ipaddress.ip_network(allowed_ip):
                     return True
-            else:  # Single IP
-                if client_addr == ipaddress.ip_address(allowed_ip):
-                    return True
+            elif client_addr == ipaddress.ip_address(allowed_ip):
+                return True
 
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="IP地址不在允许列表中"
@@ -240,13 +242,13 @@ def validate_ip_whitelist(request: Request, whitelist: list[str] = None):
 def check_user_permissions(user: User, resource: str, action: str, db: Session) -> bool:
     """检查用户权限"""
     # 管理员拥有所有权限
-    admin_role = db.query(UserRole).filter(UserRole.name == "admin").first()
+    admin_role = db.query(UserRole).filter_by(name="admin").first()
     if admin_role:
         user_admin = (
             db.query(UserRoleAssignment)
-            .filter(
-                UserRoleAssignment.user_id == user.id,
-                UserRoleAssignment.role_id == admin_role.id,
+            .filter_by(
+                user_id=user.id,
+                role_id=admin_role.id,
             )
             .first()
         )

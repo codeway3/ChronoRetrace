@@ -16,6 +16,8 @@ import FuturesDashboard from './pages/FuturesDashboard';
 import OptionsDashboard from './pages/OptionsDashboard';
 import ScreenerPage from './pages/ScreenerPage';
 import WebSocketTest from './pages/WebSocketTest';
+import StrategyManagementPage from './pages/StrategyManagementPage';
+import BacktestResultPage from './pages/BacktestResultPage';
 import './App.css';
 
 function App() {
@@ -152,6 +154,18 @@ function App() {
           <Route path="/profile" element={
             <ProtectedRoute>
               <MainLayout><ProfilePage /></MainLayout>
+            </ProtectedRoute>
+          } />
+
+          {/* 策略管理相关路由 */}
+          <Route path="/strategies" element={
+            <ProtectedRoute>
+              <MainLayout><StrategyManagementPage /></MainLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/backtest/results/:id" element={
+            <ProtectedRoute>
+              <MainLayout><BacktestResultPage /></MainLayout>
             </ProtectedRoute>
           } />
       </Routes>

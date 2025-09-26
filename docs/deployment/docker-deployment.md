@@ -384,7 +384,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     environment:
-      - REACT_APP_API_URL=http://localhost:8000
+      - VITE_API_BASE_URL=http://localhost:8000
     ports:
       - "3000:3000"
     depends_on:

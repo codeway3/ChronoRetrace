@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ...core.config import settings
@@ -47,7 +48,9 @@ async def register(
     # 检查用户名是否已存在
     existing_user = (
         db.query(User)
-        .filter((User.username == user_data.username) | (User.email == user_data.email))
+        .filter(
+            (User.username == user_data.username) | (User.email == user_data.email)  # type: ignore
+        )
         .first()
     )
 
@@ -64,33 +67,31 @@ async def register(
     # 创建新用户
     hashed_password = auth_service.hash_password(user_data.password)
 
-    new_user = User(
-        username=user_data.username,
-        email=user_data.email,
-        full_name=user_data.full_name,
-        password_hash=hashed_password,
-        is_active=True,
-    )
+    new_user = User()
+    new_user.username = user_data.username
+    new_user.email = user_data.email
+    new_user.full_name = user_data.full_name
+    new_user.password_hash = hashed_password
+    new_user.is_active = True
 
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
     # 分配默认用户角色
-    user_role = db.query(UserRole).filter(UserRole.name == "user").first()
+    user_role = db.query(UserRole).filter_by(name="user").first()
     if user_role:
-        role_assignment = UserRoleAssignment(user_id=new_user.id, role_id=user_role.id)
+        role_assignment = UserRoleAssignment()
+        role_assignment.user_id = new_user.id
+        role_assignment.role_id = user_role.id
         db.add(role_assignment)
 
     # 创建默认用户偏好设置
-    user_preferences = UserPreferences(
-        user_id=new_user.id,
-        theme_mode="light",
-        language="zh-CN",
-        timezone="Asia/Shanghai",
-        email_notifications=True,
-        push_notifications=True,
-    )
+    user_preferences = UserPreferences()
+    user_preferences.user_id = new_user.id
+    user_preferences.theme_mode = "light"
+    user_preferences.language = "zh-CN"
+    user_preferences.timezone = "Asia/Shanghai"
     db.add(user_preferences)
     db.commit()
 
@@ -134,16 +135,16 @@ async def login(
 
     # 创建用户会话
     # 获取客户端IP地址,优先使用X-Forwarded-For头,如果不存在则使用连接的远程地址
-    ip_address = request.headers.get(
-        "X-Forwarded-For", request.client.host if request.client else None
-    )
+    client_host = request.client.host if request.client else "unknown"
+    ip_address = request.headers.get("X-Forwarded-For", client_host)
     user_agent = request.headers.get("user-agent", "unknown")
 
     auth_service.create_user_session(db, user.id, refresh_token, ip_address, user_agent)
 
     # 更新最后登录时间
-    user.last_login = datetime.utcnow()
+    user.last_login_at = datetime.utcnow()
     db.commit()
+    db.refresh(user)
 
     # 记录登录活动
     log_user_activity(user, "user_login", None, request, db)
@@ -153,7 +154,7 @@ async def login(
         refresh_token=refresh_token,
         token_type="bearer",
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        user=user,
+        user=UserResponse.from_orm(user),
     )
 
 
@@ -177,7 +178,7 @@ async def refresh_token(
         )
 
     user_id = payload.get("sub")
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter_by(id=user_id).first()
 
     if not user or not user.is_active:
         raise HTTPException(
@@ -198,6 +199,7 @@ async def refresh_token(
         refresh_token=token_data.refresh_token,
         token_type="bearer",
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        user=UserResponse.from_orm(user),
     )
 
 
@@ -261,7 +263,7 @@ async def reset_password(
     # 检查频率限制
     check_rate_limit(request)
 
-    user = db.query(User).filter(User.email == reset_data.email).first()
+    user = db.query(User).filter_by(email=reset_data.email).first()
     if not user:
         # 为了安全，即使用户不存在也返回成功消息
         return ApiResponse(success=True, message="如果邮箱存在，重置链接已发送")
@@ -293,7 +295,7 @@ async def confirm_password_reset(
             status_code=status.HTTP_400_BAD_REQUEST, detail="无效或已过期的重置令牌"
         )
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="用户不存在")
 
@@ -315,11 +317,7 @@ async def get_user_preferences(
     current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)
 ):
     """获取用户偏好设置"""
-    preferences = (
-        db.query(UserPreferences)
-        .filter(UserPreferences.user_id == current_user.id)
-        .first()
-    )
+    preferences = db.query(UserPreferences).filter_by(user_id=current_user.id).first()
 
     if not preferences:
         raise HTTPException(
@@ -337,11 +335,7 @@ async def update_user_preferences(
     db: Session = Depends(get_db),
 ):
     """更新用户偏好设置"""
-    preferences = (
-        db.query(UserPreferences)
-        .filter(UserPreferences.user_id == current_user.id)
-        .first()
-    )
+    preferences = db.query(UserPreferences).filter_by(user_id=current_user.id).first()
 
     if not preferences:
         raise HTTPException(
@@ -353,7 +347,6 @@ async def update_user_preferences(
     for field, value in update_data.items():
         setattr(preferences, field, value)
 
-    preferences.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(preferences)
 

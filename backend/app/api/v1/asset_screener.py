@@ -6,7 +6,6 @@
 """
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -50,26 +49,26 @@ async def screen_stocks_by_asset(
             )
 
         # 调用筛选服务
-        result = await screener_service.screen_by_asset_type(
+        result = await screener_service.screen_stocks(
             asset_type=asset_type, criteria=request, limit=limit, offset=offset, db=db
         )
 
         logger.info(
-            f"成功筛选 {asset_type.value} 类型股票，返回 {len(result.stocks)} 条结果"
+            f"成功筛选 {asset_type.value} 类型股票，返回 {len(result.items)} 条结果"
         )
         return result
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"筛选 {asset_type.value} 类型股票时发生错误: {str(e)}")
+        logger.error(f"筛选 {asset_type.value} 类型股票时发生错误: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"筛选股票时发生错误: {str(e)}",
-        )
+            detail=f"筛选股票时发生错误: {e!s}",
+        ) from e
 
 
-@router.get("/screener/{asset_type}/criteria")
+@router.get("/screener/{asset_type}/config")
 async def get_screener_criteria(asset_type: AssetType):
     """
     获取指定资产类型的筛选条件配置
@@ -89,18 +88,18 @@ async def get_screener_criteria(asset_type: AssetType):
             )
 
         # 获取筛选条件配置
-        criteria_config = screener_service.get_criteria_config(asset_type)
+        criteria_config = await screener_service.get_criteria_config(asset_type)
 
         return {"asset_type": asset_type.value, "criteria": criteria_config}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取 {asset_type.value} 筛选条件配置时发生错误: {str(e)}")
+        logger.error(f"获取 {asset_type.value} 筛选条件配置时发生错误: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取筛选条件配置时发生错误: {str(e)}",
-        )
+            detail=f"获取筛选条件配置时发生错误: {e!s}",
+        ) from e
 
 
 @router.get("/screener/asset-types")
@@ -125,8 +124,8 @@ async def get_supported_asset_types():
         return {"supported_asset_types": supported_types, "total": len(supported_types)}
 
     except Exception as e:
-        logger.error(f"获取支持的资产类型列表时发生错误: {str(e)}")
+        logger.error(f"获取支持的资产类型列表时发生错误: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取资产类型列表时发生错误: {str(e)}",
-        )
+            detail=f"获取资产类型列表时发生错误: {e!s}",
+        ) from e

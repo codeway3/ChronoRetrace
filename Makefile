@@ -33,10 +33,12 @@ test-backend-cov:
 
 lint:
 	@echo "Running backend linter..."
+	cd backend && source ../venv/bin/activate && python -m black --check .
 	cd backend && source ../venv/bin/activate && python -m ruff check .
 
 format:
 	@echo "Formatting backend code..."
+	cd backend && source ../venv/bin/activate && python -m black .
 	cd backend && source ../venv/bin/activate && python -m ruff check . --fix
 	@echo "Code formatting completed."
 
