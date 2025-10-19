@@ -1,6 +1,6 @@
 """统一健康检查接口
 
-提供系统级别的健康检查，整合所有模块的健康状态
+提供系统级别的健康检查, 整合所有模块的健康状态
 """
 
 import logging
@@ -24,6 +24,8 @@ router = APIRouter()
 class HealthChecker:
     """统一健康检查器"""
 
+    HTTP_OK = 200
+
     def __init__(self):
         self.base_url = f"http://localhost:{settings.PORT or 8000}"
 
@@ -34,16 +36,16 @@ class HealthChecker:
                 response = await client.get(
                     f"{self.base_url}/api/v1/monitoring/health", timeout=5.0
                 )
-                if response.status_code == 200:
+                if response.status_code == self.HTTP_OK:
                     return {"status": "healthy", "details": response.json()}
                 else:
                     return {
                         "status": "unhealthy",
                         "error": f"HTTP {response.status_code}",
                     }
-        except Exception as e:
-            logger.error(f"监控模块健康检查失败: {e}")
-            return {"status": "unhealthy", "error": str(e)}
+        except Exception:
+            logger.exception("监控模块健康检查失败")
+            return {"status": "unhealthy", "error": "monitoring health failed"}
 
     async def check_cache_health(self) -> dict[str, Any]:
         """检查缓存模块健康状态"""
@@ -55,7 +57,10 @@ class HealthChecker:
             overall_status = (
                 "healthy" if cache_health and warming_health else "unhealthy"
             )
-
+        except Exception:
+            logger.exception("缓存模块健康检查失败")
+            return {"status": "unhealthy", "error": "cache health failed"}
+        else:
             return {
                 "status": overall_status,
                 "details": {
@@ -63,9 +68,6 @@ class HealthChecker:
                     "warming_service": "healthy" if warming_health else "unhealthy",
                 },
             }
-        except Exception as e:
-            logger.error(f"缓存模块健康检查失败: {e}")
-            return {"status": "unhealthy", "error": str(e)}
 
     async def check_stock_service_health(self) -> dict[str, Any]:
         """检查股票服务健康状态"""
@@ -75,9 +77,9 @@ class HealthChecker:
                 "status": health_result.get("overall_status", "unhealthy"),
                 "details": health_result,
             }
-        except Exception as e:
-            logger.error(f"股票服务健康检查失败: {e}")
-            return {"status": "unhealthy", "error": str(e)}
+        except Exception:
+            logger.exception("股票服务健康检查失败")
+            return {"status": "unhealthy", "error": "stock service health failed"}
 
     async def check_data_quality_health(self) -> dict[str, Any]:
         """检查数据质量模块健康状态"""
@@ -86,7 +88,7 @@ class HealthChecker:
                 response = await client.get(
                     f"{self.base_url}/api/v1/data-quality/health", timeout=5.0
                 )
-                if response.status_code == 200:
+                if response.status_code == self.HTTP_OK:
                     data = response.json()
                     return {"status": data.get("status", "unhealthy"), "details": data}
                 else:
@@ -94,9 +96,9 @@ class HealthChecker:
                         "status": "unhealthy",
                         "error": f"HTTP {response.status_code}",
                     }
-        except Exception as e:
-            logger.error(f"数据质量模块健康检查失败: {e}")
-            return {"status": "unhealthy", "error": str(e)}
+        except Exception:
+            logger.exception("数据质量模块健康检查失败")
+            return {"status": "unhealthy", "error": "data quality health failed"}
 
     async def check_database_health(self) -> dict[str, Any]:
         """检查数据库健康状态"""
@@ -115,7 +117,7 @@ class HealthChecker:
                     },
                 }
             else:
-                # 如果是对象类型，使用属性访问
+                # 如果是对象类型, 使用属性访问
                 return {
                     "status": "healthy",
                     "details": {
@@ -128,9 +130,9 @@ class HealthChecker:
                         ),
                     },
                 }
-        except Exception as e:
-            logger.error(f"数据库健康检查失败: {e}")
-            return {"status": "unhealthy", "error": str(e)}
+        except Exception:
+            logger.exception("数据库健康检查失败")
+            return {"status": "unhealthy", "error": "database health failed"}
 
     async def perform_comprehensive_health_check(self) -> dict[str, Any]:
         """执行全面的健康检查"""
@@ -149,19 +151,20 @@ class HealthChecker:
         for name, task in tasks.items():
             try:
                 results[name] = await task
-            except Exception as e:
-                logger.error(f"健康检查任务 {name} 失败: {e}")
-                results[name] = {"status": "unhealthy", "error": str(e)}
+            except Exception:
+                logger.exception("健康检查任务 %s 失败", name)
+                results[name] = {"status": "unhealthy", "error": "task failed"}
 
         # 计算总体健康状态
         healthy_services = sum(
             1 for result in results.values() if result["status"] == "healthy"
         )
         total_services = len(results)
+        health_threshold = 0.7  # 70%以上服务健康
 
         if healthy_services == total_services:
             overall_status = "healthy"
-        elif healthy_services >= total_services * 0.7:  # 70%以上服务健康
+        elif healthy_services >= total_services * health_threshold:
             overall_status = "degraded"
         else:
             overall_status = "unhealthy"
@@ -194,7 +197,7 @@ async def system_health_check():
     """
     系统级健康检查
 
-    整合所有模块的健康状态，提供统一的健康检查接口
+    整合所有模块的健康状态, 提供统一的健康检查接口
 
     Returns:
         Dict: 系统健康状态信息
@@ -211,13 +214,13 @@ async def system_health_check():
 
         return JSONResponse(status_code=status_code, content=health_result)
 
-    except Exception as e:
-        logger.error(f"系统健康检查失败: {e}")
+    except Exception:
+        logger.exception("系统健康检查失败")
         return JSONResponse(
             status_code=503,
             content={
                 "overall_status": "unhealthy",
-                "error": str(e),
+                "error": "system health failed",
                 "timestamp": datetime.now().isoformat(),
             },
         )
@@ -228,7 +231,7 @@ async def quick_health_check():
     """
     快速健康检查
 
-    仅检查核心服务，用于负载均衡器等场景
+    仅检查核心服务, 用于负载均衡器等场景
 
     Returns:
         Dict: 快速健康状态信息
@@ -256,13 +259,13 @@ async def quick_health_check():
                 },
             )
 
-    except Exception as e:
-        logger.error(f"快速健康检查失败: {e}")
+    except Exception:
+        logger.exception("快速健康检查失败")
         return JSONResponse(
             status_code=503,
             content={
                 "status": "unhealthy",
-                "error": str(e),
+                "error": "quick health failed",
                 "timestamp": datetime.now().isoformat(),
             },
         )

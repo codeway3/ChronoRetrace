@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from fastapi_cache import FastAPICache
 from fastapi_cache.decorator import cache
-from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+else:
+    Session = Any
+
 from starlette.concurrency import run_in_threadpool
 
 from app.data.managers import data_manager as data_fetcher
@@ -16,6 +22,7 @@ from app.schemas.annual_earnings import AnnualEarningsInDB
 from app.schemas.corporate_action import CorporateActionResponse
 from app.schemas.fundamental import FundamentalDataInDB
 from app.schemas.stock import StockDataBase, StockInfo
+from app.schemas.common import MessageResponse
 
 router = APIRouter()
 
@@ -24,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/list/all", response_model=list[StockInfo])
 @cache(expire=86400)  # Cache for 24 hours
-def get_all_stock_list(
+async def get_all_stock_list(
     market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
     db: Session = Depends(get_db),
 ):
@@ -33,11 +40,14 @@ def get_all_stock_list(
     This endpoint is cached for 24 hours.
     """
     try:
-        stocks = data_fetcher.get_all_stocks_list(db, market_type=market_type)
+        stocks = await run_in_threadpool(
+            data_fetcher.get_all_stocks_list, db, market_type=market_type
+        )
         if not stocks:
             # It's better to return an empty list than an error if the list is just empty
             return []
-        return stocks
+        else:
+            return stocks
     except Exception as e:
         logger.error(
             f"An error occurred while fetching the stock list for {market_type}: {e}",
@@ -48,7 +58,7 @@ def get_all_stock_list(
         ) from e
 
 
-@router.post("/list/refresh", status_code=200)
+@router.post("/list/refresh", status_code=200, response_model=MessageResponse)
 async def refresh_stock_list(
     market_type: str = Query("A_share", enum=["A_share", "US_stock"]),
     db: Session = Depends(get_db),
@@ -66,16 +76,17 @@ async def refresh_stock_list(
         # Clear the cache for the get_all_stock_list endpoint
         await FastAPICache.clear(namespace="fastapi-cache")
         logger.info(f"Cache cleared and stock list for {market_type} refreshed.")
-
-        return {"message": f"Successfully refreshed stock list for {market_type}."}
     except Exception as e:
         logger.error(
             f"An error occurred during force refresh for {market_type}: {e}",
             exc_info=True,
         )
         raise HTTPException(
-            status_code=500, detail="An error occurred during the refresh process."
+            status_code=500,
+            detail=f"Failed to force refresh the stock list for {market_type}.",
         ) from e
+    else:
+        return {"message": f"Successfully refreshed stock list for {market_type}."}
 
 
 def get_trade_date(offset: int = 0) -> str:
@@ -118,18 +129,18 @@ async def get_stock_data(
 
         if df.empty:
             return []
+        else:
+            # Convert DataFrame to list of Pydantic models
+            # This explicitly validates and includes the MA fields
+            # Also, add ts_code and interval to each record for frontend consistency
+            dict_records = df.to_dict(orient="records")
+            for record in dict_records:
+                record["ts_code"] = stock_code
+                record["interval"] = interval
 
-        # Convert DataFrame to list of Pydantic models
-        # This explicitly validates and includes the MA fields
-        # Also, add ts_code and interval to each record for frontend consistency
-        dict_records = df.to_dict(orient="records")
-        for record in dict_records:
-            record["ts_code"] = stock_code
-            record["interval"] = interval
+            records = [StockDataBase.model_validate(record) for record in dict_records]
 
-        records = [StockDataBase.model_validate(record) for record in dict_records]
-
-        return records
+            return records
 
     except Exception as e:
         logger.error(f"Failed to fetch stock data: {e!s}", exc_info=True)
@@ -156,7 +167,18 @@ async def sync_data_for_symbol(
     }
 
 
-@router.get("/{symbol}/fundamentals", response_model=FundamentalDataInDB)
+@router.get(
+    "/{symbol}/fundamentals",
+    response_model=FundamentalDataInDB,
+    responses={
+        202: {
+            "description": "Data is being synced in the background.",
+            "content": {
+                "application/json": {"schema": MessageResponse.model_json_schema()}
+            },
+        }
+    },
+)
 async def get_fundamental_data(
     symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
 ):
@@ -164,11 +186,13 @@ async def get_fundamental_data(
     Get fundamental data for a given stock symbol.
     Triggers a background sync if data is missing or stale (older than 24 hours).
     """
-    resolved_symbol = data_fetcher.resolve_symbol(db, symbol)
+    resolved_symbol = await run_in_threadpool(data_fetcher.resolve_symbol, db, symbol)
     if not resolved_symbol:
         raise HTTPException(status_code=404, detail=f"Symbol '{symbol}' not found.")
 
-    db_data = data_fetcher.get_fundamental_data_from_db(db, resolved_symbol)
+    db_data = await run_in_threadpool(
+        data_fetcher.get_fundamental_data_from_db, db, resolved_symbol
+    )
 
     # Check if data is stale or missing
     if not db_data or (
@@ -186,7 +210,18 @@ async def get_fundamental_data(
     return db_data
 
 
-@router.get("/{symbol}/corporate-actions", response_model=CorporateActionResponse)
+@router.get(
+    "/{symbol}/corporate-actions",
+    response_model=CorporateActionResponse,
+    responses={
+        202: {
+            "description": "Data is being synced in the background.",
+            "content": {
+                "application/json": {"schema": MessageResponse.model_json_schema()}
+            },
+        }
+    },
+)
 def get_corporate_actions(
     symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
 ):
@@ -213,7 +248,18 @@ def get_corporate_actions(
     return {"symbol": resolved_symbol, "actions": actions}
 
 
-@router.get("/{symbol}/annual-earnings", response_model=list[AnnualEarningsInDB])
+@router.get(
+    "/{symbol}/annual-earnings",
+    response_model=list[AnnualEarningsInDB],
+    responses={
+        202: {
+            "description": "Data is being synced in the background.",
+            "content": {
+                "application/json": {"schema": MessageResponse.model_json_schema()}
+            },
+        }
+    },
+)
 async def get_annual_earnings(
     symbol: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
 ):
@@ -221,11 +267,13 @@ async def get_annual_earnings(
     Get annual net profit data for a given stock symbol.
     Triggers a background sync if data is missing or stale (older than 24 hours).
     """
-    resolved_symbol = data_fetcher.resolve_symbol(db, symbol)
+    resolved_symbol = await run_in_threadpool(data_fetcher.resolve_symbol, db, symbol)
     if not resolved_symbol:
         raise HTTPException(status_code=404, detail=f"Symbol '{symbol}' not found.")
 
-    db_data = data_fetcher.get_annual_earnings_from_db(db, resolved_symbol)
+    db_data = await run_in_threadpool(
+        data_fetcher.get_annual_earnings_from_db, db, resolved_symbol
+    )
 
     # Check if data is stale or missing
     if not db_data or (

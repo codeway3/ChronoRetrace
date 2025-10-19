@@ -1,25 +1,23 @@
 {
-    "include": [
+  "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/docs/config.schema.json",
+  "typeCheckingMode": "standard",
+  "reportMissingModuleSource": "warning",
+  "include": [
+    "backend"
+  ],
+  "exclude": [
+    "backend/tests",
+    "backend/venv",
+    "**/venv",
+    "**/__pycache__",
+    "**/node_modules"
+  ],
+  "executionEnvironments": [
+    {
+      "root": "backend",
+      "extraPaths": [
         "backend"
-    ],
-    "exclude": [
-        "**/node_modules",
-        "**/__pycache__",
-        "**/.pytest_cache",
-        "**/.ruff_cache",
-        "**/build",
-        "**/dist",
-        "frontend"
-    ],
-    "pythonVersion": "3.10",
-    "pythonPlatform": "Darwin",
-    "typeCheckingMode": "basic",
-    "reportMissingImports": "warning",
-    "reportMissingTypeStubs": "none",
-    "executionEnvironments": [
-        {
-            "root": "backend",
-            "venv": "/Users/apple/code/ChronoRetrace/backend/venv"
-        }
-    ]
+      ]
+    }
+  ]
 }

@@ -1,16 +1,19 @@
+import logging
+import traceback
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.analytics.screener.screener_service import screen_stocks
 from app.infrastructure.database.session import get_db
-from app.schemas.stock import StockScreenerRequest, StockScreenerResponse
+from app.schemas.screener import ScreenerRequest, ScreenerResponse
+from app.services.screener_service import screen_stocks
 
 router = APIRouter()
 
 
-@router.post("/screener/stocks", response_model=StockScreenerResponse)
+@router.post("/screener/", response_model=ScreenerResponse)
 async def screen_stocks_endpoint(
-    request: StockScreenerRequest,
+    request: ScreenerRequest,
     db: Session = Depends(get_db),
 ):
     """
@@ -25,9 +28,6 @@ async def screen_stocks_endpoint(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         # 记录异常详情以便调试
-        import logging
-        import traceback
-
         error_msg = f"Screener error: {e!s}\n{traceback.format_exc()}"
         logging.exception(error_msg)
         # Generic error handler for unexpected issues

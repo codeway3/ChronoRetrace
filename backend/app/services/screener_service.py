@@ -1,269 +1,140 @@
 """
-筛选器服务模块
-提供资产筛选相关的业务逻辑
+股票筛选器服务
 """
 
-from datetime import datetime
+from typing import Any, List, Tuple, cast
 
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, desc, or_, select, func
+from sqlalchemy.orm import Session, aliased
+from sqlalchemy.sql import Select
 
-from app.infrastructure.database.models import User
-from app.schemas.asset_types import AssetType
+from app.infrastructure.database.models import DailyStockMetrics, StockInfo
 from app.schemas.screener import (
+    ScreenerCondition,
     ScreenerRequest,
     ScreenerResponse,
     ScreenerResultItem,
-    ScreenerStats,
-    ScreenerTemplateCreate,
-    ScreenerTemplateResponse,
-    ScreenerTemplateUpdate,
 )
 
 
-class ScreenerService:
-    """筛选器服务类"""
+def _build_screener_query(
+    db: Session, request: ScreenerRequest
+) -> Tuple[Select, List[Any]]:
+    """构建筛选器查询"""
+    StockInfoAlias = aliased(StockInfo)
+    DailyStockMetricsAlias = aliased(DailyStockMetrics)
 
-    def __init__(self):
-        pass
+    # 使用 cast(Any, ...) 包裹列，避免 Pyright 将模型属性解析为原始类型（如 str/float），
+    # 导致 select 实体类型不匹配的诊断错误。
+    query = select(
+        cast(Any, StockInfoAlias.ts_code).label("symbol"),
+        cast(Any, StockInfoAlias.name),
+        cast(Any, StockInfoAlias.market_type).label("market"),
+        cast(Any, DailyStockMetricsAlias.market_cap),
+        cast(Any, DailyStockMetricsAlias.close_price).label("price"),
+        cast(Any, DailyStockMetricsAlias.pe_ratio),
+        cast(Any, DailyStockMetricsAlias.pb_ratio),
+        cast(Any, DailyStockMetricsAlias.dividend_yield),
+    ).join(
+        DailyStockMetricsAlias,
+        cast(Any, StockInfoAlias.ts_code == DailyStockMetricsAlias.code),
+    )
 
-    async def screen_stocks(
-        self,
-        asset_type: AssetType,
-        criteria: ScreenerRequest,
-        limit: int,
-        offset: int,
-        db: Session,
-    ) -> ScreenerResponse:
-        """
-        执行资产筛选
+    filters = []
+    for condition in request.conditions:
+        field_name = condition.field
+        operator = condition.operator
+        value = condition.value
 
-        Args:
-            asset_type: 资产类型
-            criteria: 筛选请求
-            limit: 数量限制
-            offset: 偏移量
-            db: 数据库会话
+        # Determine which model to query based on the field
+        if hasattr(StockInfo, field_name):
+            model_alias = StockInfoAlias
+        elif hasattr(DailyStockMetrics, field_name):
+            model_alias = DailyStockMetricsAlias
+        else:
+            continue  # Or raise an exception for an invalid field
 
-        Returns:
-            筛选结果
-        """
-        # 这里是筛选逻辑的占位符
-        # 实际实现需要根据具体的筛选算法和数据源来完成
+        column = cast(Any, getattr(model_alias, field_name))
 
-        # 示例数据
-        sample_items = [
+        if operator in (">", "gt"):
+            filters.append(column > value)
+        elif operator in ("<", "lt"):
+            filters.append(column < value)
+        elif operator in (">=", "ge"):
+            filters.append(column >= value)
+        elif operator in ("<=", "le"):
+            filters.append(column <= value)
+        elif operator in ("=", "eq"):
+            filters.append(column == value)
+        elif operator in ("!=", "ne"):
+            filters.append(column != value)
+        elif operator == "in":
+            filters.append(column.in_(value))
+        elif operator == "not_in":
+            filters.append(~column.in_(value))
+
+    if filters:
+        query = query.filter(and_(*filters))
+
+    # Sorting
+    if request.sort_by:
+        sort_column: Any | None = None
+        # Check both aliases for the sort_by attribute
+        if hasattr(StockInfoAlias, request.sort_by):
+            sort_column = cast(Any, getattr(StockInfoAlias, request.sort_by))
+        elif hasattr(DailyStockMetricsAlias, request.sort_by):
+            sort_column = cast(Any, getattr(DailyStockMetricsAlias, request.sort_by))
+
+        if sort_column is not None:
+            if request.sort_order == "desc":
+                query = query.order_by(desc(sort_column))
+            else:
+                query = query.order_by(sort_column)
+
+    return query, request.conditions
+
+
+def screen_stocks(request: ScreenerRequest, db: Session) -> ScreenerResponse:
+    """执行股票筛选"""
+    query, filters_applied = _build_screener_query(db, request)
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total_count = db.scalar(count_query)
+
+    # 分页
+    query = query.offset((request.page - 1) * request.size).limit(request.size)
+
+    results_from_db = db.execute(query).all()
+
+    results = []
+    for r in results_from_db:
+        results.append(
             ScreenerResultItem(
-                symbol="000001.SZ",
-                name="平安银行",
-                market="深交所",
-                sector="银行",
-                market_cap=2500000000000,
-                price=12.50,
-                change_percent=2.5,
-                volume=50000000,
-                pe_ratio=5.2,
-                pb_ratio=0.8,
-                dividend_yield=3.2,
-                additional_data=None,
-            ),
-            ScreenerResultItem(
-                symbol="000002.SZ",
-                name="万科A",
-                market="深交所",
-                sector="房地产",
-                market_cap=1200000000000,
-                price=18.30,
-                change_percent=-1.2,
-                volume=30000000,
-                pe_ratio=8.5,
-                pb_ratio=1.1,
-                dividend_yield=2.8,
-                additional_data=None,
-            ),
-        ]
-
-        total = len(sample_items)
-        pages = (total + limit - 1) // limit if limit > 0 else 0
-        page = offset // limit + 1 if limit > 0 else 1
-
-        return ScreenerResponse(
-            items=sample_items,
-            total=total,
-            page=page,
-            size=limit,
-            pages=pages,
-            filters_applied=criteria.conditions,
+                code=getattr(r, "symbol", None),
+                symbol=r.symbol,
+                name=r.name,
+                market=r.market,
+                sector="N/A",  # 暂时硬编码
+                market_cap=r.market_cap,
+                price=r.price,
+                change_percent=0.0,  # 暂时硬编码
+                volume=0,  # 暂时硬编码
+                pe_ratio=r.pe_ratio,
+                pb_ratio=r.pb_ratio,
+                dividend_yield=r.dividend_yield,
+                additional_data={},
+            )
         )
 
-    async def get_criteria_config(self, asset_type: AssetType) -> dict:
-        """
-        获取指定资产类型的筛选条件配置
-
-        Args:
-            asset_type: 资产类型
-
-        Returns:
-            dict: 筛选条件配置
-        """
-        # 这里是获取筛选条件配置的占位符
-        # 实际实现需要根据资产类型返回不同的配置
-        if asset_type == AssetType.US_STOCK:
-            return {
-                "filters": [
-                    {"id": "market_cap", "label": "Market Cap", "type": "range"},
-                    {"id": "pe_ratio", "label": "P/E Ratio", "type": "range"},
-                    {
-                        "id": "dividend_yield",
-                        "label": "Dividend Yield",
-                        "type": "range",
-                    },
-                ],
-                "sort_options": [
-                    {"id": "market_cap", "label": "Market Cap"},
-                    {"id": "pe_ratio", "label": "P/E Ratio"},
-                ],
-            }
-        elif asset_type == AssetType.CRYPTO:
-            return {
-                "filters": [
-                    {"id": "market_cap", "label": "Market Cap", "type": "range"},
-                    {"id": "volume_24h", "label": "24h Volume", "type": "range"},
-                ],
-                "sort_options": [
-                    {"id": "market_cap", "label": "Market Cap"},
-                    {"id": "volume_24h", "label": "24h Volume"},
-                ],
-            }
-        return {"filters": [], "sort_options": []}
-
-    async def get_screener_stats(
-        self, asset_type: str, user: User, db: Session
-    ) -> ScreenerStats:
-        """
-        获取筛选器统计信息
-
-        Args:
-            asset_type: 资产类型
-            user: 用户对象
-            db: 数据库会话
-
-        Returns:
-            统计信息
-        """
-        # 这里是统计信息的占位符
-        return ScreenerStats(
-            total_assets=5000,
-            filtered_count=100,
-            filter_ratio=0.02,
-            top_sectors=[
-                {"name": "银行", "count": 50},
-                {"name": "科技", "count": 30},
-                {"name": "医药", "count": 20},
-            ],
-            price_range={"min": 1.0, "max": 500.0},
-            market_cap_range={"min": 1000000000, "max": 5000000000000},
-        )
-
-    async def create_template(
-        self, template_data: ScreenerTemplateCreate, user: User, db: Session
-    ) -> ScreenerTemplateResponse:
-        """
-        创建筛选器模板
-
-        Args:
-            template_data: 模板数据
-            user: 用户对象
-            db: 数据库会话
-
-        Returns:
-            创建的模板
-        """
-        # 这里是创建模板的占位符
-
-        return ScreenerTemplateResponse(
-            id=1,
-            user_id=user.id,
-            name=template_data.name,
-            description=template_data.description,
-            asset_type=template_data.asset_type,
-            conditions=template_data.conditions,
-            sort_by=template_data.sort_by,
-            sort_order=template_data.sort_order,
-            is_public=template_data.is_public,
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
-        )
-
-    async def get_user_templates(
-        self, user: User, db: Session, asset_type: str | None = None
-    ) -> list[ScreenerTemplateResponse]:
-        """
-        获取用户的筛选器模板
-
-        Args:
-            user: 用户对象
-            asset_type: 资产类型过滤
-            db: 数据库会话
-
-        Returns:
-            模板列表
-        """
-        # 这里是获取用户模板的占位符
-        return []
-
-    async def update_template(
-        self,
-        template_id: int,
-        template_data: ScreenerTemplateUpdate,
-        user: User,
-        db: Session,
-    ) -> ScreenerTemplateResponse | None:
-        """
-        更新筛选器模板
-
-        Args:
-            template_id: 模板ID
-            template_data: 更新数据
-            user: 用户对象
-            db: 数据库会话
-
-        Returns:
-            更新后的模板或None
-        """
-        # 这里是更新模板的占位符
-        return None
-
-    async def delete_template(self, template_id: int, user: User, db: Session) -> bool:
-        """
-        删除筛选器模板
-
-        Args:
-            template_id: 模板ID
-            user: 用户对象
-            db: 数据库会话
-
-        Returns:
-            是否删除成功
-        """
-        # 这里是删除模板的占位符
-        return True
-
-    async def get_public_templates(
-        self, db: Session, asset_type: str | None = None
-    ) -> list[ScreenerTemplateResponse]:
-        """
-        获取公开的筛选器模板
-
-        Args:
-            asset_type: 资产类型过滤
-            db: 数据库会话
-
-        Returns:
-            公开模板列表
-        """
-        # 这里是获取公开模板的占位符
-        return []
-
-
-# 创建全局服务实例
-screener_service = ScreenerService()
+    return ScreenerResponse(
+        items=results,
+        total=total_count if total_count is not None else 0,
+        page=request.page,
+        size=request.size,
+        pages=(
+            (total_count + request.size - 1) // request.size
+            if total_count and total_count > 0
+            else 0
+        ),
+        filters_applied=filters_applied,
+    )

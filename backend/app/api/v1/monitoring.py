@@ -1,6 +1,3 @@
-from __future__ import annotations
-
-# !/usr/bin/env python3
 """
 
 ChronoRetrace - 监控API端点
@@ -12,7 +9,11 @@ Author: ChronoRetrace Team
 Date: 2024
 """
 
+from __future__ import annotations
+
 import logging
+import time
+from dataclasses import asdict
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -102,11 +103,11 @@ async def get_system_health():
         # 检查缓存状态
         cache_status = "healthy"
         try:
-            cache_service.ping()
+            cache_service.redis_cache.ping()
         except Exception:
             cache_status = "unhealthy"
 
-        # 检查数据库状态（简化实现）
+        # 数据库状态检查 - 简化实现
         database_status = "healthy"  # 实际应该检查数据库连接
 
         # 分析问题
@@ -114,10 +115,10 @@ async def get_system_health():
         memory_usage_mb = system_metrics.get("memory_available_mb", 0)
         cpu_usage_percent = system_metrics.get("cpu_percent", 0)
 
-        # 计算内存使用量（从可用内存推算）
-        if memory_usage_mb < 500:  # 可用内存少于500MB
+        # 计算内存使用量 - 从可用内存推算
+        if memory_usage_mb < MEMORY_AVAILABLE_MIN_MB:  # 可用内存少于500MB
             issues.append("内存使用量过高")
-        if cpu_usage_percent > 80:
+        if cpu_usage_percent > CPU_USAGE_HIGH_THRESHOLD:
             issues.append("CPU使用率过高")
         if cache_status == "unhealthy":
             issues.append("缓存服务不可用")
@@ -126,12 +127,9 @@ async def get_system_health():
 
         # 确定整体状态
         if issues:
-            status = "warning" if len(issues) <= 2 else "critical"
+            status = "warning" if len(issues) <= MAX_WARN_ISSUE_COUNT else "critical"
         else:
             status = "healthy"
-
-        # 计算运行时间（简化实现）
-        import time
 
         uptime_seconds = time.time() - system_metrics.get("start_time", time.time())
 
@@ -147,7 +145,7 @@ async def get_system_health():
         )
 
     except Exception as e:
-        logger.error(f"获取系统健康状态失败: {e}")
+        logger.exception("获取系统健康状态失败")
         raise HTTPException(status_code=500, detail="无法获取系统健康状态") from e
 
 
@@ -167,41 +165,53 @@ async def get_performance_stats(
     try:
         start_time, end_time = time_range
 
-        # 获取API指标
+        # 获取API指标(字典: key -> APIMetrics)
         api_metrics = performance_monitor.get_api_metrics()
+        metrics_values = list(api_metrics.values())
 
-        # 计算统计数据
-        total_requests = api_metrics.total_requests
-        avg_response_time = api_metrics.avg_response_time_ms
-        success_rate = api_metrics.success_rate
-        error_rate = 1.0 - success_rate
+        # 聚合统计数据
+        total_requests = sum(m.total_requests for m in metrics_values)
+        avg_response_time = (
+            sum(m.avg_response_time_ms * m.total_requests for m in metrics_values)
+            / total_requests
+            if total_requests > 0
+            else 0.0
+        )
+        success_count = sum(m.success_requests for m in metrics_values)
+        error_count = sum(m.error_requests for m in metrics_values)
+        success_rate = (success_count / total_requests) if total_requests > 0 else 0.0
+        error_rate = (error_count / total_requests) if total_requests > 0 else 0.0
 
-        # 计算RPS
-        time_diff_hours = (end_time - start_time).total_seconds() / 3600
+        # 计算RPS(每秒请求数)  # noqa: ERA001
+        time_diff_seconds = (end_time - start_time).total_seconds()
         requests_per_second = (
-            total_requests / (time_diff_hours * 3600) if time_diff_hours > 0 else 0
+            total_requests / time_diff_seconds if time_diff_seconds > 0 else 0.0
         )
 
-        # 获取最慢的端点（模拟数据）
+        # 最慢端点: 按平均响应时间降序取前3  # noqa: ERA001
+        slowest = sorted(
+            metrics_values, key=lambda m: m.avg_response_time_ms, reverse=True
+        )[:3]
         slowest_endpoints = [
-            {"endpoint": "/api/v1/stocks/data", "avg_time_ms": 450.2, "requests": 1234},
             {
-                "endpoint": "/api/v1/stocks/fundamental",
-                "avg_time_ms": 380.5,
-                "requests": 567,
-            },
-            {"endpoint": "/api/v1/stocks/sync", "avg_time_ms": 320.1, "requests": 89},
+                "endpoint": m.endpoint,
+                "avg_time_ms": round(m.avg_response_time_ms, 2),
+                "requests": m.total_requests,
+            }
+            for m in slowest
         ]
 
-        # 获取最活跃的端点（模拟数据）
+        # 最活跃端点: 按请求总数降序取前3  # noqa: ERA001
+        most_active = sorted(
+            metrics_values, key=lambda m: m.total_requests, reverse=True
+        )[:3]
         most_active_endpoints = [
-            {"endpoint": "/api/v1/stocks/list", "requests": 5678, "avg_time_ms": 120.3},
-            {"endpoint": "/api/v1/stocks/data", "requests": 1234, "avg_time_ms": 450.2},
             {
-                "endpoint": "/api/v1/stocks/fundamental",
-                "requests": 567,
-                "avg_time_ms": 380.5,
-            },
+                "endpoint": m.endpoint,
+                "requests": m.total_requests,
+                "avg_time_ms": round(m.avg_response_time_ms, 2),
+            }
+            for m in most_active
         ]
 
         return PerformanceStatsResponse(
@@ -217,8 +227,8 @@ async def get_performance_stats(
         )
 
     except Exception as e:
-        logger.error(f"获取性能统计失败: {e}")
-        raise HTTPException(status_code=500, detail="无法获取性能统计数据") from e
+        logger.exception("获取性能统计失败")
+        raise HTTPException(status_code=500, detail="无法获取性能统计") from e
 
 
 @router.get("/cache", response_model=CacheStatsResponse)
@@ -230,20 +240,20 @@ async def get_cache_stats():
         CacheStatsResponse: 缓存统计数据
     """
     try:
-        # 获取缓存统计
-        cache_stats = performance_monitor.get_cache_stats()
+        # 获取缓存统计(字典: cache_name -> CacheStats)
+        cache_stats_dict = performance_monitor.get_cache_stats()
 
-        # 获取Redis统计
+        # 获取Redis统计(来自 CacheService.get_cache_info 返回结构)
         redis_info = cache_service.get_cache_info()
         redis_stats = {
             "connected": redis_info.get("connected", False),
             "total_keys": redis_info.get("total_keys", 0),
-            "memory_usage_mb": redis_info.get("memory_usage_mb", 0),
+            "memory_usage_mb": redis_info.get("memory_usage_mb", 0.0),
             "hit_rate": redis_info.get("hit_rate", 0.0),
             "operations_per_second": redis_info.get("ops_per_sec", 0),
         }
 
-        # 内存缓存统计（模拟数据）
+        # 内存缓存统计(暂以占位数据, 后续可接入真实内存缓存统计)  # noqa: ERA001
         memory_cache_stats = {
             "size_mb": 45.2,
             "entries": 1250,
@@ -251,14 +261,14 @@ async def get_cache_stats():
             "evictions": 23,
         }
 
-        # 计算总体命中率
-        total_hits = cache_stats.total_hits
-        total_operations = cache_stats.total_operations
+        # 计算总体命中率和总操作数
+        total_hits = sum(s.hits for s in cache_stats_dict.values())
+        total_operations = sum(s.total_requests for s in cache_stats_dict.values())
         overall_hit_rate = (
             total_hits / total_operations if total_operations > 0 else 0.0
         )
 
-        # 热门缓存键（模拟数据）
+        # 热门缓存键(占位数据)  # noqa: ERA001
         top_cached_keys = [
             {"key": "stock_list_all", "hits": 1234, "size_kb": 45.2},
             {"key": "stock_data_000001_1d", "hits": 567, "size_kb": 12.8},
@@ -276,7 +286,7 @@ async def get_cache_stats():
         )
 
     except Exception as e:
-        logger.error(f"获取缓存统计失败: {e}")
+        logger.exception("获取缓存统计失败")
         raise HTTPException(status_code=500, detail="无法获取缓存统计数据") from e
 
 
@@ -299,7 +309,9 @@ async def get_metrics(
         start_time, end_time = time_range
 
         # 获取指标数据
-        metrics = performance_monitor.get_metrics_in_range(start_time, end_time)
+        metrics = performance_monitor.get_metrics_in_range(
+            start_time=start_time, end_time=end_time
+        )
 
         # 按类型过滤
         if metric_type:
@@ -320,7 +332,7 @@ async def get_metrics(
         )
 
     except Exception as e:
-        logger.error(f"获取指标数据失败: {e}")
+        logger.exception("获取指标数据失败")
         raise HTTPException(status_code=500, detail="无法获取指标数据") from e
 
 
@@ -342,7 +354,7 @@ async def clear_cache(
             cache_service.clear_all()
 
         if cache_type in ["memory", "all"]:
-            # 清空内存缓存（如果有的话）
+            # 清空内存缓存(如果有的话)  # noqa: ERA001
             pass
 
         return {
@@ -352,7 +364,7 @@ async def clear_cache(
         }
 
     except Exception as e:
-        logger.error(f"清空缓存失败: {e}")
+        logger.exception("清空缓存失败")
         raise HTTPException(status_code=500, detail="清空缓存失败") from e
 
 
@@ -403,7 +415,7 @@ async def get_alerts(
         }
 
     except Exception as e:
-        logger.error(f"获取告警信息失败: {e}")
+        logger.exception("获取告警信息失败")
         raise HTTPException(status_code=500, detail="无法获取告警信息") from e
 
 
@@ -426,7 +438,9 @@ async def export_metrics(
         start_time, end_time = time_range
 
         # 获取所有指标数据
-        metrics = performance_monitor.get_metrics_in_range(start_time, end_time)
+        metrics = performance_monitor.get_metrics_in_range(
+            start_time=start_time, end_time=end_time
+        )
         system_metrics = performance_monitor.get_system_metrics()
         api_metrics = performance_monitor.get_api_metrics()
         cache_stats = performance_monitor.get_cache_stats()
@@ -438,18 +452,24 @@ async def export_metrics(
                 "period_end": end_time.isoformat(),
                 "format": format_type,
             },
-            "system_metrics": system_metrics.dict() if system_metrics else {},
-            "api_metrics": api_metrics.dict() if api_metrics else {},
-            "cache_stats": cache_stats.dict() if cache_stats else {},
-            "detailed_metrics": [m.dict() for m in metrics],
+            "system_metrics": system_metrics or {},
+            "api_metrics": {k: asdict(v) for k, v in api_metrics.items()},
+            "cache_stats": {k: asdict(v) for k, v in cache_stats.items()},
+            "detailed_metrics": [asdict(m) for m in metrics],
         }
 
         if format_type == "csv":
-            # 简化的CSV格式（实际应该转换为CSV）
+            # 简化的CSV格式(实际应该转换为CSV)  # noqa: ERA001
             export_data["note"] = "CSV格式导出需要额外处理"
-
-        return export_data
+            return export_data
+        else:
+            return export_data
 
     except Exception as e:
-        logger.error(f"导出指标数据失败: {e}")
+        logger.exception("导出指标数据失败")
         raise HTTPException(status_code=500, detail="导出数据失败") from e
+
+
+MEMORY_AVAILABLE_MIN_MB = 500
+CPU_USAGE_HIGH_THRESHOLD = 80
+MAX_WARN_ISSUE_COUNT = 2

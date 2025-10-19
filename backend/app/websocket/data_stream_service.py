@@ -9,6 +9,8 @@ import json
 import logging
 from datetime import datetime
 from typing import Any
+import pandas as pd
+from starlette.concurrency import run_in_threadpool
 
 from ..data.managers.data_manager import fetch_stock_data
 from ..infrastructure.cache.redis_manager import RedisCacheManager
@@ -273,16 +275,30 @@ class DataStreamService:
             cached_data = await self.redis_manager.get(cache_key)
 
             if cached_data:
-                return json.loads(cached_data)
+                # RedisCacheManager.get 已自动反序列化，直接返回对象
+                return cached_data
 
             # 从数据获取器获取最新数据
             # 需要确定市场类型，这里简化处理，可以根据symbol前缀判断
             market_type = "A_share" if symbol.endswith((".SH", ".SZ")) else "US_stock"
-            data = await fetch_stock_data(symbol, interval, market_type)
+            # fetch_stock_data 是同步函数，避免直接 await 导致 "DataFrame is not awaitable"
+            data = await run_in_threadpool(
+                fetch_stock_data, symbol, interval, market_type
+            )
 
-            if data and len(data) > 0:
-                latest_data = data[-1]  # 获取最新的数据点
+            latest_data: dict[str, Any] | None = None
+            # 同时兼容 DataFrame / list / dict 的返回
+            if isinstance(data, pd.DataFrame):
+                if not data.empty:
+                    latest_row = data.iloc[-1]
+                    latest_data = latest_row.to_dict()
+            elif isinstance(data, list):
+                if len(data) > 0 and isinstance(data[-1], dict):
+                    latest_data = data[-1]
+            elif isinstance(data, dict):
+                latest_data = data
 
+            if latest_data is not None:
                 # 格式化数据
                 formatted_data = {
                     "symbol": symbol,
@@ -290,19 +306,25 @@ class DataStreamService:
                     "open": latest_data.get("open"),
                     "high": latest_data.get("high"),
                     "low": latest_data.get("low"),
-                    "volume": latest_data.get("volume"),
+                    "volume": latest_data.get("volume")
+                    or latest_data.get("vol")
+                    or latest_data.get("volume_total"),
                     "change": latest_data.get("change"),
                     "change_percent": latest_data.get("change_percent"),
-                    "timestamp": latest_data.get(
-                        "timestamp", datetime.utcnow().isoformat()
+                    "timestamp": (
+                        latest_data.get("timestamp")
+                        or latest_data.get("trade_date")
+                        or latest_data.get("date")
+                        or datetime.utcnow().isoformat()
                     ),
                 }
 
                 # 缓存数据（短时间缓存）
+                # 直接写入字典对象，并通过 ttl 指定过期时间，避免不支持的 ex 参数
                 await self.redis_manager.set(
                     cache_key,
-                    json.dumps(formatted_data, ensure_ascii=False),
-                    ex=30,  # 30秒缓存
+                    formatted_data,
+                    ttl=30,
                 )
 
                 return formatted_data

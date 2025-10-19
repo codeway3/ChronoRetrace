@@ -7,7 +7,6 @@ from sqlalchemy import (
     Column,
     Date,
     DateTime,
-    Enum,
     Float,
     ForeignKey,
     Index,
@@ -15,8 +14,8 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
-    text,
     func,
+    text,
 )
 from sqlalchemy import (
     Enum as SQLEnum,
@@ -335,6 +334,8 @@ class UserWatchlist(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
+    # 是否公开该自选股列表，用于分享或展示
+    is_public = Column(Boolean, default=False, nullable=False, index=True)
     is_default = Column(Boolean, default=False)
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)

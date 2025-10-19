@@ -21,15 +21,15 @@ def run_grid_backtest_api(config: GridStrategyConfig, db: Session = Depends(get_
     """
     API endpoint to run a single grid trading backtest.
     """
+    # 校验参数(避免在 try 中直接 raise)
+    if config.start_date > config.end_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Start date must be before or equal to end date.",
+        )
     try:
-        if config.start_date > config.end_date:
-            raise HTTPException(
-                status_code=400,
-                detail="Start date must be before or equal to end date.",
-            )
         logger.info(f"Received single grid backtest request for {config.stock_code}")
         result = backtester.run_grid_backtest(db=db, config=config)
-        return result
     except ValueError as e:
         logger.error(
             f"ValueError during backtest for {config.stock_code}: {e}", exc_info=True
@@ -43,6 +43,8 @@ def run_grid_backtest_api(config: GridStrategyConfig, db: Session = Depends(get_
         raise HTTPException(
             status_code=500, detail="An internal error occurred during the backtest."
         ) from e
+    else:
+        return result
 
 
 @router.post("/grid/optimize", response_model=BacktestOptimizationResponse)
@@ -52,15 +54,15 @@ def run_grid_optimization_api(
     """
     API endpoint to run a grid trading parameter optimization.
     """
+    # 校验参数(避免在 try 中直接 raise)
+    if config.start_date > config.end_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Start date must be before or equal to end date.",
+        )
     try:
-        if config.start_date > config.end_date:
-            raise HTTPException(
-                status_code=400,
-                detail="Start date must be before or equal to end date.",
-            )
         logger.info(f"Received grid optimization request for {config.stock_code}")
         result = backtester.run_grid_optimization(db=db, config=config)
-        return result
     except ValueError as e:
         logger.error(
             f"ValueError during optimization for {config.stock_code}: {e}",
@@ -75,3 +77,5 @@ def run_grid_optimization_api(
         raise HTTPException(
             status_code=500, detail="An internal error occurred during optimization."
         ) from e
+    else:
+        return result

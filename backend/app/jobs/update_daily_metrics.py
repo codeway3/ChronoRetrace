@@ -159,11 +159,7 @@ async def update_metrics_for_market(db: Session, market: str) -> int:
                                         if pd.notna(last["close"])
                                         else None
                                     ),
-                                    "volume": (
-                                        int(last["vol"])
-                                        if pd.notna(last["vol"])
-                                        else None
-                                    ),
+                                    "volume": to_int_if_valid(last.get("vol")),
                                 }
                                 consecutive_failures = 0  # 重置连续失败计数
                             else:
@@ -172,30 +168,12 @@ async def update_metrics_for_market(db: Session, market: str) -> int:
                                     "code": stock.ts_code,
                                     "market": market,
                                     "date": date.today(),
-                                    "close_price": (
-                                        float(row.get("close"))
-                                        if pd.notna(row.get("close"))
-                                        else None
-                                    ),
-                                    "volume": (
-                                        int(row.get("vol"))
-                                        if pd.notna(row.get("vol"))
-                                        else None
-                                    ),
-                                    "pe_ratio": (
-                                        float(row.get("pe_ratio"))
-                                        if pd.notna(row.get("pe_ratio"))
-                                        else None
-                                    ),
-                                    "pb_ratio": (
-                                        float(row.get("pb_ratio"))
-                                        if pd.notna(row.get("pb_ratio"))
-                                        else None
-                                    ),
-                                    "market_cap": (
-                                        int(row.get("market_cap"))
-                                        if pd.notna(row.get("market_cap"))
-                                        else None
+                                    "close_price": to_float_if_valid(row.get("close")),
+                                    "volume": to_int_if_valid(row.get("vol")),
+                                    "pe_ratio": to_float_if_valid(row.get("pe_ratio")),
+                                    "pb_ratio": to_float_if_valid(row.get("pb_ratio")),
+                                    "market_cap": to_int_if_valid(
+                                        row.get("market_cap")
                                     ),
                                 }
                                 consecutive_failures = 0  # 重置连续失败计数
@@ -541,3 +519,31 @@ if __name__ == "__main__":
         import sys
 
         sys.exit(0)
+
+
+def to_int_if_valid(val: Any) -> int | None:
+    """安全转换为 int，忽略 None/NaN/空字符串/不可转换的值"""
+    try:
+        if val is None:
+            return None
+        if isinstance(val, float) and pd.isna(val):
+            return None
+        if isinstance(val, str) and val.strip() == "":
+            return None
+        return int(val)
+    except Exception:
+        return None
+
+
+def to_float_if_valid(val: Any) -> float | None:
+    """安全转换为 float，忽略 None/NaN/空字符串/不可转换的值"""
+    try:
+        if val is None:
+            return None
+        if isinstance(val, float) and pd.isna(val):
+            return None
+        if isinstance(val, str) and val.strip() == "":
+            return None
+        return float(val)
+    except Exception:
+        return None

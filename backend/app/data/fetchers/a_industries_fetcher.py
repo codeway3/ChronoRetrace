@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Hashable, Sequence
 from datetime import datetime
@@ -8,8 +9,6 @@ from typing import Any
 import akshare as ak
 import pandas as pd
 from fastapi_cache.decorator import cache
-
-import asyncio
 
 logger = logging.getLogger(__name__)
 

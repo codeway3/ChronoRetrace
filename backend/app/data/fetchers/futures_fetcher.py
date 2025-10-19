@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Any, cast
 
 import akshare as ak
 import numpy as np
@@ -177,7 +177,7 @@ def _aggregate_interval(
     df["trade_date"] = pd.to_datetime(df["trade_date"])
     df = df.set_index("trade_date").sort_index()
     rule = "W-FRI" if interval == "weekly" else "M"
-    agg = {
+    agg: dict[str, Any] = {
         "open": "first",
         "high": "max",
         "low": "min",
@@ -185,7 +185,7 @@ def _aggregate_interval(
         "vol": "sum",
         "amount": "sum",
     }
-    df_agg = df.resample(rule).agg(agg).dropna(how="any")
+    df_agg = df.resample(rule).agg(cast(Any, agg)).dropna(how="any")
     df_agg = df_agg.reset_index().rename(columns={"trade_date": "trade_date"})
     df_agg["trade_date"] = df_agg["trade_date"].dt.strftime("%Y-%m-%d")
     return df_agg
@@ -217,11 +217,12 @@ def fetch_china_futures_from_akshare(
             start_ts = pd.Timestamp.today() - pd.Timedelta(days=365)
             end_ts = pd.Timestamp.today()
         # Handle potential NaT values
-        if start_ts is pd.NaT or (
-            hasattr(start_ts, "__array__") and start_ts.isna().any()
-        ):
+        # pd.isna on Timestamp returns a boolean; array-like handling isn't needed here
+        start_na = bool(pd.isna(start_ts))
+        if start_ts is pd.NaT or start_na:
             start_ts = pd.Timestamp.today() - pd.Timedelta(days=365)
-        if end_ts is pd.NaT or (hasattr(end_ts, "__array__") and end_ts.isna().any()):
+        end_na = bool(pd.isna(end_ts))
+        if end_ts is pd.NaT or end_na:
             end_ts = pd.Timestamp.today()
 
         # Ensure timestamps are valid before arithmetic operations

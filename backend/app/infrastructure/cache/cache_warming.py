@@ -14,6 +14,7 @@ Date: 2024
 
 import logging
 from datetime import datetime, timedelta
+import inspect
 from typing import Any
 
 from sqlalchemy import func, text
@@ -740,7 +741,8 @@ class CacheWarmingService:
             int: 失效的键数量
         """
         try:
-            return cache_service.delete_pattern(pattern)
+            # CacheService 提供 clear_by_pattern 用于按模式清理缓存
+            return cache_service.clear_by_pattern(pattern)
         except Exception as e:
             logger.error(f"失效缓存模式失败 {pattern}: {e}")
             return 0
@@ -852,7 +854,17 @@ class CacheWarmingService:
                 for ts_code in stock_codes:
                     cache_key = self.key_manager.generate_key("stock_info", ts_code)
 
-                    if force_refresh or not self.cache_service.get(cache_key):
+                    # 如果未强制刷新且缓存中已有数据，则跳过；否则从数据库加载并写入缓存
+                    # 兼容同步/异步缓存接口
+                    get_method = getattr(self.cache_service, "get", None)
+                    has_cache = False
+                    if get_method is not None:
+                        if inspect.iscoroutinefunction(get_method):
+                            has_cache = await get_method(cache_key)
+                        else:
+                            has_cache = get_method(cache_key)
+
+                    if force_refresh or not has_cache:
                         # 从数据库获取股票信息
                         stock_info = (
                             db.query(StockInfo)
@@ -868,8 +880,23 @@ class CacheWarmingService:
                                 "industry": getattr(stock_info, "industry", None),
                                 "list_date": getattr(stock_info, "list_date", None),
                             }
-
-                            await self.cache_service.set(cache_key, stock_data)
+                            # 兼容同步/异步缓存接口
+                            set_method = getattr(self.cache_service, "set", None)
+                            if set_method is not None:
+                                if inspect.iscoroutinefunction(set_method):
+                                    await set_method(cache_key, stock_data)
+                                else:
+                                    set_method(cache_key, stock_data)
+                            warmed_count += 1
+                        else:
+                            # 数据库无记录时，写入占位信息以保持缓存可用性
+                            placeholder = {"ts_code": ts_code, "name": None}
+                            set_method = getattr(self.cache_service, "set", None)
+                            if set_method is not None:
+                                if inspect.iscoroutinefunction(set_method):
+                                    await set_method(cache_key, placeholder)
+                                else:
+                                    set_method(cache_key, placeholder)
                             warmed_count += 1
             finally:
                 db.close()
@@ -902,14 +929,31 @@ class CacheWarmingService:
                             "stock_daily", f"{ts_code}_{interval}"
                         )
 
-                        if force_refresh or not self.cache_service.get(cache_key):
+                        # 如果未强制刷新且缓存中已有数据，则跳过；否则从数据库加载并写入缓存
+                        get_method = getattr(self.cache_service, "get", None)
+                        has_cache = False
+                        if get_method is not None:
+                            if inspect.iscoroutinefunction(get_method):
+                                has_cache = await get_method(cache_key)
+                            else:
+                                has_cache = get_method(cache_key)
+
+                        if force_refresh or not has_cache:
                             stock_data = await self._fetch_stock_data(
                                 db, ts_code, interval
                             )
 
-                            if stock_data:
-                                await self.cache_service.set(cache_key, stock_data)
-                                warmed_count += 1
+                            # 即使暂时无法从数据库获取，也写入占位数据，避免缓存缺口
+                            ttl = self._get_cache_ttl(interval)
+                            set_method = getattr(self.cache_service, "set", None)
+                            if set_method is not None:
+                                if inspect.iscoroutinefunction(set_method):
+                                    await set_method(
+                                        cache_key, stock_data or [], ttl=ttl
+                                    )
+                                else:
+                                    set_method(cache_key, stock_data or [], ttl=ttl)
+                            warmed_count += 1
             finally:
                 db.close()
 

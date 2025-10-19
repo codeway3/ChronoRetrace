@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import datetime
+from collections.abc import Mapping
 from datetime import date
 from typing import TYPE_CHECKING, Any
-from collections.abc import Mapping
 from unittest.mock import Mock as _Mock
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,7 +13,6 @@ from app.analytics.backtest.backtester import BacktestEngine
 from app.analytics.schemas.strategy_response import (
     DeleteStrategyResponse,
     StrategyResponse,
-    BacktestResultResponse,
 )
 from app.analytics.schemas.technical_analysis import (
     TechnicalIndicatorsRequest,
@@ -86,7 +85,7 @@ def _serialize_strategy(obj: Any) -> StrategyResponse:
         data = {}
 
     def _get(attr: str, default: Any = None):
-        v = data.get(attr, None)
+        v = data.get(attr)
         if v is None:
             v = getattr(obj, attr, default)
         # Mock 值回退到默认值, 防止 FastAPI/Pydantic 序列化报错

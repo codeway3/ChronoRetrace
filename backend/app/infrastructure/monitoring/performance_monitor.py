@@ -392,6 +392,15 @@ class PerformanceMonitor:
         with self._lock:
             return self.system_metrics.copy()
 
+    def get_metrics_in_range(
+        self, start_time: datetime, end_time: datetime
+    ) -> list[PerformanceMetric]:
+        """按时间范围获取历史指标列表"""
+        with self._lock:
+            return [
+                m for m in self.metrics_history if start_time <= m.timestamp <= end_time
+            ]
+
     def get_metrics_summary(self, time_range_minutes: int = 60) -> dict[str, Any]:
         """
         获取指标摘要

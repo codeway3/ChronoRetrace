@@ -9,11 +9,11 @@ from datetime import date, datetime, timedelta
 import akshare as ak
 import baostock as bs
 import pandas as pd
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.orm import Session
 
 # 新增：按方言引入 PostgreSQL insert（最小范围引入，不影响 SQLite）
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.orm import Session
 
 from app.infrastructure.database import models
 

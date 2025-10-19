@@ -611,23 +611,25 @@ class LoggingService:
         # 更新指标
         if log_entry.metrics and batch_log.metrics:
             if "total_processed" in log_entry.metrics:
-                batch_log.metrics.total_processed += log_entry.metrics[
-                    "total_processed"
-                ]
+                batch_log.metrics.processed_records += int(
+                    log_entry.metrics["total_processed"]
+                )
             if "success_records" in log_entry.metrics:
-                batch_log.metrics.success_records += log_entry.metrics[
-                    "success_records"
-                ]
+                batch_log.metrics.success_records += int(
+                    log_entry.metrics["success_records"]
+                )
             if "failed_records" in log_entry.metrics:
-                batch_log.metrics.failed_records += log_entry.metrics["failed_records"]
+                batch_log.metrics.failed_records += int(
+                    log_entry.metrics["failed_records"]
+                )
             if "duplicates_found" in log_entry.metrics:
-                batch_log.metrics.duplicates_found += log_entry.metrics[
-                    "duplicates_found"
-                ]
+                batch_log.metrics.duplicates_found += int(
+                    log_entry.metrics["duplicates_found"]
+                )
             if "duplicates_removed" in log_entry.metrics:
-                batch_log.metrics.duplicates_removed += log_entry.metrics[
-                    "duplicates_removed"
-                ]
+                batch_log.metrics.duplicates_removed += int(
+                    log_entry.metrics["duplicates_removed"]
+                )
 
         # 更新状态
         if log_entry.status == LogStatus.FAILED:

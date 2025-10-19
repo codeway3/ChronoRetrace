@@ -169,7 +169,7 @@ class BacktestEngine:
     def _execute_trades(self, signals: list[dict[str, Any]], current_row: pd.Series):
         """执行交易"""
         if not isinstance(self.current_date, datetime):
-            # 当未在回测主循环中设置时间戳时，提供一个合理的默认时间戳以允许交易执行
+            # 当未在回测主循环中设置时间戳时, 提供一个合理的默认时间戳以允许交易执行
             logger.warning(
                 "current_date is not a datetime object, using current timestamp for trade execution."
             )
@@ -242,7 +242,7 @@ class BacktestEngine:
             self.equity_curve[-1]["timestamp"] - self.equity_curve[0]["timestamp"]
         ).days
         annual_return = (1 + total_return / 100) ** (365 / max(days, 1)) - 1
-        # 夏普比率（避免除以0或NaN）
+        # 夏普比率 (避免除以0或NaN)
         if len(returns) > 1:
             std = float(np.std(returns))
             sharpe_ratio = (
@@ -285,7 +285,7 @@ class BacktestEngine:
         if not buy_trades:
             return 0.0
 
-        # 简化计算：假设卖出交易都是盈利的
+        # 简化计算: 假设卖出交易都是盈利的
         sell_trades = [t for t in self.trades if t.action == TradeAction.SELL]
         return len(sell_trades) / len(buy_trades) if buy_trades else 0.0
 
@@ -399,6 +399,6 @@ def run_grid_optimization(db, config):
     Returns:
         Dict: 包含优化结果的字典
     """
-    # 这是一个占位符实现，实际需要实现参数优化逻辑
+    # 这是一个占位符实现, 实际需要实现参数优化逻辑
     logger.warning("网格优化功能尚未实现")
     return {"optimization_results": [], "best_result": {}}

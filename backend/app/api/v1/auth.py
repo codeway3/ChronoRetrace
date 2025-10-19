@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ...core.config import settings
@@ -265,20 +264,20 @@ async def reset_password(
 
     user = db.query(User).filter_by(email=reset_data.email).first()
     if not user:
-        # 为了安全，即使用户不存在也返回成功消息
-        return ApiResponse(success=True, message="如果邮箱存在，重置链接已发送")
+        # 为了安全, 即使用户不存在也返回成功消息
+        return ApiResponse(success=True, message="如果邮箱存在, 重置链接已发送")
 
     # 生成重置令牌
     reset_token = auth_service.create_password_reset_token(user.id)
 
-    # 这里应该发送邮件，暂时只记录日志
+    # 这里应该发送邮件, 暂时只记录日志
     log_user_activity(
         user, "password_reset_requested", f"重置令牌: {reset_token}", request, db
     )
 
     return ApiResponse(
         success=True,
-        message="如果邮箱存在，重置链接已发送",
+        message="如果邮箱存在, 重置链接已发送",
         data={"reset_token": reset_token},  # 生产环境中不应返回令牌
     )
 

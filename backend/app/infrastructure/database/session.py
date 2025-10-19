@@ -1,11 +1,11 @@
+# 新增：测试环境检测
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import QueuePool
 
 from app.core.config import settings
-
-# 新增：测试环境检测
-import os
 
 
 def _is_test_environment() -> bool:

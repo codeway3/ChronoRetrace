@@ -3,20 +3,19 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-import pandas as pd
-import yahoo_fin.stock_info as si
-import yfinance as yf
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.orm import Session
-
-# 新增：按方言引入 PostgreSQL insert（最小范围引入，不影响 SQLite）
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-
 # 新增：为静态类型检查引入 cast
 from typing import Any, cast
 
+import pandas as pd
+
 # 新增：用于 Wikipedia 回退抓取
-import requests
+import yahoo_fin.stock_info as si
+import yfinance as yf
+
+# 新增：按方言引入 PostgreSQL insert（最小范围引入，不影响 SQLite）
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.orm import Session
 
 from app.infrastructure.database import models
 
@@ -588,7 +587,7 @@ def fetch_us_corporate_actions_from_yfinance(symbol: str) -> list[dict]:
         if not dividends.empty:
             for idx, value in dividends.items():
                 # 使用 typing.cast 明确告诉类型检查器 idx 可转换为时间戳
-                ex_dt = pd.Timestamp(cast(Any, idx)).date()
+                ex_dt = pd.Timestamp(cast("Any", idx)).date()
                 actions_list.append(
                     {"action_type": "dividend", "ex_date": ex_dt, "value": value}
                 )
@@ -596,7 +595,7 @@ def fetch_us_corporate_actions_from_yfinance(symbol: str) -> list[dict]:
         splits = ticker.splits
         if not splits.empty:
             for idx, value in splits.items():
-                ex_dt = pd.Timestamp(cast(Any, idx)).date()
+                ex_dt = pd.Timestamp(cast("Any", idx)).date()
                 actions_list.append(
                     {"action_type": "split", "ex_date": ex_dt, "value": value}
                 )
@@ -616,7 +615,7 @@ def fetch_us_annual_earnings_from_yfinance(symbol: str) -> list[dict]:
             annual_net_income = financials.loc["Net Income"]
             for idx, value in annual_net_income.items():
                 if not pd.isna(value).any():
-                    year_val = pd.Timestamp(cast(Any, idx)).year
+                    year_val = pd.Timestamp(cast("Any", idx)).year
                     earnings_list.append({"year": year_val, "net_profit": value})
         return earnings_list
     except Exception as e:

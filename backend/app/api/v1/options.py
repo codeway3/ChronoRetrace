@@ -20,7 +20,6 @@ async def get_option_expirations(underlying_symbol: str):
         expirations = await run_in_threadpool(
             options_fetcher.get_expiration_dates, symbol=underlying_symbol
         )
-        return expirations
     except Exception as e:
         logger.error(
             f"Failed to fetch expiration dates for {underlying_symbol}: {e!s}",
@@ -30,6 +29,8 @@ async def get_option_expirations(underlying_symbol: str):
             status_code=404,
             detail=f"Could not find expiration dates for symbol '{underlying_symbol}'.",
         ) from e
+    else:
+        return expirations
 
 
 @router.get("/chain/{underlying_symbol}", response_model=list[Any])
@@ -43,7 +44,6 @@ async def get_option_chain_for_date(
             symbol=underlying_symbol,
             expiration_date=expiration_date,
         )
-        return chain
     except Exception as e:
         logger.error(
             f"Failed to fetch option chain for {underlying_symbol} on {expiration_date}: {e!s}",
@@ -53,6 +53,8 @@ async def get_option_chain_for_date(
             status_code=500,
             detail=f"Failed to fetch option chain for {underlying_symbol} on {expiration_date}.",
         ) from e
+    else:
+        return chain
 
 
 @router.get("/{symbol}", response_model=list[StockDataBase])

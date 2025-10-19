@@ -27,10 +27,14 @@ class ActionType(str, Enum):
 class Condition(BaseModel):
     """策略条件"""
 
-    type: ConditionType
-    indicator: str = Field(..., description="技术指标名称，如'macd', 'rsi'等")
+    id: int | None = Field(None, description="条件ID, 用于在动作中引用")
+    type: ConditionType = Field(
+        ConditionType.TECHNICAL,
+        description="条件类型: technical/fundamental/sentiment/price",
+    )
+    indicator: str = Field(..., description="技术指标名称, 如 'macd', 'rsi' 等")
     operator: str = Field(
-        ..., description="比较运算符：'>', '<', '>=', '<=', '==', '!='"
+        ..., description="比较运算符: '>', '<', '>=', '<=', '==', '!='"
     )
     value: float = Field(..., description="比较值")
     lookback_period: int | None = Field(14, description="回溯周期")
@@ -39,7 +43,7 @@ class Condition(BaseModel):
 class Action(BaseModel):
     """策略动作"""
 
-    type: ActionType
+    type: ActionType = Field(ActionType.HOLD, description="动作类型: buy/sell/hold")
     condition_id: int = Field(..., description="触发此动作的条件ID")
     position_size: float = Field(1.0, ge=0.0, le=1.0, description="仓位比例(0-1)")
     stop_loss: float | None = Field(None, description="止损比例")
@@ -54,7 +58,7 @@ class StrategyDefinition(BaseModel):
 
     # 策略参数
     symbols: list[str] = Field(..., min_length=1, description="交易标的列表")
-    interval: str = Field("1d", description="时间间隔：1d, 1h, 30m, 15m, 5m, 1m")
+    interval: str = Field("1d", description="时间间隔: 1d, 1h, 30m, 15m, 5m, 1m")
     initial_capital: float = Field(100000.0, gt=0, description="初始资金")
 
     # 策略逻辑
@@ -79,7 +83,7 @@ class StrategyDefinition(BaseModel):
     @classmethod
     def validate_actions(cls, v, info):
         if hasattr(info, "data") and "conditions" in info.data:
-            condition_ids = [cond for cond in range(len(info.data["conditions"]))]
+            condition_ids = list(range(len(info.data["conditions"])))
             for action in v:
                 if action.condition_id not in condition_ids:
                     raise ValueError(f"动作引用了不存在的条件ID: {action.condition_id}")
@@ -95,6 +99,7 @@ example_strategy = StrategyDefinition(
     initial_capital=100000,
     conditions=[
         Condition(
+            id=0,
             type=ConditionType.TECHNICAL,
             indicator="sma",
             operator=">",
@@ -102,6 +107,7 @@ example_strategy = StrategyDefinition(
             lookback_period=20,
         ),
         Condition(
+            id=1,
             type=ConditionType.TECHNICAL,
             indicator="sma",
             operator="<",
@@ -117,7 +123,13 @@ example_strategy = StrategyDefinition(
             stop_loss=0.05,
             take_profit=0.1,
         ),
-        Action(type=ActionType.SELL, condition_id=1, position_size=1.0),
+        Action(
+            type=ActionType.SELL,
+            condition_id=1,
+            position_size=1.0,
+            stop_loss=None,
+            take_profit=None,
+        ),
     ],
     max_position_size=0.2,
     max_drawdown=0.15,

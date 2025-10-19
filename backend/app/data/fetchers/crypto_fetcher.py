@@ -43,7 +43,7 @@ def aggregate_ohlcv(data: list[dict[str, Any]], interval: str) -> list[dict[str,
 
     rule = rule_map[interval]
 
-    agg_rules = {
+    agg_rules: dict[str, Any] = {
         "open": "first",
         "high": "max",
         "low": "min",
@@ -51,7 +51,8 @@ def aggregate_ohlcv(data: list[dict[str, Any]], interval: str) -> list[dict[str,
         "volumeto": "sum",
     }
 
-    agg_df = df.resample(rule).agg(agg_rules)
+    # Pyright is strict about DataFrame.agg type; cast rules to Any for compatibility
+    agg_df = df.resample(rule).agg(cast(Any, agg_rules))
     agg_df.dropna(inplace=True)
 
     # Calculate MAs on aggregated data

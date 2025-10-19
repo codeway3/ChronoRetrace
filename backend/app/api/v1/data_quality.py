@@ -31,31 +31,32 @@ async def validate_data(
             validation_rules=validation_rules or {},
         )
 
-        df = pd.DataFrame(data)
-
+        # 直接使用 list[dict], validate_only 需要列表而非 DataFrame
         with DataQualityManager(db, config) as quality_manager:
-            result = quality_manager.validate_only(df)
+            reports = quality_manager.validate_only(data)
+
+            valid_count = sum(1 for r in reports if r.is_valid)
+            invalid_count = len(reports) - valid_count
+            errors = [err for r in reports for err in (r.errors or [])]
+            warnings = [w for r in reports for w in (r.warnings or [])]
 
             return {
                 "status": "success",
-                "has_errors": result.has_errors,
+                "has_errors": (invalid_count > 0) or (len(errors) > 0),
                 "validation_report": {
-                    "summary": result.validation_report.summary,
-                    "total_records": result.validation_report.total_records,
-                    "valid_records": result.validation_report.valid_records,
-                    "invalid_records": result.validation_report.invalid_records,
-                    "errors": result.validation_report.errors,
-                    "warnings": result.validation_report.warnings,
+                    "summary": f"校验汇总: 有效 {valid_count} 条, 无效 {invalid_count} 条",
+                    "total_records": len(reports),
+                    "valid_records": valid_count,
+                    "invalid_records": invalid_count,
+                    "errors": errors,
+                    "warnings": warnings,
                 },
-                "processed_data": (
-                    result.processed_data.to_dict(orient="records")
-                    if not result.processed_data.empty
-                    else []
-                ),
+                # 校验接口不做加工, 返回空列表以保持兼容
+                "processed_data": [],
             }
 
     except Exception as e:
-        logger.error(f"Data validation failed: {e}", exc_info=True)
+        logger.exception("Data validation failed")
         raise HTTPException(status_code=500, detail=f"Validation failed: {e!s}") from e
 
 
@@ -78,33 +79,33 @@ async def deduplicate_data(
             deduplication_strategy=DeduplicationStrategy(strategy),
         )
 
-        df = pd.DataFrame(data)
-
+        # 直接使用 list[dict], deduplicate_only 需要列表而非 DataFrame
         with DataQualityManager(db, config) as quality_manager:
-            result = quality_manager.deduplicate_only(df)
+            report = quality_manager.deduplicate_only(data)
 
             return {
                 "status": "success",
+                "requested_fields": deduplication_fields,
                 "deduplication_report": (
                     {
-                        "summary": result.deduplication_report.summary,
-                        "total_records": result.deduplication_report.total_records,
-                        "unique_records": result.deduplication_report.unique_records,
-                        "duplicate_records": result.deduplication_report.duplicate_records,
-                        "duplicates_removed": result.deduplication_report.duplicates_removed,
+                        "summary": report.summary,
+                        "total_processed": report.total_processed,
+                        "duplicates_found": report.duplicates_found,
+                        "duplicates_removed": report.duplicates_removed,
+                        "duplicate_groups": len(report.duplicate_groups),
                     }
-                    if result.deduplication_report
+                    if report
                     else None
                 ),
                 "processed_data": (
-                    result.processed_data.to_dict(orient="records")
-                    if not result.processed_data.empty
-                    else []
+                    report.deduplicated_data
+                    if report and report.deduplicated_data is not None
+                    else data
                 ),
             }
 
     except Exception as e:
-        logger.error(f"Data deduplication failed: {e}", exc_info=True)
+        logger.exception("Data deduplication failed")
         raise HTTPException(
             status_code=500, detail=f"Deduplication failed: {e!s}"
         ) from e
@@ -131,44 +132,56 @@ async def process_data(
             deduplication_strategy=DeduplicationStrategy(strategy),
         )
 
-        df = pd.DataFrame(data)
-
+        # 直接传入列表, process_data 可接受列表或 DataFrame
         with DataQualityManager(db, config) as quality_manager:
-            result = quality_manager.process_data(df)
+            result = quality_manager.process_data(data)
 
             response = {
                 "status": "success",
                 "has_errors": result.has_errors,
                 "processed_data": (
-                    result.processed_data.to_dict(orient="records")
-                    if not result.processed_data.empty
-                    else []
+                    result.deduplication_report.deduplicated_data
+                    if result.deduplication_report
+                    and result.deduplication_report.deduplicated_data is not None
+                    else data
                 ),
             }
 
-            if result.validation_report:
+            if result.validation_reports:
+                valid_count = result.valid_records
+                invalid_count = result.invalid_records
+                errors = [
+                    err for r in result.validation_reports for err in (r.errors or [])
+                ]
+                warnings = [
+                    w for r in result.validation_reports for w in (r.warnings or [])
+                ]
+
                 response["validation_report"] = {
-                    "summary": result.validation_report.summary,
-                    "total_records": result.validation_report.total_records,
-                    "valid_records": result.validation_report.valid_records,
-                    "invalid_records": result.validation_report.invalid_records,
-                    "errors": result.validation_report.errors,
-                    "warnings": result.validation_report.warnings,
+                    "summary": (
+                        f"校验汇总: 有效 {valid_count} 条, 无效 {invalid_count} 条"
+                    ),
+                    "total_records": result.total_records,
+                    "valid_records": valid_count,
+                    "invalid_records": invalid_count,
+                    "errors": errors,
+                    "warnings": warnings,
                 }
 
             if result.deduplication_report:
+                report = result.deduplication_report
                 response["deduplication_report"] = {
-                    "summary": result.deduplication_report.summary,
-                    "total_records": result.deduplication_report.total_records,
-                    "unique_records": result.deduplication_report.unique_records,
-                    "duplicate_records": result.deduplication_report.duplicate_records,
-                    "duplicates_removed": result.deduplication_report.duplicates_removed,
+                    "summary": report.summary,
+                    "total_processed": report.total_processed,
+                    "duplicates_found": report.duplicates_found,
+                    "duplicates_removed": report.duplicates_removed,
+                    "duplicate_groups": len(report.duplicate_groups),
                 }
 
             return response
 
     except Exception as e:
-        logger.error(f"Data processing failed: {e}", exc_info=True)
+        logger.exception("Data processing failed")
         raise HTTPException(status_code=500, detail=f"Processing failed: {e!s}") from e
 
 
@@ -208,7 +221,7 @@ async def data_quality_health(db: Session = Depends(get_db)):
         }
 
     except Exception as e:
-        logger.error(f"Data quality health check failed: {e}", exc_info=True)
+        logger.exception("Data quality health check failed")
         return {
             "status": "unhealthy",
             "timestamp": datetime.utcnow().isoformat(),
@@ -245,7 +258,7 @@ async def get_data_quality_metrics():
         }
 
     except Exception as e:
-        logger.error(f"Failed to get data quality metrics: {e}", exc_info=True)
+        logger.exception("Failed to get data quality metrics")
         raise HTTPException(
             status_code=500, detail=f"Failed to get metrics: {e!s}"
         ) from e

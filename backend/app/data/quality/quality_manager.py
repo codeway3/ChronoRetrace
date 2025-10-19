@@ -4,10 +4,9 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Union
+from typing import Any
 
 import pandas as pd
-
 from sqlalchemy.orm import Session
 
 from ...infrastructure.error_handling_service import ErrorHandlingService
@@ -132,7 +131,7 @@ class DataQualityManager:
 
     def process_data(
         self,
-        data: Union[list[dict[str, Any]], pd.DataFrame],
+        data: list[dict[str, Any]] | pd.DataFrame,
         data_type: str = "A_share",
     ) -> DataQualityResult:
         """
@@ -253,8 +252,9 @@ class DataQualityManager:
 
             # 记录错误日志
             if self.config.enable_logging:
-                from ...infrastructure.logging_service import LogLevel
                 import json
+
+                from ...infrastructure.logging_service import LogLevel
 
                 # 将ErrorResponse对象序列化为JSON字符串
                 error_details_json = json.dumps(
@@ -469,7 +469,7 @@ class DataQualityManager:
         except Exception as e:
             self.logger.error(f"资源清理失败: {e!s}")
 
-    def __enter__(self) -> "DataQualityManager":
+    def __enter__(self) -> DataQualityManager:
         """上下文管理器入口"""
         return self
 

@@ -17,12 +17,12 @@ from fastapi import (
 )
 from fastapi.security import HTTPBearer
 
+from app.core.config import settings
 from app.infrastructure.cache.redis_manager import RedisCacheManager
 from app.services.auth_service import auth_service
 from app.websocket.connection_manager import ConnectionManager
 from app.websocket.data_stream_service import DataStreamService
 from app.websocket.message_handler import MessageHandler
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ security = HTTPBearer()
 # 全局实例（将在应用启动时初始化）
 connection_manager: ConnectionManager | None = None
 message_handler: MessageHandler | None = None
+# 恢复全局 data_stream_service 变量定义，同时保留对局部未使用变量赋值的移除。
 data_stream_service: DataStreamService | None = None
 
 
@@ -95,7 +96,8 @@ async def websocket_endpoint(
     # 从app.state获取服务实例
     app = websocket.app
     connection_manager = getattr(app.state, "connection_manager", None)
-    data_stream_service = getattr(app.state, "data_stream_service", None)
+    # 移除未使用的局部变量赋值，避免遮蔽全局 data_stream_service 并产生未使用警告
+    # data_stream_service = getattr(app.state, "data_stream_service", None)
 
     if not connection_manager:
         logger.error("WebSocket服务未初始化 - connection_manager为空")

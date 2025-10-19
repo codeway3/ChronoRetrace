@@ -247,7 +247,7 @@ async def get_default_watchlist(
         # stock = db.query(StockInfo).filter(StockInfo.ts_code == item.stock_code).first()
         item_data = {
             "id": item.id,
-            "stock_code": item.stock_code,
+            "stock_code": item.symbol,
             "stock_name": None,  # 暂时为空，后续可以从股票表获取
             "notes": item.notes,
             "added_at": item.added_at,
@@ -301,7 +301,7 @@ async def get_watchlist(
     for item in items:
         item_data = {
             "id": item.id,
-            "stock_code": item.stock_code,
+            "stock_code": item.symbol,
             "stock_name": None,
             "notes": item.notes,
             "added_at": item.added_at,
@@ -463,7 +463,8 @@ async def add_stock_to_watchlist(
         .filter(
             and_(
                 UserWatchlistItem.watchlist_id == watchlist_id,
-                UserWatchlistItem.stock_code == item_data.stock_code,
+                UserWatchlistItem.symbol == item_data.stock_code,
+                UserWatchlistItem.market == "A_share",
             )
         )
         .first()
@@ -490,7 +491,8 @@ async def add_stock_to_watchlist(
     # 添加股票到列表
     new_item = UserWatchlistItem(
         watchlist_id=watchlist_id,
-        stock_code=item_data.stock_code,
+        symbol=item_data.stock_code,
+        market="A_share",
         notes=item_data.notes,
     )
 
@@ -504,7 +506,7 @@ async def add_stock_to_watchlist(
 
     return {
         "id": new_item.id,
-        "stock_code": new_item.stock_code,
+        "stock_code": new_item.symbol,
         "stock_name": None,
         "notes": new_item.notes,
         "added_at": new_item.added_at,
@@ -553,7 +555,7 @@ async def update_watchlist_item(
 
     return {
         "id": item.id,
-        "stock_code": item.stock_code,
+        "stock_code": item.symbol,
         "stock_name": None,
         "notes": item.notes,
         "added_at": item.added_at,

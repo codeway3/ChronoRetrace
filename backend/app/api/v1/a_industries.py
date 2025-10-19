@@ -1,6 +1,6 @@
 import logging
 import math
-from typing import cast
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi_cache.decorator import cache
@@ -13,7 +13,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def clean_json_data(data: list[dict]) -> list[dict]:
+def clean_json_data(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Recursively clean data to make it JSON compliant."""
     for item in data:
         for key, value in item.items():
@@ -37,12 +37,13 @@ async def get_industry_overview(
             "list[dict[str, object]]", await fetcher.build_overview(window, provider)
         )
         logger.info(f"Industry overview fetched: count={len(data)}")
-        return data
     except Exception as e:
         logger.error(f"Failed to fetch industry overview: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Failed to fetch industry overview"
         ) from e
+    else:
+        return data
 
 
 @router.get("/{industry_code}/stocks", response_model=list[ConstituentStock])
@@ -58,17 +59,16 @@ async def get_industry_constituent_stocks(industry_code: str):
             fetcher.fetch_industry_constituents, industry_code=industry_code
         )
 
+        # Clean data to ensure JSON compliance and avoid returns inside try
         if not data:
             logger.warning(f"No constituent stocks found for industry: {industry_code}")
-            return []
-
-        # Clean data to ensure JSON compliance
-        cleaned_data = clean_json_data(data)
-
-        logger.info(
-            f"Fetched {len(cleaned_data)} constituents for industry: {industry_code}"
-        )
-        return cleaned_data
+            result_data: list[dict[str, Any]] = []
+        else:
+            cleaned_data = clean_json_data(cast("list[dict[str, Any]]", list(data)))
+            logger.info(
+                f"Fetched {len(cleaned_data)} constituents for industry: {industry_code}"
+            )
+            result_data = cleaned_data
     except Exception as e:
         logger.error(
             f"Failed to fetch constituent stocks for industry {industry_code}: {e}",
@@ -77,3 +77,5 @@ async def get_industry_constituent_stocks(industry_code: str):
         raise HTTPException(
             status_code=500, detail="Failed to fetch constituent stocks"
         ) from e
+    else:
+        return result_data

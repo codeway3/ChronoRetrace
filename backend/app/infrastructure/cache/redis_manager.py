@@ -12,7 +12,7 @@ import logging
 from collections.abc import Callable, Mapping
 from datetime import datetime
 from functools import wraps
-from typing import Any
+from typing import Any, cast
 
 import redis
 from redis.exceptions import ConnectionError, TimeoutError
@@ -232,7 +232,7 @@ class RedisCacheManager:
             return json.dumps(value)
         return json.dumps(value, default=str, ensure_ascii=False)
 
-    def _deserialize_value(self, value: str) -> Any:
+    def _deserialize_value(self, value: Any) -> Any:
         """反序列化JSON字符串为Python对象"""
         try:
             return json.loads(value)
@@ -254,6 +254,7 @@ class RedisCacheManager:
             缓存值，如果不存在返回None
         """
         try:
+            # 返回类型为 ResponseT（通常为 bytes 或 None），按需交由反序列化处理
             value = self.redis_client.get(key)
             if value is not None:
                 self.stats["hits"] += 1
@@ -291,15 +292,15 @@ class RedisCacheManager:
                 ttl = self.key_manager.get_ttl(key_type)
 
             if ttl:
-                result = self.redis_client.setex(key, ttl, serialized_value)
+                result_bool = bool(self.redis_client.setex(key, ttl, serialized_value))
             else:
-                result = self.redis_client.set(key, serialized_value)
+                result_bool = bool(self.redis_client.set(key, serialized_value))
 
-            if result:
+            if result_bool:
                 self.stats["sets"] += 1
                 logger.debug(f"Cache set: {key} (TTL: {ttl})")
 
-            return bool(result)
+            return result_bool
         except Exception as e:
             self._handle_redis_error("SET", key, e)
             return False
@@ -314,11 +315,11 @@ class RedisCacheManager:
             操作是否成功
         """
         try:
-            result = self.redis_client.delete(key)
-            if result:
+            result_int = cast(int, self.redis_client.delete(key))
+            if result_int:
                 self.stats["deletes"] += 1
                 logger.debug(f"Cache deleted: {key}")
-            return bool(result)
+            return bool(result_int)
         except Exception as e:
             self._handle_redis_error("DELETE", key, e)
             return False
@@ -333,9 +334,10 @@ class RedisCacheManager:
             删除的键数量
         """
         try:
-            keys = self.redis_client.keys(pattern)
+            # decode_responses=True -> keys() returns list[str]
+            keys = cast(list[str], self.redis_client.keys(pattern))
             if keys:
-                deleted_count = self.redis_client.delete(*keys)
+                deleted_count = int(cast(int, self.redis_client.delete(*keys)))
                 self.stats["deletes"] += deleted_count
                 logger.info(
                     f"Batch deleted {deleted_count} keys matching pattern: {pattern}"
@@ -356,7 +358,7 @@ class RedisCacheManager:
             缓存是否存在
         """
         try:
-            return bool(self.redis_client.exists(key))
+            return bool(cast(int, self.redis_client.exists(key)))
         except Exception as e:
             self._handle_redis_error("EXISTS", key, e)
             return False
@@ -372,9 +374,9 @@ class RedisCacheManager:
             操作是否成功
         """
         try:
-            result = self.redis_client.expire(key, ttl)
+            result = bool(self.redis_client.expire(key, ttl))
             logger.debug(f"Cache TTL updated: {key} -> {ttl}s")
-            return bool(result)
+            return result
         except Exception as e:
             self._handle_redis_error("EXPIRE", key, e)
             return False
@@ -389,7 +391,8 @@ class RedisCacheManager:
             剩余过期时间（秒），-1表示永不过期，-2表示键不存在
         """
         try:
-            return self.redis_client.ttl(key)
+            # redis-py 类型存根返回 ResponseT，这里显式转换为 int 以满足类型检查
+            return int(cast(int, self.redis_client.ttl(key)))
         except Exception as e:
             self._handle_redis_error("TTL", key, e)
             return -2
@@ -408,9 +411,12 @@ class RedisCacheManager:
             递增后的值
         """
         try:
-            result = self.redis_client.incr(key, amount)
-            if ttl and not self.redis_client.ttl(key) > 0:
-                self.redis_client.expire(key, ttl)
+            # redis-py 类型存根返回 ResponseT，这里显式转换为 int 以满足类型检查
+            result = cast(int, self.redis_client.incr(key, amount))
+            if ttl:
+                ttl_val = int(cast(int, self.redis_client.ttl(key)))
+                if ttl_val <= 0:
+                    self.redis_client.expire(key, ttl)
             return result
         except Exception as e:
             self._handle_redis_error("INCR", key, e)
@@ -428,14 +434,13 @@ class RedisCacheManager:
         )
 
         try:
-            redis_info = self.redis_client.info("memory")
+            redis_info = cast(dict[str, Any], self.redis_client.info("memory"))
+            clients_info = cast(dict[str, Any], self.redis_client.info("clients"))
             redis_stats = {
                 "used_memory": redis_info.get("used_memory", 0),
                 "used_memory_human": redis_info.get("used_memory_human", "0B"),
                 "maxmemory": redis_info.get("maxmemory", 0),
-                "connected_clients": self.redis_client.info("clients").get(
-                    "connected_clients", 0
-                ),
+                "connected_clients": clients_info.get("connected_clients", 0),
             }
         except Exception:
             redis_stats = {}
@@ -507,7 +512,7 @@ class RedisCacheManager:
             logger.error(f"Redis health check failed: {e}")
             return False
 
-    def get_info(self, section: str = "memory") -> Mapping[str, Any]:
+    def get_info(self, section: str = "memory") -> dict[str, Any]:
         """获取Redis信息
 
         Args:
@@ -517,7 +522,7 @@ class RedisCacheManager:
             Redis信息字典
         """
         try:
-            return self.redis_client.info(section)
+            return cast(dict[str, Any], self.redis_client.info(section))
         except Exception as e:
             logger.error(f"Failed to get Redis info: {e}")
             return {}

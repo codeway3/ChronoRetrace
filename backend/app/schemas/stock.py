@@ -37,6 +37,8 @@ class StockDataInDB(StockDataBase):
 class StockInfo(BaseModel):
     ts_code: str
     name: str
+    # Ensure ORM objects (SQLAlchemy) can be parsed directly
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StockDataResponse(BaseModel):
@@ -44,31 +46,22 @@ class StockDataResponse(BaseModel):
     data: list[StockDataInDB]
 
 
-# Stock Screener Schemas
-class ScreenerCondition(BaseModel):
-    field: str
-    operator: str
-    value: Any
+# Legacy compatibility for screener tests
+from pydantic import Field
+from app.schemas.screener import (
+    ScreenerCondition as ScreenerCondition,
+)  # noqa: E402,F401
 
 
 class StockScreenerRequest(BaseModel):
-    market: str = "A_share"
-    conditions: list[ScreenerCondition]
-    page: int = 1
-    size: int = 20
+    """兼容旧版测试的筛选请求模型。
 
+    旧版使用 market 字段代替新 schema 中的 asset_type。
+    """
 
-class ScreenedStock(BaseModel):
-    code: str
-    name: str
-    pe_ratio: float | None = None
-    market_cap: int | None = None
-    # Add other fields you want to display in the screener results
-    model_config = ConfigDict(from_attributes=True)
-
-
-class StockScreenerResponse(BaseModel):
-    total: int
-    page: int
-    size: int
-    items: list[ScreenedStock]
+    market: str = Field(..., description="资产类型/市场")
+    conditions: list[ScreenerCondition] = Field(default=[], description="筛选条件列表")
+    sort_by: str | None = Field(None, description="排序字段")
+    sort_order: str = Field("desc", description="排序方向: asc, desc")
+    page: int = Field(1, ge=1, description="页码")
+    size: int = Field(20, ge=1, le=100, description="每页大小")

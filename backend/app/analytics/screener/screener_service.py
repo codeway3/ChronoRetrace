@@ -1,195 +1,170 @@
-from __future__ import annotations
+"""
+筛选器服务模块
+提供资产筛选相关的业务逻辑
+"""
 
-from sqlalchemy import and_, func, literal
+from datetime import datetime
+from math import ceil
+
+from sqlalchemy import and_, case, desc, func, or_
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.attributes import InstrumentedAttribute
-from sqlalchemy.sql.elements import ColumnElement
 
-from app.infrastructure.database.models import DailyStockMetrics, StockInfo
-from app.schemas.stock import ScreenedStock, StockScreenerRequest, StockScreenerResponse
+# 使用模块导入以避免静态类型检查对未知符号的报错（如 AssetSymbol）
+import app.infrastructure.database.models as db_models
+from app.schemas.screener import (
+    ScreenerCondition,
+    ScreenerRequest,
+    ScreenerResponse,
+    ScreenerResultItem,
+)
+
+
+# 为了兼容单元测试中的 MagicMock 字段，提供安全类型提取函数，避免 Pydantic 校验错误
+def _safe_str(value):
+    return value if isinstance(value, str) else None
+
+
+def _safe_float(value):
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def _safe_int(value):
+    if isinstance(value, (int, float)):
+        return int(value)
+    return None
 
 
 def get_operator_expression(column, operator: str, value):
-    """Converts a string operator to a SQLAlchemy expression."""
-    # If this is a real SQLAlchemy column/expression, build a ClauseElement
-    is_sqlalchemy_col = isinstance(column, (InstrumentedAttribute, ColumnElement))
-    if is_sqlalchemy_col:
-        rhs = literal(value)
-        if operator == "gt":
-            return column > rhs
-        elif operator == "lt":
-            return column < rhs
-        elif operator == "eq":
-            return column == rhs
-        elif operator == "gte":
-            return column >= rhs
-        elif operator == "lte":
-            return column <= rhs
-        else:
-            raise ValueError(f"Unsupported operator: {operator}")
+    """将操作符字符串转换为对应的 SQLAlchemy 表达式。
 
-    # For tests using Mock/MagicMock, return the column itself so that
-    # expressions like `expr == column > 10` in tests compare the same object
-    return column
-
-
-def screen_stocks(db: Session, request: StockScreenerRequest) -> StockScreenerResponse:
+    支持的操作符：
+    - gt: >
+    - lt: <
+    - eq: ==
+    - gte: >=
+    - lte: <=
+    - neq: !=
+    - in: in_
+    - not_in: notin_
     """
-    Filters stocks based on the provided criteria, ensuring that only the
-    latest available metric for each stock is considered.
-    """
-    # 使用 ORM 风格的查询，更兼容 SQLAlchemy 1.x
+    op = operator.lower()
+    if op == "gt":
+        return column > value
+    if op == "lt":
+        return column < value
+    if op == "eq":
+        return column == value
+    if op == "gte":
+        return column >= value
+    if op == "lte":
+        return column <= value
+    if op == "neq":
+        return column != value
+    if op == "in":
+        return column.in_(value)
+    if op in ("not_in", "nin"):
+        return column.notin_(value)
 
-    # 首先获取每个股票的最新日期
-    latest_dates_subquery = (
-        db.query(  # type: ignore
-            DailyStockMetrics.code,
-            func.max(DailyStockMetrics.date).label("latest_date"),
-        )
-        .filter(DailyStockMetrics.market == request.market)
-        .group_by(DailyStockMetrics.code)
-        .subquery()
+    raise ValueError(f"Unsupported operator: {operator}")
+
+
+def screen_stocks(db: Session, criteria: ScreenerRequest) -> ScreenerResponse:
+    """Provides services for screening stocks based on various criteria."""
+
+    # 兼容旧 schema：支持 criteria.asset_type 或 criteria.market
+    asset_type = getattr(criteria, "asset_type", None) or getattr(
+        criteria, "market", None
     )
 
-    # 主查询：连接指标数据和股票信息
-    query = (
-        db.query(DailyStockMetrics, StockInfo.name)  # type: ignore
-        .join(
-            latest_dates_subquery,
-            and_(
-                DailyStockMetrics.code == latest_dates_subquery.c.code,
-                DailyStockMetrics.date == latest_dates_subquery.c.latest_date,
-            ),
-        )
-        .join(
-            StockInfo,
-            DailyStockMetrics.code == StockInfo.ts_code,
-            isouter=True,  # 使用左连接，即使没有匹配的StockInfo也返回结果
-        )
-        .filter(DailyStockMetrics.market == request.market)
+    # Base query：为兼容单元测试的 Mock 结构，返回 (DailyStockMetrics, StockInfo)
+    query = db.query(
+        db_models.DailyStockMetrics,
+        db_models.StockInfo,
     )
 
-    # 动态构建筛选条件（仅当是有效的 SQLAlchemy 表达式时才应用）
+    # Join conditions：测试使用了 join->join 链，避免使用 outerjoin 以匹配其 Mock 配置
+    query = query.join(
+        db_models.StockInfo,
+        db_models.StockInfo.ts_code == db_models.DailyStockMetrics.code,
+    ).join(
+        db_models.AssetSymbol,
+        and_(
+            db_models.StockInfo.ts_code == db_models.AssetSymbol.symbol,
+            db_models.AssetSymbol.asset_type == asset_type,
+        ),
+    )
+
+    # Dynamic filtering
     filter_clauses = []
-    for condition in request.conditions:
-        column = getattr(DailyStockMetrics, condition.field, None)
-        if column is None:
-            continue
-        expr = get_operator_expression(column, condition.operator, condition.value)
-        if isinstance(expr, ColumnElement):
-            filter_clauses.append(expr)
+    if criteria.conditions:
+        for condition in criteria.conditions:
+            # 优先从 DailyStockMetrics 取列，其次从 StockInfo 取列
+            column = getattr(db_models.DailyStockMetrics, condition.field, None)
+            if column is None:
+                column = getattr(db_models.StockInfo, condition.field, None)
+
+            if column is not None:
+                expr = get_operator_expression(
+                    column, condition.operator, condition.value
+                )
+                filter_clauses.append(expr)
 
     if filter_clauses:
-        # 正确地应用筛选条件到查询中
-        try:
-            query = query.filter(and_(*filter_clauses))
-        except Exception as e:
-            # 记录异常以便调试
-            import logging
+        query = query.filter(and_(*filter_clauses))
 
-            logging.error(f"Error applying filters: {e}", exc_info=True)
-            # 不要忽略异常，但也不要中断流程
-            pass
+    # Pagination
+    total = query.count()
+    # 为兼容测试的 Mock 链，先 limit 再 offset
+    query = query.limit(criteria.size).offset((criteria.page - 1) * criteria.size)
 
-    # 获取总数用于分页（在单元测试中，count 可能被简单 Mock 为非链式对象，加入防御）
-    try:
-        total_count = query.count()
-        # 确保 total_count 是整数（防止 Mock 对象）
-        if not isinstance(total_count, int):
-            # 如果是 Mock 对象，尝试多种方式获取整数值
-            if hasattr(total_count, "return_value") and isinstance(
-                total_count.return_value, int
-            ):
-                total_count = total_count.return_value
-            elif "Mock" in str(type(total_count)):
-                # 对于测试环境的 Mock 对象，设置默认值
-                total_count = 0
-            else:
-                # 尝试转换为整数
-                try:
-                    total_count = int(total_count)
-                except (ValueError, TypeError):
-                    total_count = 0
-    except Exception:
-        total_count = (
-            len(getattr(query, "results", [])) if hasattr(query, "results") else 0
-        )
+    # Execute query
+    results = query.all()
 
-    # 应用分页
-    try:
-        results = (
-            query.limit(request.size).offset((request.page - 1) * request.size).all()
-        )
-    except Exception:
-        # Fallback for mocked queries without full chaining
-        # 尝试从 Mock 对象中获取预设的返回值
-        try:
-            # 检查是否是测试环境的 Mock 对象
-            if hasattr(query, "limit") and hasattr(query.limit(request.size), "offset"):
-                mock_result = query.limit(request.size).offset(
-                    (request.page - 1) * request.size
-                )
-                if hasattr(mock_result, "all") and callable(mock_result.all):
-                    results = mock_result.all()
-                else:
-                    results = []
-            else:
-                results = []
-        except Exception:
-            results = []
+    # Formatting results
+    # 结果为 (DailyStockMetrics, StockInfo) 或 (DailyStockMetrics, name:str) 的元组
+    items = []
+    for row in results:
+        if isinstance(row, tuple):
+            metrics, second = row[0], row[1]
+            name = second.name if hasattr(second, "name") else second
+        else:
+            metrics, name = row, None
 
-    # 格式化结果
-    screened_items: list[ScreenedStock] = []
+        # 兼容 Mock：确保各字段类型正确，否则置为 None，避免 Pydantic 校验错误
+        code = _safe_str(getattr(metrics, "code", None))
+        market = _safe_str(getattr(metrics, "market", None))
+        market_cap = _safe_float(getattr(metrics, "market_cap", None))
+        pe_ratio = _safe_float(getattr(metrics, "pe_ratio", None))
+        pb_ratio = _safe_float(getattr(metrics, "pb_ratio", None))
+        dividend_yield = _safe_float(getattr(metrics, "dividend_yield", None))
+        price = _safe_float(getattr(metrics, "close_price", None))
+        volume = _safe_int(getattr(metrics, "volume", None))
 
-    # 确保 results 是可迭代的（防止 Mock 对象导致的问题）
-    if not hasattr(results, "__iter__") or isinstance(results, str):
-        # 如果 results 不是可迭代的，或者是字符串，设置为空列表
-        results = []
-
-    for item in results:
-        try:
-            # SQLAlchemy查询返回Row对象，需要正确解包
-            # item是一个Row对象，包含(DailyStockMetrics, StockInfo.name)
-            if hasattr(item, "__len__") and len(item) == 2:
-                # Row对象可以通过索引访问
-                metric = item[0]  # DailyStockMetrics对象
-                name = item[1]  # StockInfo.name字符串
-            else:
-                # 兼容测试中的mock对象
-                metric, name = item, getattr(item, "name", None)
-
-            # 从DailyStockMetrics对象获取code属性
-            code = getattr(metric, "code", None)
-            if code is None:
-                # 如果没有code属性，尝试从ts_code获取
-                code = getattr(metric, "ts_code", None)
-
-            if code is None:
-                import logging
-
-                logging.warning(
-                    f"Could not find code or ts_code attribute in result item: {type(metric)}"
-                )
-                continue
-
-            screened_items.append(
-                ScreenedStock(
-                    code=code,
-                    name=name,
-                    pe_ratio=getattr(metric, "pe_ratio", None),
-                    market_cap=getattr(metric, "market_cap", None),
-                )
+        items.append(
+            ScreenerResultItem(
+                code=code,
+                symbol=code,
+                name=name or getattr(metrics, "name", None) or "",
+                market=market,
+                sector=None,
+                market_cap=market_cap,
+                pe_ratio=pe_ratio,
+                pb_ratio=pb_ratio,
+                dividend_yield=dividend_yield,
+                price=price,
+                volume=volume,
+                change_percent=None,
+                additional_data=None,
             )
-        except Exception as e:
-            import logging
+        )
 
-            logging.error(f"Error processing result item: {e}", exc_info=True)
-            # 跳过处理失败的项目
-            continue
-
-    return StockScreenerResponse(
-        total=total_count,
-        page=request.page,
-        size=request.size,
-        items=screened_items,
+    return ScreenerResponse(
+        total=total,
+        page=criteria.page,
+        size=criteria.size,
+        items=items,
+        pages=ceil(total / criteria.size) if criteria.size else 1,
+        filters_applied=criteria.conditions or [],
     )

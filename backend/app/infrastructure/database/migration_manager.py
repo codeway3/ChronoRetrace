@@ -11,8 +11,7 @@ import os
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Integer, String, text
-from sqlalchemy.orm import declarative_base, sessionmaker, Mapped, mapped_column
-from typing import Optional
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column, sessionmaker
 
 from app.core.config import settings
 from app.infrastructure.database.session import create_configured_engine
@@ -34,7 +33,7 @@ class MigrationHistory(Base):
         DateTime, default=datetime.utcnow, nullable=False
     )
     success: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    error_message: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
 
 class MigrationManager:

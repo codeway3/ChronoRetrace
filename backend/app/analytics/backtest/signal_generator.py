@@ -9,6 +9,11 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+# 常量: 用于避免魔法数字 (PLR2004)  # noqa: ERA001
+MIN_DATA_POINTS_GRID = 2
+MIN_DATA_POINTS_MEAN_REVERSION = 20
+EPSILON_FLOAT_COMPARISON = 1e-10
+
 
 class SignalGenerator:
     """信号生成器类"""
@@ -48,8 +53,8 @@ class SignalGenerator:
             else:
                 logger.warning(f"未知的策略类型: {strategy_type}")
 
-        except Exception as e:
-            logger.error(f"信号生成失败: {e}")
+        except Exception:
+            logger.exception("信号生成失败")
 
         return signals
 
@@ -80,8 +85,8 @@ class SignalGenerator:
                     }
                     signals.append(signal)
 
-            except Exception as e:
-                logger.error(f"条件评估失败: {e}")
+            except Exception:
+                logger.exception("条件评估失败")
 
         return signals
 
@@ -92,7 +97,7 @@ class SignalGenerator:
         """生成网格交易信号"""
         signals = []
 
-        if len(historical_data) < 2:
+        if len(historical_data) < MIN_DATA_POINTS_MEAN_REVERSION:
             return signals
 
         current_price = historical_data["close"].iloc[-1]
@@ -127,7 +132,7 @@ class SignalGenerator:
         """生成均值回归信号"""
         signals = []
 
-        if len(historical_data) < 20:  # 需要足够的数据计算均值和标准差
+        if len(historical_data) < MIN_DATA_POINTS_GRID:
             return signals
 
         current_price = historical_data["close"].iloc[-1]
@@ -184,11 +189,13 @@ class SignalGenerator:
 
             # 获取比较值和运算符
             compare_value = condition.get("value")
+            if compare_value is None:
+                return False
             operator = condition.get("operator", "gt")
 
             # 执行比较
             return SignalGenerator._apply_operator(
-                indicator_value, compare_value, operator
+                indicator_value, float(compare_value), operator
             )
 
         return False
@@ -199,48 +206,52 @@ class SignalGenerator:
     ) -> float:
         """计算技术指标"""
         indicator_type = condition.get("indicator")
+        result: float
 
         if indicator_type == "sma":
             window = condition.get("window", 14)
-            return historical_data["close"].rolling(window=window).mean().iloc[-1]
-
+            result = float(
+                historical_data["close"].rolling(window=window).mean().iloc[-1]
+            )
         elif indicator_type == "ema":
             window = condition.get("window", 14)
-            return historical_data["close"].ewm(span=window).mean().iloc[-1]
-
+            result = float(historical_data["close"].ewm(span=window).mean().iloc[-1])
         elif indicator_type == "rsi":
             window = condition.get("window", 14)
-            return SignalGenerator._calculate_rsi(historical_data["close"], window)
-
+            result = float(
+                SignalGenerator._calculate_rsi(historical_data["close"], window)
+            )
         elif indicator_type == "macd":
             fast = condition.get("fast", 12)
             slow = condition.get("slow", 26)
             signal = condition.get("signal", 9)
-            return SignalGenerator._calculate_macd(
-                historical_data["close"], fast, slow, signal
+            result = float(
+                SignalGenerator._calculate_macd(
+                    historical_data["close"], fast, slow, signal
+                )
             )
-
         elif indicator_type == "bollinger_upper":
             window = condition.get("window", 20)
             std_dev = condition.get("std_dev", 2.0)
-            return SignalGenerator._calculate_bollinger_bands(
+            upper, _ = SignalGenerator._calculate_bollinger_bands(
                 historical_data["close"], window, std_dev
-            )[0]
-
+            )
+            result = float(upper)
         elif indicator_type == "bollinger_lower":
             window = condition.get("window", 20)
             std_dev = condition.get("std_dev", 2.0)
-            return SignalGenerator._calculate_bollinger_bands(
+            _, lower = SignalGenerator._calculate_bollinger_bands(
                 historical_data["close"], window, std_dev
-            )[1]
-
+            )
+            result = float(lower)
         elif indicator_type == "atr":
             window = condition.get("window", 14)
-            return SignalGenerator._calculate_atr(historical_data, window)
-
+            result = float(SignalGenerator._calculate_atr(historical_data, window))
         else:
             # 默认返回收盘价
-            return historical_data["close"].iloc[-1]
+            result = float(historical_data["close"].iloc[-1])
+
+        return result
 
     @staticmethod
     def _apply_operator(value: float, compare_value: float, operator: str) -> bool:
@@ -254,7 +265,9 @@ class SignalGenerator:
         elif operator == "lte":
             return value <= compare_value
         elif operator == "eq":
-            return abs(value - compare_value) < 1e-10  # 浮点数比较容差
+            return (
+                abs(value - compare_value) < EPSILON_FLOAT_COMPARISON
+            )  # 浮点数比较容差
         else:
             return False
 
@@ -265,8 +278,8 @@ class SignalGenerator:
             return 50.0  # 默认值
 
         delta = prices.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+        gain = delta.clip(lower=0).rolling(window=window).mean()
+        loss = (-delta.clip(upper=0)).rolling(window=window).mean()
 
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))

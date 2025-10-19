@@ -140,7 +140,7 @@ class BacktestService:
         self, asset_type: AssetType, config: GridStrategyConfig, db: Session
     ):
         """按资产类型执行回溯测试"""
-        if asset_type == AssetType.CRYPTO or asset_type == AssetType.US_STOCK:
+        if asset_type in {AssetType.CRYPTO, AssetType.US_STOCK}:
             return run_grid_backtest(db, config)
         else:
             raise ValueError(f"不支持的资产类型: {asset_type}")
@@ -149,14 +149,14 @@ class BacktestService:
         self, asset_type: AssetType, config: GridStrategyOptimizeConfig, db: Session
     ):
         """按资产类型优化策略参数"""
-        if asset_type == AssetType.CRYPTO or asset_type == AssetType.US_STOCK:
+        if asset_type in {AssetType.CRYPTO, AssetType.US_STOCK}:
             return run_grid_optimization(db, config)
         else:
             raise ValueError(f"不支持的资产类型: {asset_type}")
 
     def get_supported_strategies(self, asset_type: AssetType) -> list[str]:
         """获取指定资产类型支持的策略列表"""
-        if asset_type == AssetType.CRYPTO or asset_type == AssetType.US_STOCK:
+        if asset_type in {AssetType.CRYPTO, AssetType.US_STOCK}:
             return ["grid_strategy"]
         else:
             return []

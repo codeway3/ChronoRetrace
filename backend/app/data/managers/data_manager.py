@@ -17,6 +17,7 @@ from app.infrastructure.database.models import (
     StockInfo,
 )
 from app.infrastructure.database.session import get_db
+
 from ..fetchers.stock_fetchers import a_share_fetcher, us_stock_fetcher
 from . import database_writer as db_writer
 from .data_utils import calculate_ma

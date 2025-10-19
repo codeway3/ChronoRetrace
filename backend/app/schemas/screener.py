@@ -30,9 +30,11 @@ class ScreenerRequest(BaseModel):
 class ScreenerResultItem(BaseModel):
     """筛选结果项"""
 
-    symbol: str = Field(..., description="标的代码")
+    # 兼容旧字段：支持 code 和 symbol，优先使用 code
+    code: str | None = Field(None, description="标的代码（兼容旧字段）")
+    symbol: str | None = Field(None, description="标的代码（新字段）")
     name: str = Field(..., description="标的名称")
-    market: str = Field(..., description="市场")
+    market: str | None = Field(None, description="市场")
     sector: str | None = Field(None, description="行业")
     market_cap: float | None = Field(None, description="市值")
     price: float | None = Field(None, description="当前价格")

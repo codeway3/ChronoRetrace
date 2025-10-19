@@ -249,8 +249,6 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
             # 获取响应内容
             if hasattr(response, "body") and isinstance(response.body, bytes):
-                import json
-
                 decoded_body = response.body.decode("utf-8", errors="ignore")
                 cache_data["content"] = decoded_body
 

@@ -449,7 +449,7 @@ class CachedStockService:
         """
         try:
             # 检查缓存健康状态
-            cache_health = self.cache.health_check()
+            cache_health = await self.cache.health_check()
 
             # 获取详细的缓存健康检查信息
             detailed_cache_health = self.cache.get_detailed_health_check()
