@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, desc
-from sqlalchemy.orm import Session
 
 from app.infrastructure.database.models import DataQualityLog
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class LogLevel(Enum):
@@ -551,8 +554,8 @@ class LoggingService:
             self.logger.info(f"清理了 {deleted_count} 条过期日志")
             return deleted_count
 
-        except Exception as e:
-            self.logger.error(f"清理日志失败: {e!s}")
+        except Exception:
+            self.logger.exception("清理日志失败")
             self.db_session.rollback()
             return 0
 
@@ -561,20 +564,14 @@ class LoggingService:
         try:
             # 关闭并移除所有处理器
             for handler in list(self.logger.handlers):
-                try:
+                with contextlib.suppress(Exception):
                     handler.flush()
-                except Exception:
-                    pass
-                try:
+                with contextlib.suppress(Exception):
                     handler.close()
-                except Exception:
-                    pass
-                try:
+                with contextlib.suppress(Exception):
                     self.logger.removeHandler(handler)
-                except Exception:
-                    pass
-        except Exception as e:
-            self.logger.error(f"关闭日志处理器失败: {e!s}")
+        except Exception:
+            self.logger.exception("关闭日志处理器失败")
 
     def _log_to_file(self, log_entry: LogEntry) -> None:
         """记录到文件"""
@@ -617,8 +614,8 @@ class LoggingService:
             self.db_session.add(db_log)
             self.db_session.commit()
 
-        except Exception as e:
-            self.logger.error(f"记录日志到数据库失败: {e!s}")
+        except Exception:
+            self.logger.exception("记录日志到数据库失败")
             self.db_session.rollback()
 
     def _update_batch_operation(self, operation_id: str, log_entry: LogEntry) -> None:

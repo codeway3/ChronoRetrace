@@ -85,6 +85,8 @@ ignore = [
 "backend/app/websocket/connection_manager.py" = ["D400", "D415", "RUF002", "COM812", "TRY", "ARG", "SIM"]
 "backend/app/websocket/data_stream_service.py" = ["D400", "D415", "RUF002", "COM812", "TRY", "ARG", "SIM"]
 "backend/app/websocket/message_handler.py" = ["D400", "D415", "RUF002", "COM812", "TRY", "ARG", "SIM"]
+"backend/app/infrastructure/error_handling_service.py" = ["D400", "D415", "ANN204", "D105", "DTZ005"]
+"backend/app/infrastructure/logging_service.py" = ["D400", "D415", "ANN204", "D105", "D107", "TRY300", "ARG"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

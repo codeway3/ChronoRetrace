@@ -6,12 +6,14 @@ import traceback
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session
 
 from app.infrastructure.database.models import DataQualityLog
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class ErrorSeverity(Enum):
@@ -433,8 +435,8 @@ class ErrorHandlingService:
             self.db_session.add(log_entry)
             self.db_session.commit()
 
-        except Exception as e:
-            self.logger.error(f"记录错误日志到数据库失败: {e!s}")
+        except Exception:
+            self.logger.exception("记录错误日志到数据库失败")
             self.db_session.rollback()
 
     def _build_error_response(self, error_detail: ErrorDetail) -> ErrorResponse:
