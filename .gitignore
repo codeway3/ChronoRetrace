@@ -54,3 +54,11 @@ backend/.ruff_cache/
 # Pytest caches (root and backend)
 .pytest_cache/
 backend/.pytest_cache/
+
+# Coverage artifacts
+.coverage
+htmlcov/
+coverage.xml
+
+# Coverage parallel-mode shards
+.coverage.*
