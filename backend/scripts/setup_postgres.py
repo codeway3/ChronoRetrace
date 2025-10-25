@@ -12,11 +12,11 @@ PostgreSQL数据库设置脚本
 from __future__ import annotations
 
 import os
+import secrets
 import subprocess
 import sys
 from pathlib import Path
 
-# 添加项目根目录到Python路径
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -69,15 +69,18 @@ def create_database_and_user(env="development"):
     if env == "development":
         db_name = "chronoretrace_dev"
         db_user = "chronoretrace"
-        db_password = "chronoretrace_dev"
+        db_password = os.getenv("POSTGRES_DEV_PASSWORD") or secrets.token_urlsafe(16)
     elif env == "testing":
         db_name = "chronoretrace_test"
         db_user = "chronoretrace"
-        db_password = "chronoretrace_test"
+        db_password = os.getenv("POSTGRES_TEST_PASSWORD") or secrets.token_urlsafe(16)
     elif env == "production":
         db_name = "chronoretrace"
         db_user = "chronoretrace"
-        db_password = os.getenv("POSTGRES_PASSWORD", "secure_password_here")
+        db_password = os.getenv("POSTGRES_PASSWORD")
+        if not db_password:
+            print("未在环境变量 POSTGRES_PASSWORD 中找到生产数据库密码，操作已取消。")
+            return False
     else:
         print(f"未知环境: {env}")
         return False
@@ -88,7 +91,7 @@ def create_database_and_user(env="development"):
     BEGIN
         IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{db_user}') THEN
             CREATE USER {db_user} WITH PASSWORD '{db_password}';
-        END IF;
+    END IF;
     END
     $$;
     """
@@ -194,7 +197,7 @@ def main():
     if not run_migrations():
         sys.exit(1)
 
-    print("\n🎉 PostgreSQL数据库设置完成！")
+    print("\n🎉 PostgreSQL数据库设置完成!")
     print(f"数据库连接URL: {settings.DATABASE_URL}")
     print("\n下一步:")
     print("1. 启动应用: python start_dev.py")
