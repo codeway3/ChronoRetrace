@@ -595,7 +595,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.pool import QueuePool
 
 engine = create_engine(
-    'postgresql://user:password@localhost/dbname',
+    'postgresql://user:password@localhost/dbname', # pragma: allowlist secret
     poolclass=QueuePool,
     pool_size=20,                    # 连接池大小
     max_overflow=30,                 # 最大溢出连接数
@@ -1126,6 +1126,5 @@ if [ "$SEVERITY" = "P0" ]; then
     # 发送紧急通知
     curl -X POST "$SLACK_WEBHOOK" -d '{"text":"P0 Incident: '$INCIDENT_TYPE' - Immediate attention required"}'
 fi
-```
 
 这个运维指南提供了 ChronoRetrace 应用的全面运维操作指导，涵盖了日常监控、故障处理、性能优化和应急响应等各个方面，帮助运维团队高效地管理和维护系统。

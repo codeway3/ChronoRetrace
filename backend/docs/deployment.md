@@ -114,8 +114,7 @@ sudo -u postgres createuser --interactive chronoretrace
 sudo -u postgres createdb chronoretrace_db -O chronoretrace
 
 # 设置密码
-sudo -u postgres psql -c "ALTER USER chronoretrace PASSWORD 'your_password';"
-```
+sudo -u postgres psql -c "ALTER USER chronoretrace PASSWORD 'your_password';" # pragma: allowlist secret
 
 #### PostgreSQL 性能优化
 
@@ -241,7 +240,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://chronoretrace:password@db:5432/chronoretrace_db
+      - DATABASE_URL=postgresql://chronoretrace:password@db:5432/chronoretrace_db # pragma: allowlist secret
       - REDIS_URL=redis://redis:6379/0
     depends_on:
       - db
@@ -311,7 +310,7 @@ metadata:
   name: chronoretrace-config
   namespace: chronoretrace
 data:
-  DATABASE_URL: "postgresql://chronoretrace:password@postgres:5432/chronoretrace_db"
+  DATABASE_URL: "postgresql://chronoretrace:password@postgres:5432/chronoretrace_db" # pragma: allowlist secret
   REDIS_URL: "redis://redis:6379/0"
 ```
 
@@ -358,20 +357,20 @@ spec:
 
 ```bash
 # 数据库配置
-DATABASE_URL=postgresql://chronoretrace:password@localhost:5432/chronoretrace_db
+DATABASE_URL=postgresql://chronoretrace:password@localhost:5432/chronoretrace_db # pragma: allowlist secret
 DATABASE_POOL_SIZE=20
 DATABASE_MAX_OVERFLOW=30
 
 # Redis 配置
 REDIS_URL=redis://localhost:6379/0
-REDIS_PASSWORD=your_redis_password
+REDIS_PASSWORD=your_redis_password # pragma: allowlist secret
 REDIS_MAX_CONNECTIONS=50
 
 # 应用配置
 APP_NAME=ChronoRetrace
 APP_VERSION=1.0.0
 DEBUG=false
-SECRET_KEY=your_secret_key_here
+SECRET_KEY=your_secret_key_here # pragma: allowlist secret
 
 # API 配置
 API_V1_PREFIX=/api/v1

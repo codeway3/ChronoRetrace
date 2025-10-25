@@ -358,7 +358,7 @@ POST /api/v1/admin/announcements - 发布系统公告
 DEFAULT_ADMIN = {
     "username": "admin",
     "email": "admin@chronoretrace.com",
-    "password": "ChronoAdmin2024!",  # 首次登录强制修改
+    "password": "ChronoAdmin2024!",  # 首次登录强制修改 # pragma: allowlist secret
     "full_name": "系统管理员",
     "role": "super_admin",
     "is_active": True,
@@ -371,7 +371,7 @@ DEFAULT_ADMIN = {
 ### 环境变量
 ```bash
 # JWT配置
-JWT_SECRET_KEY=your-super-secret-jwt-key
+JWT_SECRET_KEY=your-super-secret-jwt-key # pragma: allowlist secret
 JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
 JWT_REFRESH_TOKEN_EXPIRE_DAYS=7

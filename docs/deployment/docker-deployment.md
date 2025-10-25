@@ -272,9 +272,9 @@ services:
 ### 环境文件
 ```bash
 # .env
-DATABASE_URL=postgresql://chronoretrace:password@postgres:5432/chronoretrace
+DATABASE_URL=postgresql://chronoretrace:password@postgres:5432/chronoretrace # pragma: allowlist secret
 REDIS_URL=redis://redis:6379/0
-JWT_SECRET=your-jwt-secret-key
+JWT_SECRET=your-jwt-secret-key # pragma: allowlist secret
 ENVIRONMENT=production
 DEBUG=false
 LOG_LEVEL=info

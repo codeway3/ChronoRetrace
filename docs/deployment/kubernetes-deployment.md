@@ -178,9 +178,9 @@ data:
 ```bash
 # 创建 Secret
 kubectl create secret generic chronoretrace-secrets \
-  --from-literal=database-url="postgresql://chronoretrace:password@chronoretrace-postgres:5432/chronoretrace" \
-  --from-literal=jwt-secret="your-jwt-secret-key" \
-  --from-literal=postgres-password="password" \
+  --from-literal=database-url="postgresql://chronoretrace:password@chronoretrace-postgres:5432/chronoretrace" \ # pragma: allowlist secret
+  --from-literal=jwt-secret="your-jwt-secret-key" \ # pragma: allowlist secret
+  --from-literal=postgres-password="password" \ # pragma: allowlist secret
   -n chronoretrace
 
 # 创建 TLS Secret
