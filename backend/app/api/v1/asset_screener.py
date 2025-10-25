@@ -8,10 +8,16 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+from app.analytics.screener.screener_service import (
+    screen_stocks,
+)  # Import the function directly
 from app.infrastructure.database.session import get_db
 from app.schemas.asset_types import (
     AssetFunction,
@@ -20,9 +26,6 @@ from app.schemas.asset_types import (
     is_function_supported,
 )
 from app.schemas.screener import ScreenerRequest, ScreenerResponse
-from app.analytics.screener.screener_service import (
-    screen_stocks,
-)  # Import the function directly
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

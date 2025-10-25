@@ -224,7 +224,7 @@ async def lifespan(app: FastAPI):
             logger.error("❌ 数据库初始化失败")
             raise Exception("数据库初始化失败")
     except Exception as e:
-        logger.error(f"启动时数据库初始化出错: {e}")
+        logger.exception("启动时数据库初始化出错: %s", e)
         raise
 
     create_db_and_tables()

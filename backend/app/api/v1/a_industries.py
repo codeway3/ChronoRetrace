@@ -1,5 +1,6 @@
 import logging
 import math
+from enum import Enum
 from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Query
@@ -8,7 +9,6 @@ from starlette.concurrency import run_in_threadpool
 
 from app.data.fetchers import a_industries_fetcher as fetcher
 from app.schemas.industry import ConstituentStock
-from enum import Enum
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ class WindowEnum(str, Enum):
     D5 = "5D"
     D20 = "20D"
     D60 = "60D"
+
 
 class ProviderEnum(str, Enum):
     EM = "em"
@@ -53,9 +54,7 @@ async def get_industry_overview(
         logger.info(f"Industry overview fetched: count={len(data)}")
     except Exception as e:
         logger.error(f"Failed to fetch industry overview: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail="Failed to fetch industry overview"
-        )
+        raise HTTPException(status_code=500, detail="Failed to fetch industry overview")
     else:
         return data
 

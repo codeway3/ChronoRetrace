@@ -181,7 +181,6 @@ def test_websocket_concurrent_subscriptions(client):
             client.websocket_connect("/api/v1/ws/concurrent_test_2") as websocket2,
             client.websocket_connect("/api/v1/ws/concurrent_test_3") as websocket3,
         ):
-
             websockets = [websocket1, websocket2, websocket3]
 
             for i, websocket in enumerate(websockets):

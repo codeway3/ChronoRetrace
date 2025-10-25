@@ -74,6 +74,7 @@ cd ChronoRetrace
 ### 支持的系统
 - ✅ macOS 10.15+
 - ✅ Ubuntu 18.04+
+- ✅ Python：3.10（固定）
 - ✅ 自动检测Docker环境
 
 ### 需要帮助？
@@ -87,7 +88,7 @@ cd ChronoRetrace
 
 | 领域      | 技术                                                                                             |
 | :-------- | :----------------------------------------------------------------------------------------------------- |
-| **后端** | Python 3.10+, FastAPI, SQLAlchemy, Uvicorn, Pandas, Pydantic, JWT认证                       |
+| **后端** | Python 3.10（固定版本），FastAPI, SQLAlchemy, Uvicorn, Pandas, Pydantic, JWT认证                       |
 | **前端**| React.js, Node.js 20+, ECharts for React, Ant Design, Axios, Context API                               |
 | **实时通信** | WebSocket连接、自动重连、心跳监控、消息路由                                      |
 | **数据库**| SQLite（开发环境），PostgreSQL（生产环境推荐）                                      |

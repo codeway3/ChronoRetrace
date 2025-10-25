@@ -641,17 +641,24 @@ class PerformanceOptimizationService:
     def cleanup_resources(self) -> None:
         """清理资源"""
         try:
-            if hasattr(self, "thread_pool") and self.thread_pool:
-                self.thread_pool.shutdown(wait=True)
-            if hasattr(self, "process_pool") and self.process_pool:
-                self.process_pool.shutdown(wait=True)
+            # 关闭线程池
+            if self.thread_pool:
+                self.logger.info("正在关闭线程池...")
+                self.thread_pool.shutdown(wait=True, cancel_futures=True)
+                self.logger.info("线程池已关闭")
+
+            # 关闭进程池（如果存在）
+            if self.process_pool:
+                self.logger.info("正在关闭进程池...")
+                self.process_pool.shutdown(wait=True, cancel_futures=True)
+                self.logger.info("进程池已关闭")
+
+            # 清理内存与缓存管理器
             self.cache_manager.clear()
             self.memory_manager.force_garbage_collection()
-
             self.logger.info("资源清理完成")
-
         except Exception as e:
-            self.logger.error(f"资源清理失败: {e!s}")
+            self.logger.exception(f"资源清理失败: {e!s}")
 
     def __del__(self):
         """析构函数"""

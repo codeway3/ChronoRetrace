@@ -1,6 +1,3 @@
-from __future__ import annotations
-
-# !/usr/bin/env python3
 """
 
 ChronoRetrace - 性能监控模块
@@ -12,6 +9,9 @@ Author: ChronoRetrace Team
 Date: 2024
 """
 
+from __future__ import annotations
+
+# !/usr/bin/env python3
 import logging
 import threading
 import time

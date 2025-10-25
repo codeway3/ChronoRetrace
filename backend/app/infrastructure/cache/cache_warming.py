@@ -1,6 +1,3 @@
-from __future__ import annotations
-
-# !/usr/bin/env python3
 """
 
 ChronoRetrace - 缓存预热服务
@@ -12,9 +9,13 @@ Author: ChronoRetrace Team
 Date: 2024
 """
 
+from __future__ import annotations
+
+import inspect
+
+# !/usr/bin/env python3
 import logging
 from datetime import datetime, timedelta
-import inspect
 from typing import Any
 
 from sqlalchemy import func, text
@@ -326,7 +327,7 @@ class CacheWarmingService:
             force: 是否强制预热
         """
         try:
-            # 获取热点股票的基本面数据
+            # 获取hots股票的基本面数据
             hot_stocks = await self._get_hot_stocks(limit=50)  # 限制数量
 
             db = SessionLocal()

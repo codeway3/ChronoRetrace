@@ -68,7 +68,7 @@ class MessageHandler:
         except json.JSONDecodeError:
             await self._send_error(client_id, "invalid_json", "JSON格式错误")
         except Exception as e:
-            logger.error(f"处理客户端 {client_id} 消息时出错: {e}")
+            logger.exception("处理客户端 %s 消息时出错: %s", client_id, e)
             await self._send_error(client_id, "internal_error", "服务器内部错误")
 
     async def _handle_subscribe(self, client_id: str, data: dict[str, Any]) -> None:
@@ -101,7 +101,7 @@ class MessageHandler:
                 )
 
         except Exception as e:
-            logger.error(f"处理订阅消息时出错: {e}")
+            logger.exception("处理订阅消息时出错: %s", e)
             await self._send_error(client_id, "subscribe_error", "订阅处理错误")
 
     async def _handle_unsubscribe(self, client_id: str, data: dict[str, Any]) -> None:
@@ -127,7 +127,7 @@ class MessageHandler:
                 )
 
         except Exception as e:
-            logger.error(f"处理取消订阅消息时出错: {e}")
+            logger.exception("处理取消订阅消息时出错: %s", e)
             await self._send_error(client_id, "unsubscribe_error", "取消订阅处理错误")
 
     async def _handle_heartbeat_response(
@@ -150,7 +150,7 @@ class MessageHandler:
             logger.debug(f"收到客户端 {client_id} 的心跳响应")
 
         except Exception as e:
-            logger.error(f"处理心跳响应时出错: {e}")
+            logger.exception("处理心跳响应时出错: %s", e)
 
     async def _handle_get_subscriptions(
         self, client_id: str, data: dict[str, Any]
@@ -177,7 +177,7 @@ class MessageHandler:
             )
 
         except Exception as e:
-            logger.error(f"处理获取订阅列表时出错: {e}")
+            logger.exception("处理获取订阅列表时出错: %s", e)
             await self._send_error(
                 client_id, "get_subscriptions_error", "获取订阅列表错误"
             )
@@ -202,7 +202,7 @@ class MessageHandler:
             )
 
         except Exception as e:
-            logger.error(f"处理ping消息时出错: {e}")
+            logger.exception("处理ping消息时出错: %s", e)
 
     def _validate_topic(self, topic: str) -> bool:
         """
@@ -284,7 +284,7 @@ class MessageHandler:
             )
 
         except Exception as e:
-            logger.error(f"发送错误消息失败: {e}")
+            logger.exception(f"发送错误消息失败: {e}")
 
     def get_supported_message_types(self) -> list:
         """

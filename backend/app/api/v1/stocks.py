@@ -19,10 +19,10 @@ from starlette.concurrency import run_in_threadpool
 from app.data.managers import data_manager as data_fetcher
 from app.infrastructure.database.session import get_db
 from app.schemas.annual_earnings import AnnualEarningsInDB
+from app.schemas.common import MessageResponse
 from app.schemas.corporate_action import CorporateActionResponse
 from app.schemas.fundamental import FundamentalDataInDB
 from app.schemas.stock import StockDataBase, StockInfo
-from app.schemas.common import MessageResponse
 
 router = APIRouter()
 

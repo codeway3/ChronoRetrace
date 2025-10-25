@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime
-from typing import Literal, Any, cast
+from typing import Any, Literal, cast
 
 import akshare as ak
 import numpy as np
@@ -185,7 +185,7 @@ def _aggregate_interval(
         "vol": "sum",
         "amount": "sum",
     }
-    df_agg = df.resample(rule).agg(cast(Any, agg)).dropna(how="any")
+    df_agg = df.resample(rule).agg(cast("Any", agg)).dropna(how="any")
     df_agg = df_agg.reset_index().rename(columns={"trade_date": "trade_date"})
     df_agg["trade_date"] = df_agg["trade_date"].dt.strftime("%Y-%m-%d")
     return df_agg

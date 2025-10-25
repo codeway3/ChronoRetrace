@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import and_, or_
-from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
 from app.infrastructure.database.models import (
@@ -18,6 +21,10 @@ from app.infrastructure.database.session import get_db
 from app.schemas.auth_schemas import ApiResponse, PaginatedResponse
 
 logger = logging.getLogger(__name__)
+
+# 业务常量
+MAX_WATCHLISTS_PER_USER = 10
+MAX_ITEMS_PER_WATCHLIST = 100
 
 router = APIRouter()
 
@@ -128,11 +135,14 @@ async def get_user_watchlists(
             }
             result.append(watchlist_data)
 
-        return result
-
-    except Exception as e:
-        logger.error(f"获取用户自选股列表失败: {e}")
+    except HTTPException:
+        # 直接抛出 FastAPI 的业务异常
+        raise
+    except Exception:
+        logger.exception("获取用户自选股列表失败")
         raise HTTPException(status_code=500, detail="获取自选股列表失败") from None
+    else:
+        return result
 
 
 @router.post("/", response_model=WatchlistResponse)
@@ -142,38 +152,34 @@ async def create_watchlist(
     db: Session = Depends(get_db),
 ):
     """创建新的自选股列表"""
+    # 校验是否已有同名列表
+    existing = (
+        db.query(UserWatchlist)
+        .filter(
+            and_(
+                UserWatchlist.user_id == current_user.id,
+                UserWatchlist.name == watchlist_data.name,
+            )
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="已存在同名的自选股列表"
+        )
+
+    # 校验用户列表数量限制(最多 10 个)
+    user_watchlists_count = (
+        db.query(UserWatchlist).filter(UserWatchlist.user_id == current_user.id).count()
+    )
+    if user_watchlists_count >= MAX_WATCHLISTS_PER_USER:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="自选股列表数量已达上限(10个)",
+        )
+
+    # 创建新列表并提交
     try:
-        # 检查用户是否已有同名列表
-        existing = (
-            db.query(UserWatchlist)
-            .filter(
-                and_(
-                    UserWatchlist.user_id == current_user.id,
-                    UserWatchlist.name == watchlist_data.name,
-                )
-            )
-            .first()
-        )
-
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="已存在同名的自选股列表"
-            )
-
-        # 检查用户列表数量限制（最多10个）
-        user_watchlists_count = (
-            db.query(UserWatchlist)
-            .filter(UserWatchlist.user_id == current_user.id)
-            .count()
-        )
-
-        if user_watchlists_count >= 10:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="自选股列表数量已达上限（10个）",
-            )
-
-        # 创建新列表
         new_watchlist = UserWatchlist(
             user_id=current_user.id,
             name=watchlist_data.name,
@@ -181,11 +187,17 @@ async def create_watchlist(
             is_public=watchlist_data.is_public,
             is_default=False,  # 新创建的列表默认不是默认列表
         )
-
         db.add(new_watchlist)
         db.commit()
         db.refresh(new_watchlist)
-
+    except HTTPException:
+        # 业务异常保持原样抛出
+        raise
+    except Exception:
+        db.rollback()
+        logger.exception("创建自选股列表失败")
+        raise HTTPException(status_code=500, detail="创建自选股列表失败") from None
+    else:
         return {
             "id": new_watchlist.id,
             "name": new_watchlist.name,
@@ -196,13 +208,6 @@ async def create_watchlist(
             "created_at": new_watchlist.created_at,
             "updated_at": new_watchlist.updated_at,
         }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"创建自选股列表失败: {e}")
-        raise HTTPException(status_code=500, detail="创建自选股列表失败") from None
 
 
 @router.get("/default", response_model=WatchlistDetailResponse)
@@ -243,8 +248,7 @@ async def get_default_watchlist(
     # 构造响应数据
     items_data = []
     for item in items:
-        # 这里可以从股票表获取股票名称等信息
-        # stock = db.query(StockInfo).filter(StockInfo.ts_code == item.stock_code).first()
+        # 可在后续通过股票信息表补充名称等字段
         item_data = {
             "id": item.id,
             "stock_code": item.symbol,
@@ -482,10 +486,10 @@ async def add_stock_to_watchlist(
         .count()
     )
 
-    if items_count >= 100:
+    if items_count >= MAX_ITEMS_PER_WATCHLIST:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="自选股列表中股票数量已达上限（100只）",
+            detail="自选股列表中股票数量已达上限(100只)",
         )
 
     # 添加股票到列表

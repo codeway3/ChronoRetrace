@@ -15,7 +15,6 @@ def stock_data(test_session: Session):
     """
     Populate the database with mock stock data for testing.
     """
-    from app.infrastructure.database.models import StockInfo, DailyStockMetrics
     from datetime import date
 
     # Clear existing data

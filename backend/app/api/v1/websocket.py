@@ -6,6 +6,7 @@ WebSocket API路由
 
 import json
 import logging
+import contextlib
 from datetime import datetime
 
 from fastapi import (
@@ -73,7 +74,7 @@ async def get_current_user_from_token(token: str) -> dict | None:
             return {"user_id": payload.get("sub"), "username": payload.get("username")}
         return None
     except Exception as e:
-        logger.error(f"解析token失败: {e}")
+        logger.exception("解析token失败: %s", e)
         return None
 
 
@@ -104,7 +105,7 @@ async def websocket_endpoint(
         try:
             await websocket.close(code=1011, reason="WebSocket服务未初始化")
         except Exception as e:
-            logger.error(f"关闭WebSocket连接时出错: {e}")
+            logger.exception("关闭WebSocket连接时出错: %s", e)
         return
 
     # 创建消息处理器
@@ -113,11 +114,9 @@ async def websocket_endpoint(
 
         message_handler = MessageHandler(connection_manager)
     except Exception as e:
-        logger.error(f"创建消息处理器失败: {e}")
-        try:
+        logger.exception("创建消息处理器失败: %s", e)
+        with contextlib.suppress(Exception):
             await websocket.close(code=1011, reason="消息处理器初始化失败")
-        except:
-            pass
         return
 
     user_info = None
@@ -130,7 +129,7 @@ async def websocket_endpoint(
             try:
                 await websocket.close(code=1008, reason="无效的认证token")
             except Exception as e:
-                logger.error(f"关闭WebSocket连接时出错: {e}")
+                logger.exception("关闭WebSocket连接时出错: %s", e)
             return
 
     # 建立连接
@@ -144,15 +143,13 @@ async def websocket_endpoint(
             try:
                 await websocket.close(code=1011, reason="连接建立失败")
             except Exception as e:
-                logger.error(f"关闭WebSocket连接时出错: {e}")
+                logger.exception("关闭WebSocket连接时出错: %s", e)
             return
 
     except Exception as e:
-        logger.error(f"建立WebSocket连接时出错: {e}")
-        try:
+        logger.exception("建立WebSocket连接时出错: %s", e)
+        with contextlib.suppress(Exception):
             await websocket.close(code=1011, reason="连接建立异常")
-        except:
-            pass
         return
 
     try:
@@ -225,18 +222,20 @@ async def websocket_endpoint(
                         },
                     )
                 except Exception as send_error:
-                    logger.error(f"向客户端 {client_id} 发送错误消息失败: {send_error}")
+                    logger.exception(
+                        "向客户端 %s 发送错误消息失败: %s", client_id, send_error
+                    )
                     break  # 如果无法发送错误消息，断开连接
 
     except Exception as e:
-        logger.error(f"WebSocket连接 {client_id} 异常: {e}")
+        logger.exception("WebSocket连接 %s 异常: %s", client_id, e)
     finally:
         # 清理连接
         try:
             await connection_manager.disconnect(client_id)
             logger.debug(f"客户端 {client_id} 连接清理完成")
         except Exception as cleanup_error:
-            logger.error(f"清理客户端 {client_id} 连接时出错: {cleanup_error}")
+            logger.exception("清理客户端 %s 连接时出错: %s", client_id, cleanup_error)
 
 
 @router.get("/ws/stats")
@@ -387,7 +386,7 @@ async def broadcast_message(topic: str, message: dict):
         }
 
     except Exception as e:
-        logger.error(f"广播消息失败: {e}")
+        logger.exception("广播消息失败: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"广播消息失败: {e!s}",
@@ -420,7 +419,7 @@ async def disconnect_client(client_id: str):
         return {"success": True, "client_id": client_id, "message": "客户端连接已断开"}
 
     except Exception as e:
-        logger.error(f"断开客户端连接失败: {e}")
+        logger.exception("断开客户端连接失败: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"断开连接失败: {e!s}",
@@ -454,7 +453,7 @@ async def cleanup_inactive_connections():
         }
 
     except Exception as e:
-        logger.error(f"清理不活跃连接失败: {e}")
+        logger.exception("清理不活跃连接失败: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"清理失败: {e!s}",
@@ -504,7 +503,7 @@ async def shutdown_websocket_services():
         logger.info("WebSocket服务已关闭")
 
     except Exception as e:
-        logger.error(f"关闭WebSocket服务时出错: {e}")
+        logger.exception("关闭WebSocket服务时出错: %s", e)
     finally:
         connection_manager = None
         message_handler = None

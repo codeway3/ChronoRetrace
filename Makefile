@@ -1,6 +1,9 @@
 # Makefile for ChronoRetrace project
 
-.PHONY: help install install-dev test-backend test-backend-cov lint format clean dev-setup check-all
+.PHONY: help install install-dev test-backend test-backend-cov lint format clean dev-setup check-all python-version-check create-venv
+
+# Python interpreter inside the project venv
+PY := venv/bin/python
 
 # Default target
 help:
@@ -14,32 +17,34 @@ help:
 	@echo "  check-all    - Run all checks (lint + test)"
 	@echo "  dev-setup    - Setup development environment"
 	@echo "  clean        - Clean cache and temporary files"
+	@echo "  python-version-check - Verify venv is Python 3.10"
+	@echo "  create-venv  - Create venv using python3.10"
 
-install:
+install: python-version-check
 	@echo "Installing production dependencies..."
-	cd backend && source ../venv/bin/activate && pip install -r requirements.txt
+	cd backend && ../venv/bin/python -m pip install -r requirements.txt
 
-install-dev:
+install-dev: python-version-check
 	@echo "Installing development dependencies..."
-	cd backend && source ../venv/bin/activate && pip install -r requirements-dev.txt
+	cd backend && ../venv/bin/python -m pip install -r requirements-dev.txt
 
-test-backend:
+test-backend: python-version-check
 	@echo "Running backend unit tests..."
-	cd backend && source ../venv/bin/activate && python -m pytest -v
+	cd backend && ../venv/bin/python -m pytest -v
 
-test-backend-cov:
+test-backend-cov: python-version-check
 	@echo "Running backend tests with coverage..."
-	cd backend && source ../venv/bin/activate && python -m pytest --cov=app --cov-report=html --cov-report=term-missing
+	cd backend && ../venv/bin/python -m pytest --cov=app --cov-report=html --cov-report=term-missing
 
-lint:
+lint: python-version-check
 	@echo "Running backend linter..."
-	cd backend && source ../venv/bin/activate && python -m black --check .
-	cd backend && source ../venv/bin/activate && python -m ruff check .
+	cd backend && ../venv/bin/python -m black --check .
+	cd backend && ../venv/bin/python -m ruff check .
 
-format:
+format: python-version-check
 	@echo "Formatting backend code..."
-	cd backend && source ../venv/bin/activate && python -m black .
-	cd backend && source ../venv/bin/activate && python -m ruff check . --fix
+	cd backend && ../venv/bin/python -m black .
+	cd backend && ../venv/bin/python -m ruff check . --fix
 	@echo "Code formatting completed."
 
 check-all: lint test-backend
@@ -47,11 +52,21 @@ check-all: lint test-backend
 
 dev-setup:
 	@echo "Setting up development environment..."
-	@echo "Creating virtual environment if it doesn't exist..."
-	@test -d venv || python3 -m venv venv
-	@echo "Installing development dependencies..."
-	@. venv/bin/activate && $(MAKE) install-dev
+	$(MAKE) create-venv
+	$(MAKE) python-version-check
+	@$(PY) -m pip install --upgrade pip
+	@$(MAKE) install-dev
 	@echo "Development environment setup completed!"
+
+python-version-check:
+	@test -x venv/bin/python || (echo "Virtualenv not found. Run 'make create-venv' first."; exit 1)
+	@$(PY) -c 'import sys; assert sys.version_info[:2]==(3,10), f"Python 3.10 required, found {sys.version}"'
+	@echo "Python version verified: 3.10"
+
+create-venv:
+	@if ! command -v python3.10 >/dev/null 2>&1; then echo "python3.10 not found. Please install Python 3.10 (e.g., brew install python@3.10 or apt-get install python3.10)."; exit 1; fi
+	@test -d venv || python3.10 -m venv venv
+	@echo "Virtual environment created with Python 3.10."
 
 clean:
 	@echo "Cleaning cache and temporary files..."

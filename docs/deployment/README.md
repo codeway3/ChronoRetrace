@@ -27,6 +27,7 @@
 - 网络: 1Gbps+
 
 ### 依赖软件
+- Python 3.10（必须）
 - Docker 20.10+
 - Docker Compose 2.0+
 - Kubernetes 1.20+ (生产环境)

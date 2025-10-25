@@ -2,15 +2,14 @@
 股票筛选器服务
 """
 
-from typing import Any, List, Tuple, cast
+from typing import Any, cast
 
-from sqlalchemy import and_, desc, or_, select, func
+from sqlalchemy import and_, desc, func, select
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.sql import Select
 
 from app.infrastructure.database.models import DailyStockMetrics, StockInfo
 from app.schemas.screener import (
-    ScreenerCondition,
     ScreenerRequest,
     ScreenerResponse,
     ScreenerResultItem,
@@ -19,7 +18,7 @@ from app.schemas.screener import (
 
 def _build_screener_query(
     db: Session, request: ScreenerRequest
-) -> Tuple[Select, List[Any]]:
+) -> tuple[Select, list[Any]]:
     """构建筛选器查询"""
     StockInfoAlias = aliased(StockInfo)
     DailyStockMetricsAlias = aliased(DailyStockMetrics)
@@ -27,17 +26,17 @@ def _build_screener_query(
     # 使用 cast(Any, ...) 包裹列，避免 Pyright 将模型属性解析为原始类型（如 str/float），
     # 导致 select 实体类型不匹配的诊断错误。
     query = select(
-        cast(Any, StockInfoAlias.ts_code).label("symbol"),
-        cast(Any, StockInfoAlias.name),
-        cast(Any, StockInfoAlias.market_type).label("market"),
-        cast(Any, DailyStockMetricsAlias.market_cap),
-        cast(Any, DailyStockMetricsAlias.close_price).label("price"),
-        cast(Any, DailyStockMetricsAlias.pe_ratio),
-        cast(Any, DailyStockMetricsAlias.pb_ratio),
-        cast(Any, DailyStockMetricsAlias.dividend_yield),
+        cast("Any", StockInfoAlias.ts_code).label("symbol"),
+        cast("Any", StockInfoAlias.name),
+        cast("Any", StockInfoAlias.market_type).label("market"),
+        cast("Any", DailyStockMetricsAlias.market_cap),
+        cast("Any", DailyStockMetricsAlias.close_price).label("price"),
+        cast("Any", DailyStockMetricsAlias.pe_ratio),
+        cast("Any", DailyStockMetricsAlias.pb_ratio),
+        cast("Any", DailyStockMetricsAlias.dividend_yield),
     ).join(
         DailyStockMetricsAlias,
-        cast(Any, StockInfoAlias.ts_code == DailyStockMetricsAlias.code),
+        cast("Any", StockInfoAlias.ts_code == DailyStockMetricsAlias.code),
     )
 
     filters = []
@@ -54,7 +53,7 @@ def _build_screener_query(
         else:
             continue  # Or raise an exception for an invalid field
 
-        column = cast(Any, getattr(model_alias, field_name))
+        column = cast("Any", getattr(model_alias, field_name))
 
         if operator in (">", "gt"):
             filters.append(column > value)
@@ -81,9 +80,9 @@ def _build_screener_query(
         sort_column: Any | None = None
         # Check both aliases for the sort_by attribute
         if hasattr(StockInfoAlias, request.sort_by):
-            sort_column = cast(Any, getattr(StockInfoAlias, request.sort_by))
+            sort_column = cast("Any", getattr(StockInfoAlias, request.sort_by))
         elif hasattr(DailyStockMetricsAlias, request.sort_by):
-            sort_column = cast(Any, getattr(DailyStockMetricsAlias, request.sort_by))
+            sort_column = cast("Any", getattr(DailyStockMetricsAlias, request.sort_by))
 
         if sort_column is not None:
             if request.sort_order == "desc":

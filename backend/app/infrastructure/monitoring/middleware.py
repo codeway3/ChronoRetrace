@@ -1,6 +1,3 @@
-from __future__ import annotations
-
-# !/usr/bin/env python3
 """
 ChronoRetrace - 监控中间件
 
@@ -11,7 +8,9 @@ Author: ChronoRetrace Team
 Date: 2024
 """
 
+from __future__ import annotations
 
+# !/usr/bin/env python3
 import logging
 import time
 from collections.abc import Callable

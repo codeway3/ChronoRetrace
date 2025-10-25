@@ -52,7 +52,7 @@ def aggregate_ohlcv(data: list[dict[str, Any]], interval: str) -> list[dict[str,
     }
 
     # Pyright is strict about DataFrame.agg type; cast rules to Any for compatibility
-    agg_df = df.resample(rule).agg(cast(Any, agg_rules))
+    agg_df = df.resample(rule).agg(cast("Any", agg_rules))
     agg_df.dropna(inplace=True)
 
     # Calculate MAs on aggregated data

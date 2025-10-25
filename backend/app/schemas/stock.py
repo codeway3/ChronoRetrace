@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -48,9 +47,10 @@ class StockDataResponse(BaseModel):
 
 # Legacy compatibility for screener tests
 from pydantic import Field
+
 from app.schemas.screener import (
     ScreenerCondition as ScreenerCondition,
-)  # noqa: E402,F401
+)
 
 
 class StockScreenerRequest(BaseModel):

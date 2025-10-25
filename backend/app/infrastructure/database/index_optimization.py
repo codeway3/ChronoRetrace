@@ -1,6 +1,3 @@
-from __future__ import annotations
-
-# !/usr/bin/env python3
 """
 
 ChronoRetrace - 数据库索引优化模块
@@ -12,6 +9,9 @@ Author: ChronoRetrace Team
 Date: 2024
 """
 
+from __future__ import annotations
+
+# !/usr/bin/env python3
 import logging
 from datetime import datetime
 from typing import Any

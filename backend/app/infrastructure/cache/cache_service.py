@@ -2,16 +2,17 @@
 统一缓存服务接口
 整合Redis缓存和内存缓存，提供简单易用的缓存API
 """
+
 from __future__ import annotations
 
 # !/usr/bin/env python3
 import asyncio
 import logging
 from collections.abc import Callable
+from contextlib import suppress
 
 # from datetime import datetime  # 未使用，移除以消除静态检查警告
 from functools import wraps
-from contextlib import suppress
 from typing import Any, cast
 
 from .memory_cache import LRUMemoryCache, MultiLevelCache
@@ -324,8 +325,8 @@ class CacheService:
                     # self.set_stock_info(stock_code, stock_info, market)
                     pass
 
-            except Exception as e:
-                logger.error(f"Failed to preload data for {stock_code}: {e}")
+            except Exception:
+                logger.exception(f"Failed to preload data for {stock_code}")
 
         logger.info("Preload completed")
 
@@ -348,10 +349,12 @@ class CacheService:
             value = await self.redis_cache.get(key)
             if value is not None:
                 # 将 Redis 中的值同步到内存缓存
-                await self.multi_cache.set(key, value, ttl=300)  # 5分钟TTL
+                await self.multi_cache.set(
+                    key, value, ttl=self.memory_cache.default_ttl
+                )
             return value
-        except Exception as e:
-            logger.error(f"Failed to get cache for key {key}: {e}")
+        except Exception:
+            logger.exception(f"Failed to get cache for key {key}")
             return None
 
     async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
@@ -366,9 +369,11 @@ class CacheService:
             操作是否成功
         """
         try:
-            # 同时设置到内存缓存和Redis
-            memory_success = await self.multi_cache.set(key, value, ttl=ttl or 300)
-            redis_success = await self.redis_cache.set(key, value, ttl=ttl or 3600)
+            # 统一TTL策略：使用提供的ttl或默认值（对L2使用统一默认TTL）；L1 TTL由MultiLevelCache按相对规则确定
+            ttl_value = ttl if ttl is not None else DEFAULT_REDIS_TTL_SECONDS
+            # 同时设置到内存缓存(L1+L2)和Redis（保证测试中对redis_cache.set的调用可见）
+            memory_success = await self.multi_cache.set(key, value, ttl=ttl_value)
+            redis_success = await self.redis_cache.set(key, value, ttl=ttl_value)
             return bool(memory_success and redis_success)
         except Exception as e:
             logger.error(f"Failed to set cache for key {key}: {e}")
@@ -388,8 +393,8 @@ class CacheService:
             memory_success = self.multi_cache.delete(key)
             redis_success = self.redis_cache.delete(key)
             return memory_success or redis_success  # 只要有一个成功就算成功
-        except Exception as e:
-            logger.error(f"Failed to delete cache for key {key}: {e}")
+        except Exception:
+            logger.exception(f"Failed to delete cache for key {key}")
             return False
 
     def exists(self, key: str) -> bool:
@@ -407,8 +412,8 @@ class CacheService:
                 return True
             # 再检查Redis
             return self.redis_cache.exists(key)
-        except Exception as e:
-            logger.error(f"Failed to check cache existence for key {key}: {e}")
+        except Exception:
+            logger.exception(f"Failed to check cache existence for key {key}")
             return False
 
     def clear_by_pattern(self, pattern: str) -> int:
@@ -430,8 +435,8 @@ class CacheService:
 
             logger.info(f"Cleared cache pattern: {pattern}, deleted: {redis_count}")
             return redis_count + memory_count
-        except Exception as e:
-            logger.error(f"Failed to clear cache by pattern {pattern}: {e}")
+        except Exception:
+            logger.exception(f"Failed to clear cache by pattern {pattern}")
             return 0
 
     def get_cache_stats(self) -> dict[str, Any]:
@@ -445,7 +450,7 @@ class CacheService:
             redis_info = self.redis_cache.get_info()
 
             # 获取总键数
-            keys = cast(list[str], self.redis_cache.redis_client.keys("*"))
+            keys = cast("list[str]", self.redis_cache.redis_client.keys("*"))
             total_keys = len(keys)
 
             # 获取内存使用情况
@@ -506,8 +511,8 @@ class CacheService:
                 got = await self.redis_cache.get(test_key)
                 redis_ok = got == test_value or got is not None
                 self.redis_cache.delete(test_key)
-        except Exception as e:
-            logger.error(f"Redis health check failed: {e}")
+        except Exception:
+            logger.exception("Redis health check failed")
 
         try:
             # 使用多级缓存进行L1/L2综合检查，兼容异步或同步Mock
@@ -540,8 +545,8 @@ class CacheService:
             del_fn = getattr(self.multi_cache, "delete", None)
             if del_fn:
                 del_fn(test_key)
-        except Exception as e:
-            logger.error(f"Memory cache health check failed: {e}")
+        except Exception:
+            logger.exception("Memory cache health check failed")
 
         return bool(redis_ok and memory_ok)
 
@@ -597,10 +602,9 @@ class CacheService:
             self.memory_cache.shutdown()
             self.redis_cache.close()
             logger.info("Cache service shutdown completed")
-        except Exception as e:
-            logger.error(f"Error during cache service shutdown: {e}")
+        except Exception:
+            logger.exception("Error during cache service shutdown")
 
-    # 新增: 清理所有缓存
     def clear_all(self) -> int:
         """清理所有缓存(内存 + Redis)，返回清理的键估计数量"""
         try:
@@ -611,7 +615,7 @@ class CacheService:
             # 统计当前 Redis 键数量
             try:
                 # decode_responses=True -> keys() returns list[str]
-                redis_keys = cast(list[str], self.redis_cache.redis_client.keys("*"))
+                redis_keys = cast("list[str]", self.redis_cache.redis_client.keys("*"))
                 redis_entries = len(redis_keys)
             except Exception:
                 redis_entries = 0
@@ -624,10 +628,11 @@ class CacheService:
             logger.info(
                 f"Cleared all caches. Memory: {memory_entries}, Redis: {redis_entries}"
             )
-            return cleared_total
-        except Exception as e:
-            logger.error(f"Failed to clear all caches: {e}")
+        except Exception:
+            logger.exception("Failed to clear all caches")
             return 0
+        else:
+            return cleared_total
 
     # 新增: 获取 Redis 连接与运行时信息
     def get_cache_info(self) -> dict[str, Any]:
@@ -647,13 +652,13 @@ class CacheService:
             try:
                 # Cast Redis info responses to dictionaries for type safety
                 mem_info = cast(
-                    dict[str, Any], self.redis_cache.redis_client.info("memory")
+                    "dict[str, Any]", self.redis_cache.redis_client.info("memory")
                 )
             except Exception:
                 mem_info = {}
             try:
                 stats_info = cast(
-                    dict[str, Any], self.redis_cache.redis_client.info("stats")
+                    "dict[str, Any]", self.redis_cache.redis_client.info("stats")
                 )
             except Exception:
                 stats_info = {}
@@ -665,7 +670,7 @@ class CacheService:
             # 键数量
             try:
                 # decode_responses=True -> keys() returns list[str]
-                keys = cast(list[str], self.redis_cache.redis_client.keys("*"))
+                keys = cast("list[str]", self.redis_cache.redis_client.keys("*"))
                 info["total_keys"] = len(keys)
             except Exception:
                 info["total_keys"] = 0
@@ -674,8 +679,8 @@ class CacheService:
             redis_stats = self.redis_cache.get_stats()
             hit_rate_percent = float(redis_stats.get("hit_rate", 0))
             info["hit_rate"] = round(hit_rate_percent / 100.0, 4)
-        except Exception as e:
-            logger.error(f"Failed to get cache info: {e}")
+        except Exception:
+            logger.exception("Failed to get cache info")
         return info
 
 
@@ -724,7 +729,9 @@ def smart_cache(
                 },
             )
             ttl_value = (
-                ttl if ttl is not None else strategy.get("redis_ttl", DEFAULT_REDIS_TTL_SECONDS)
+                ttl
+                if ttl is not None
+                else strategy.get("redis_ttl", DEFAULT_REDIS_TTL_SECONDS)
             )
             # 尝试从缓存获取
             cache_layer = (
@@ -753,9 +760,7 @@ def smart_cache(
             if result is not None:
                 # 设置缓存结果
                 try:
-                    await cache_layer.set(
-                        key, result, ttl=ttl_value
-                    )
+                    await cache_layer.set(key, result, ttl=ttl_value)
                     logger.debug(f"Cached result for {key}")
                 except Exception as e:
                     logger.warning(f"Failed to cache result for {key}: {e}")

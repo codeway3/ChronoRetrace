@@ -1,3 +1,12 @@
+"""
+ChronoRetrace - 缓存管理API
+
+本模块提供缓存管理相关的API端点, 包括缓存预热、清理和状态查询等功能。
+
+Author: ChronoRetrace Team
+Date: 2024
+"""
+
 from __future__ import annotations
 
 import logging
@@ -11,14 +20,6 @@ from app.infrastructure.cache.cache_warming import cache_warming_service
 from app.infrastructure.monitoring.performance_monitor import performance_monitor
 
 # !/usr/bin/env python3
-"""
-ChronoRetrace - 缓存管理API
-
-本模块提供缓存管理相关的API端点, 包括缓存预热、清理和状态查询等功能。
-
-Author: ChronoRetrace Team
-Date: 2024
-"""
 
 logger = logging.getLogger(__name__)
 

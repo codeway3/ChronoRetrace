@@ -10,7 +10,7 @@ on:
 # 环境变量
 env:
   NODE_VERSION: '18'
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.10'
 
 # 作业定义
 jobs:
@@ -27,6 +27,12 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Verify Python version
+      run: python -c "import sys; assert sys.version_info[:2]==(3,10), f'Python 3.10 required, found {sys.version}'"
+
+    - name: Verify Python version
+      run: python -c "import sys; assert sys.version_info[:2]==(3,10), f'Python 3.10 required, found {sys.version}'"
 
     - name: Set up Node.js
       uses: actions/setup-node@v4

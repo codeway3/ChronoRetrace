@@ -483,21 +483,30 @@ def memory_cache_result(ttl: int = 300):
         async def wrapper(*args, **kwargs):
             # 生成缓存键
             import hashlib
+            import inspect
             import json
 
             func_name = func.__name__
             args_str = json.dumps([args, kwargs], default=str, sort_keys=True)
             key_hash = hashlib.sha256(args_str.encode()).hexdigest()[:8]
-            cache_key = f"mem:{func_name}:{key_hash}"
+            cache_key = f"\u006d\u0065\u006d:{func_name}:{key_hash}"
 
             # 尝试从缓存获取
             cached_result = memory_cache.get(cache_key)
+            # 如果历史上错误地缓存了协程对象，删除并视为未命中
+            if cached_result is not None and inspect.isawaitable(cached_result):
+                memory_cache.delete(cache_key)
+                cached_result = None
             if cached_result is not None:
                 return cached_result
 
-            # 执行函数并缓存结果
-            result = func(*args, **kwargs)
-            if result is not None:
+            # 执行函数并缓存结果（正确处理同步/异步函数）
+            if inspect.iscoroutinefunction(func):
+                result = await func(*args, **kwargs)
+            else:
+                result = func(*args, **kwargs)
+
+            if result is not None and not inspect.isawaitable(result):
                 memory_cache.set(cache_key, result, ttl=ttl)
 
             return result

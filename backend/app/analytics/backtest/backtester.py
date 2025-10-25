@@ -5,10 +5,14 @@
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
+from sqlalchemy import and_
+
+from app.analytics.backtest.signal_generator import SignalGenerator
+from app.infrastructure.database.models import StockData
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +108,8 @@ class BacktestEngine:
                 "final_cash": self.cash,
                 "final_positions": self.positions,
             }
-        except Exception as e:
-            logger.error(f"回测执行失败: {e}")
+        except Exception:
+            logger.exception("回测执行失败")
             raise
 
     def _preprocess_data(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -113,6 +117,14 @@ class BacktestEngine:
         # 确保时间索引
         if not isinstance(data.index, pd.DatetimeIndex):
             data.index = pd.to_datetime(data.index)
+        # 统一为UTC时区的时间索引，确保前后端一致
+        if isinstance(data.index, pd.DatetimeIndex):
+            if data.index.tz is None:
+                # 将naive时间视为UTC
+                data.index = data.index.tz_localize("UTC")
+            else:
+                # 转换到UTC
+                data.index = data.index.tz_convert("UTC")
         # 确保必要的列存在
         required_cols = ["open", "high", "low", "close", "volume"]
         for col in required_cols:
@@ -129,14 +141,12 @@ class BacktestEngine:
 
     def _generate_signals(
         self,
-        current_row: pd.Series,
+        _current_row: pd.Series,
         strategy_def: dict[str, Any],
         historical_data: pd.DataFrame,
     ) -> list[dict[str, Any]]:
         """生成交易信号"""
         # 使用SignalGenerator生成信号
-        from app.analytics.backtest.signal_generator import SignalGenerator
-
         signal_generator = SignalGenerator()
 
         # 生成技术指标信号
@@ -242,7 +252,7 @@ class BacktestEngine:
             self.equity_curve[-1]["timestamp"] - self.equity_curve[0]["timestamp"]
         ).days
         annual_return = (1 + total_return / 100) ** (365 / max(days, 1)) - 1
-        # 夏普比率 (避免除以0或NaN)
+        # 夏普比率 (避免除以0或NaN)  # noqa: ERA001
         if len(returns) > 1:
             std = float(np.std(returns))
             sharpe_ratio = (
@@ -285,7 +295,7 @@ class BacktestEngine:
         if not buy_trades:
             return 0.0
 
-        # 简化计算: 假设卖出交易都是盈利的
+        # 简化计算: 假设卖出交易都是盈利的  # noqa: ERA001
         sell_trades = [t for t in self.trades if t.action == TradeAction.SELL]
         return len(sell_trades) / len(buy_trades) if buy_trades else 0.0
 
@@ -299,13 +309,8 @@ def run_grid_backtest(db, config):
     Returns:
         Dict: 包含回测结果的字典
     """
+    # 从数据库获取股票数据并查询指定时间范围内的数据
     try:
-        # 从数据库获取股票数据
-        from sqlalchemy import and_
-
-        from app.infrastructure.database.models import StockData
-
-        # 查询指定时间范围内的股票数据
         stock_data = (
             db.query(StockData)
             .filter(
@@ -318,139 +323,155 @@ def run_grid_backtest(db, config):
             .order_by(StockData.trade_date)
             .all()
         )
-
-        if not stock_data:
-            raise ValueError(
-                f"未找到股票 {config.stock_code} 在 {config.start_date} 到 {config.end_date} 期间的数据"
-            )
-
-        # 将数据转换为DataFrame
-        data = []
-        for record in stock_data:
-            data.append(
-                {
-                    "timestamp": record.trade_date,
-                    "open": record.open,
-                    "high": record.high,
-                    "low": record.low,
-                    "close": record.close,
-                    "volume": record.vol,
-                }
-            )
-
-        df = pd.DataFrame(data)
-        df.set_index("timestamp", inplace=True)
-
-        # 创建回测引擎实例
-        engine = BacktestEngine(
-            initial_capital=config.total_investment,
-            commission_rate=config.commission_rate,
-        )
-
-        # 定义网格策略
-        strategy_def = {
-            "type": "grid",
-            "upper_price": config.upper_price,
-            "lower_price": config.lower_price,
-            "grid_count": config.grid_count,
-            "on_exceed_upper": config.on_exceed_upper,
-            "on_fall_below_lower": config.on_fall_below_lower,
-        }
-
-        # 执行回测
-        result = engine.run_backtest(df, strategy_def)
-
-        # 根据结果构建响应所需的结构
-        # 1) K线数据
-        kline_data: list[dict[str, Any]] = []
-        for ts, row in df.iterrows():
-            kline_data.append(
-                {
-                    "trade_date": ts.date(),
-                    "open": float(row["open"]),
-                    "high": float(row["high"]),
-                    "low": float(row["low"]),
-                    "close": float(row["close"]),
-                    "vol": int(row["volume"]),
-                }
-            )
-
-        # 2) 图表数据(权益曲线 + 基准为简单的买入持有)
-        chart_data: list[dict[str, Any]] = []
-        if len(df) > 0 and len(engine.equity_curve) == len(df):
-            first_close = float(df["close"].iloc[0])
-            shares_benchmark = (
-                engine.initial_capital / first_close if first_close > 0 else 0.0
-            )
-            for i, point in enumerate(engine.equity_curve):
-                chart_data.append(
-                    {
-                        "date": pd.to_datetime(point["timestamp"]).date(),
-                        "portfolio_value": float(point["portfolio_value"]),
-                        "benchmark_value": float(
-                            shares_benchmark * float(df["close"].iloc[i])
-                        )
-                        if shares_benchmark > 0
-                        else float(point["portfolio_value"]),
-                    }
-                )
-
-        # 3) 交易日志转换
-        transaction_log: list[dict[str, Any]] = []
-        for t in result["trades"]:
-            ts = t.get("timestamp")
-            if isinstance(ts, str):
-                ts_dt = pd.to_datetime(ts)
-            else:
-                ts_dt = ts if isinstance(ts, datetime) else None
-            transaction_log.append(
-                {
-                    "trade_date": ts_dt.date() if ts_dt is not None else df.index[-1].date(),
-                    "trade_type": t.get("action"),
-                    "price": float(t.get("price", 0.0)),
-                    "quantity": int(t.get("quantity", 0)),
-                    "pnl": None,
-                }
-            )
-
-        # 4) 最终持仓数量与平均持仓成本(简化版)
-        final_holding_quantity = (
-            int(sum(engine.positions.values())) if engine.positions else 0
-        )
-        average_holding_cost = 0.0
-
-        # 格式化结果以匹配预期的API响应格式
-        return {
-            "total_pnl": result["performance_metrics"].get("total_return", 0),
-            "total_return_rate": result["performance_metrics"].get("total_return", 0)
-            / 100,
-            "annualized_return_rate": result["performance_metrics"].get(
-                "annual_return", 0
-            )
-            / 100,
-            "annualized_volatility": result["performance_metrics"].get(
-                "sharpe_ratio", 0
-            ),
-            "sharpe_ratio": result["performance_metrics"].get("sharpe_ratio", 0),
-            "max_drawdown": result["performance_metrics"].get("max_drawdown", 0)
-            / 100,
-            "win_rate": result["performance_metrics"].get("win_rate", 0) / 100,
-            "trade_count": result["performance_metrics"].get("total_trades", 0),
-            "chart_data": chart_data,
-            "kline_data": kline_data,
-            "transaction_log": transaction_log,
-            "strategy_config": config,
-            "market_type": "A_share",
-            "final_holding_quantity": final_holding_quantity,
-            "average_holding_cost": average_holding_cost,
-        }
-
-    except Exception as e:
-        logger.error(f"网格回测执行失败: {e}")
+    except Exception:
+        logger.exception("数据库查询失败")
         raise
 
+    if not stock_data:
+        raise ValueError(
+            f"未找到股票 {config.stock_code} 在 {config.start_date} 到 {config.end_date} 期间的数据"
+        )
 
-def run_grid_optimization(db, config):
+    # 将数据转换为DataFrame
+    data = []
+    for record in stock_data:
+        data.append(
+            {
+                "timestamp": record.trade_date,
+                "open": record.open,
+                "high": record.high,
+                "low": record.low,
+                "close": record.close,
+                "volume": record.vol,
+            }
+        )
+
+    df = pd.DataFrame(data)
+    df.set_index("timestamp", inplace=True)
+
+    # 创建回测引擎实例
+    engine = BacktestEngine(
+        initial_capital=config.total_investment,
+        commission_rate=config.commission_rate,
+    )
+
+    # 定义网格策略
+    strategy_def = {
+        "type": "grid",
+        "upper_price": config.upper_price,
+        "lower_price": config.lower_price,
+        "grid_count": config.grid_count,
+        "on_exceed_upper": config.on_exceed_upper,
+        "on_fall_below_lower": config.on_fall_below_lower,
+    }
+
+    # 执行回测
+    result = engine.run_backtest(df, strategy_def)
+
+    # 根据结果构建响应所需的结构
+    # 1) K线数据
+    kline_data: list[dict[str, Any]] = []
+    for ts, row in df.iterrows():
+        # 统一为UTC日期字符串
+        ts_norm = pd.Timestamp(cast("Any", ts))
+        if ts_norm.tzinfo is None:
+            ts_norm = ts_norm.tz_localize("UTC")
+        else:
+            ts_norm = ts_norm.tz_convert("UTC")
+        kline_data.append(
+            {
+                "trade_date": ts_norm.date().isoformat(),
+                "open": float(row["open"]),
+                "high": float(row["high"]),
+                "low": float(row["low"]),
+                "close": float(row["close"]),
+                "vol": int(row["volume"]),
+            }
+        )
+
+    # 2) 图表数据(权益曲线 + 基准为简单的买入持有)
+    chart_data: list[dict[str, Any]] = []
+    if len(df) > 0 and len(engine.equity_curve) == len(df):
+        first_close = float(df["close"].iloc[0])
+        shares_benchmark = (
+            engine.initial_capital / first_close if first_close > 0 else 0.0
+        )
+        for i, point in enumerate(engine.equity_curve):
+            chart_data.append(
+                {
+                    "date": pd.to_datetime(point["timestamp"], utc=True)
+                    .date()
+                    .isoformat(),
+                    "portfolio_value": float(point["portfolio_value"]),
+                    "benchmark_value": (
+                        float(shares_benchmark * float(df["close"].iloc[i]))
+                        if shares_benchmark > 0
+                        else float(point["portfolio_value"])
+                    ),
+                }
+            )
+
+    # 3) 交易日志转换
+    transaction_log: list[dict[str, Any]] = []
+    for t in result["trades"]:
+        ts = t.get("timestamp")
+        if isinstance(ts, str):
+            ts_dt = pd.to_datetime(ts, utc=True)
+        else:
+            ts_dt = (
+                pd.Timestamp(ts) if isinstance(ts, (datetime, pd.Timestamp)) else None
+            )
+        # 正常化最后交易日期
+        if ts_dt is not None:
+            if ts_dt.tzinfo is None:
+                ts_dt = ts_dt.tz_localize("UTC")
+            else:
+                ts_dt = ts_dt.tz_convert("UTC")
+        else:
+            last_ts = pd.Timestamp(cast("Any", df.index[-1]))
+            ts_dt = (
+                last_ts.tz_localize("UTC")
+                if last_ts.tzinfo is None
+                else last_ts.tz_convert("UTC")
+            )
+        transaction_log.append(
+            {
+                "trade_date": ts_dt.date().isoformat(),
+                "trade_type": t.get("action"),
+                "price": float(t.get("price", 0.0)),
+                "quantity": int(t.get("quantity", 0)),
+                "pnl": None,
+            }
+        )
+
+    # 4) 最终持仓数量与平均持仓成本(简化版)
+    final_holding_quantity = (
+        int(sum(engine.positions.values())) if engine.positions else 0
+    )
+    average_holding_cost = 0.0
+
+    # 格式化结果以匹配预期的API响应格式
+    return {
+        "total_pnl": result["performance_metrics"].get("total_return", 0),
+        "total_return_rate": result["performance_metrics"].get("total_return", 0) / 100,
+        "annualized_return_rate": result["performance_metrics"].get("annual_return", 0)
+        / 100,
+        "annualized_volatility": result["performance_metrics"].get("sharpe_ratio", 0),
+        "sharpe_ratio": result["performance_metrics"].get("sharpe_ratio", 0),
+        "max_drawdown": result["performance_metrics"].get("max_drawdown", 0) / 100,
+        "win_rate": result["performance_metrics"].get("win_rate", 0) / 100,
+        "trade_count": result["performance_metrics"].get("total_trades", 0),
+        "chart_data": chart_data,
+        "kline_data": kline_data,
+        "transaction_log": transaction_log,
+        "strategy_config": config,
+        "market_type": "A_share",
+        "final_holding_quantity": final_holding_quantity,
+        "average_holding_cost": average_holding_cost,
+    }
+
+
+def run_grid_optimization(_db, _config):
     """
     执行网格交易参数优化
     Args:

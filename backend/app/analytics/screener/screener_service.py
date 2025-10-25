@@ -3,16 +3,14 @@
 提供资产筛选相关的业务逻辑
 """
 
-from datetime import datetime
 from math import ceil
 
-from sqlalchemy import and_, case, desc, func, or_
+from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 # 使用模块导入以避免静态类型检查对未知符号的报错（如 AssetSymbol）
 import app.infrastructure.database.models as db_models
 from app.schemas.screener import (
-    ScreenerCondition,
     ScreenerRequest,
     ScreenerResponse,
     ScreenerResultItem,

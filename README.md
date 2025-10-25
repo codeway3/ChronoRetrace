@@ -75,6 +75,7 @@ cd ChronoRetrace
 ### Supported Systems
 - ✅ macOS 10.15+
 - ✅ Ubuntu 18.04+
+- ✅ Python: 3.10 (pinned)
 - ✅ Automatic Docker detection
 
 ### Need Help?
@@ -88,7 +89,7 @@ cd ChronoRetrace
 
 | Area      | Technology                                                                                             |
 | :-------- | :----------------------------------------------------------------------------------------------------- |
-| **Backend** | Python 3.10+, FastAPI, SQLAlchemy, Uvicorn, Pandas, Pydantic, JWT Authentication                       |
+| **Backend** | Python 3.10 (pinned), FastAPI, SQLAlchemy, Uvicorn, Pandas, Pydantic, JWT Authentication                       |
 | **Frontend**| React.js, Node.js 20+, ECharts for React, Ant Design, Axios, Context API                               |
 | **Real-time** | WebSocket connections, automatic reconnection, heartbeat monitoring, message routing                   |
 | **Database**| SQLite (for development), PostgreSQL (recommended for production)                                      |

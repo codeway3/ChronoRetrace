@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
 from typing import Any, cast
@@ -242,7 +242,10 @@ class RedisCacheManager:
     def _handle_redis_error(self, operation: str, key: str, error: Exception):
         """处理Redis操作错误"""
         self.stats["errors"] += 1
-        logger.error(f"Redis {operation} operation failed for key '{key}': {error}")
+        # 在异常上下文中记录堆栈信息
+        logger.exception(
+            "Redis %s operation failed for key '%s': %s", operation, key, error
+        )
 
     async def get(self, key: str) -> Any | None:
         """获取缓存值
@@ -254,8 +257,10 @@ class RedisCacheManager:
             缓存值，如果不存在返回None
         """
         try:
+            import asyncio
+
             # 返回类型为 ResponseT（通常为 bytes 或 None），按需交由反序列化处理
-            value = self.redis_client.get(key)
+            value = await asyncio.to_thread(self.redis_client.get, key)
             if value is not None:
                 self.stats["hits"] += 1
                 return self._deserialize_value(value)
@@ -285,6 +290,8 @@ class RedisCacheManager:
             操作是否成功
         """
         try:
+            import asyncio
+
             serialized_value = self._serialize_value(value)
 
             # 确定TTL
@@ -292,9 +299,17 @@ class RedisCacheManager:
                 ttl = self.key_manager.get_ttl(key_type)
 
             if ttl:
-                result_bool = bool(self.redis_client.setex(key, ttl, serialized_value))
+                result_bool = bool(
+                    await asyncio.to_thread(
+                        self.redis_client.setex, key, ttl, serialized_value
+                    )
+                )
             else:
-                result_bool = bool(self.redis_client.set(key, serialized_value))
+                result_bool = bool(
+                    await asyncio.to_thread(
+                        self.redis_client.set, key, serialized_value
+                    )
+                )
 
             if result_bool:
                 self.stats["sets"] += 1
@@ -315,8 +330,22 @@ class RedisCacheManager:
             操作是否成功
         """
         try:
-            result_int = cast(int, self.redis_client.delete(key))
+            result_int = cast("int", self.redis_client.delete(key))
             if result_int:
+                self.stats["deletes"] += 1
+                logger.debug(f"Cache deleted: {key}")
+            return bool(result_int)
+        except Exception as e:
+            self._handle_redis_error("DELETE", key, e)
+            return False
+
+    async def async_delete(self, key: str) -> bool:
+        """异步删除缓存（线程池包装）"""
+        try:
+            import asyncio
+
+            result_int = await asyncio.to_thread(self.redis_client.delete, key)
+            if int(cast("int", result_int)):
                 self.stats["deletes"] += 1
                 logger.debug(f"Cache deleted: {key}")
             return bool(result_int)
@@ -335,9 +364,9 @@ class RedisCacheManager:
         """
         try:
             # decode_responses=True -> keys() returns list[str]
-            keys = cast(list[str], self.redis_client.keys(pattern))
+            keys = cast("list[str]", self.redis_client.keys(pattern))
             if keys:
-                deleted_count = int(cast(int, self.redis_client.delete(*keys)))
+                deleted_count = int(cast("int", self.redis_client.delete(*keys)))
                 self.stats["deletes"] += deleted_count
                 logger.info(
                     f"Batch deleted {deleted_count} keys matching pattern: {pattern}"
@@ -358,7 +387,18 @@ class RedisCacheManager:
             缓存是否存在
         """
         try:
-            return bool(cast(int, self.redis_client.exists(key)))
+            return bool(cast("int", self.redis_client.exists(key)))
+        except Exception as e:
+            self._handle_redis_error("EXISTS", key, e)
+            return False
+
+    async def async_exists(self, key: str) -> bool:
+        """异步检查缓存是否存在（线程池包装）"""
+        try:
+            import asyncio
+
+            result = await asyncio.to_thread(self.redis_client.exists, key)
+            return bool(cast("int", result))
         except Exception as e:
             self._handle_redis_error("EXISTS", key, e)
             return False
@@ -381,6 +421,18 @@ class RedisCacheManager:
             self._handle_redis_error("EXPIRE", key, e)
             return False
 
+    async def async_expire(self, key: str, ttl: int) -> bool:
+        """异步设置缓存过期时间（线程池包装）"""
+        try:
+            import asyncio
+
+            result = await asyncio.to_thread(self.redis_client.expire, key, ttl)
+            logger.debug(f"Cache TTL updated: {key} -> {ttl}s")
+            return bool(result)
+        except Exception as e:
+            self._handle_redis_error("EXPIRE", key, e)
+            return False
+
     def get_ttl(self, key: str) -> int:
         """获取缓存剩余过期时间
 
@@ -392,7 +444,7 @@ class RedisCacheManager:
         """
         try:
             # redis-py 类型存根返回 ResponseT，这里显式转换为 int 以满足类型检查
-            return int(cast(int, self.redis_client.ttl(key)))
+            return int(cast("int", self.redis_client.ttl(key)))
         except Exception as e:
             self._handle_redis_error("TTL", key, e)
             return -2
@@ -412,12 +464,31 @@ class RedisCacheManager:
         """
         try:
             # redis-py 类型存根返回 ResponseT，这里显式转换为 int 以满足类型检查
-            result = cast(int, self.redis_client.incr(key, amount))
+            result = cast("int", self.redis_client.incr(key, amount))
             if ttl:
-                ttl_val = int(cast(int, self.redis_client.ttl(key)))
+                ttl_val = int(cast("int", self.redis_client.ttl(key)))
                 if ttl_val <= 0:
                     self.redis_client.expire(key, ttl)
             return result
+        except Exception as e:
+            self._handle_redis_error("INCR", key, e)
+            return None
+
+    async def async_increment(
+        self, key: str, amount: int = 1, ttl: int | None = None
+    ) -> int | None:
+        """异步原子性递增操作（线程池包装）"""
+        try:
+            import asyncio
+
+            result = await asyncio.to_thread(self.redis_client.incr, key, amount)
+            if ttl:
+                ttl_val = int(
+                    cast("int", await asyncio.to_thread(self.redis_client.ttl, key))
+                )
+                if ttl_val <= 0:
+                    await asyncio.to_thread(self.redis_client.expire, key, ttl)
+            return cast("int", result)
         except Exception as e:
             self._handle_redis_error("INCR", key, e)
             return None
@@ -434,8 +505,8 @@ class RedisCacheManager:
         )
 
         try:
-            redis_info = cast(dict[str, Any], self.redis_client.info("memory"))
-            clients_info = cast(dict[str, Any], self.redis_client.info("clients"))
+            redis_info = cast("dict[str, Any]", self.redis_client.info("memory"))
+            clients_info = cast("dict[str, Any]", self.redis_client.info("clients"))
             redis_stats = {
                 "used_memory": redis_info.get("used_memory", 0),
                 "used_memory_human": redis_info.get("used_memory_human", "0B"),
@@ -468,7 +539,7 @@ class RedisCacheManager:
             logger.warning("All cache data has been flushed")
             return bool(result)
         except Exception as e:
-            logger.error(f"Failed to flush cache: {e}")
+            logger.exception("Failed to flush cache: %s", e)
             return False
 
     def ping(self) -> bool:
@@ -480,7 +551,7 @@ class RedisCacheManager:
         try:
             return bool(self.redis_client.ping())
         except Exception as e:
-            logger.error(f"Redis ping failed: {e}")
+            logger.exception("Redis ping failed: %s", e)
             return False
 
     async def health_check(self) -> bool:
@@ -509,7 +580,7 @@ class RedisCacheManager:
 
             return retrieved_value == test_value
         except Exception as e:
-            logger.error(f"Redis health check failed: {e}")
+            logger.exception("Redis health check failed: %s", e)
             return False
 
     def get_info(self, section: str = "memory") -> dict[str, Any]:
@@ -522,9 +593,9 @@ class RedisCacheManager:
             Redis信息字典
         """
         try:
-            return cast(dict[str, Any], self.redis_client.info(section))
+            return cast("dict[str, Any]", self.redis_client.info(section))
         except Exception as e:
-            logger.error(f"Failed to get Redis info: {e}")
+            logger.exception("Failed to get Redis info: %s", e)
             return {}
 
     def close(self):
@@ -560,6 +631,10 @@ def cache_result(
         @wraps(func)
         async def wrapper(*args, **kwargs):
             # 生成缓存键
+            import hashlib
+            import inspect
+            import json
+
             if key_generator:
                 cache_key = key_generator(*args, **kwargs)
             else:
@@ -574,13 +649,21 @@ def cache_result(
 
             # 尝试从缓存获取
             cached_result = await cache_manager.get(cache_key)
+            # 如果历史上错误地缓存了协程对象，删除并视为未命中
+            if cached_result is not None and inspect.isawaitable(cached_result):
+                await cache_manager.async_delete(cache_key)
+                cached_result = None
             if cached_result is not None:
                 logger.debug(f"Cache hit for {cache_key}")
                 return cached_result
 
-            # 执行函数并缓存结果
-            result = func(*args, **kwargs)
-            if result is not None:
+            # 执行函数并缓存结果（正确处理同步/异步函数）
+            if inspect.iscoroutinefunction(func):
+                result = await func(*args, **kwargs)
+            else:
+                result = func(*args, **kwargs)
+
+            if result is not None and not inspect.isawaitable(result):
                 await cache_manager.set(cache_key, result, ttl=ttl, key_type=key_type)
                 logger.debug(f"Cache set for {cache_key}")
 
