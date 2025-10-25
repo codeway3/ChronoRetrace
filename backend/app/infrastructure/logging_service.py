@@ -556,6 +556,26 @@ class LoggingService:
             self.db_session.rollback()
             return 0
 
+    def shutdown(self) -> None:
+        """关闭日志资源（文件句柄等）以防 FD 泄漏"""
+        try:
+            # 关闭并移除所有处理器
+            for handler in list(self.logger.handlers):
+                try:
+                    handler.flush()
+                except Exception:
+                    pass
+                try:
+                    handler.close()
+                except Exception:
+                    pass
+                try:
+                    self.logger.removeHandler(handler)
+                except Exception:
+                    pass
+        except Exception as e:
+            self.logger.error(f"关闭日志处理器失败: {e!s}")
+
     def _log_to_file(self, log_entry: LogEntry) -> None:
         """记录到文件"""
         log_level = {

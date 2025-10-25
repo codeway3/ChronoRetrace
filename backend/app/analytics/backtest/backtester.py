@@ -360,6 +360,65 @@ def run_grid_backtest(db, config):
         # 执行回测
         result = engine.run_backtest(df, strategy_def)
 
+        # 根据结果构建响应所需的结构
+        # 1) K线数据
+        kline_data: list[dict[str, Any]] = []
+        for ts, row in df.iterrows():
+            kline_data.append(
+                {
+                    "trade_date": ts.date(),
+                    "open": float(row["open"]),
+                    "high": float(row["high"]),
+                    "low": float(row["low"]),
+                    "close": float(row["close"]),
+                    "vol": int(row["volume"]),
+                }
+            )
+
+        # 2) 图表数据(权益曲线 + 基准为简单的买入持有)
+        chart_data: list[dict[str, Any]] = []
+        if len(df) > 0 and len(engine.equity_curve) == len(df):
+            first_close = float(df["close"].iloc[0])
+            shares_benchmark = (
+                engine.initial_capital / first_close if first_close > 0 else 0.0
+            )
+            for i, point in enumerate(engine.equity_curve):
+                chart_data.append(
+                    {
+                        "date": pd.to_datetime(point["timestamp"]).date(),
+                        "portfolio_value": float(point["portfolio_value"]),
+                        "benchmark_value": float(
+                            shares_benchmark * float(df["close"].iloc[i])
+                        )
+                        if shares_benchmark > 0
+                        else float(point["portfolio_value"]),
+                    }
+                )
+
+        # 3) 交易日志转换
+        transaction_log: list[dict[str, Any]] = []
+        for t in result["trades"]:
+            ts = t.get("timestamp")
+            if isinstance(ts, str):
+                ts_dt = pd.to_datetime(ts)
+            else:
+                ts_dt = ts if isinstance(ts, datetime) else None
+            transaction_log.append(
+                {
+                    "trade_date": ts_dt.date() if ts_dt is not None else df.index[-1].date(),
+                    "trade_type": t.get("action"),
+                    "price": float(t.get("price", 0.0)),
+                    "quantity": int(t.get("quantity", 0)),
+                    "pnl": None,
+                }
+            )
+
+        # 4) 最终持仓数量与平均持仓成本(简化版)
+        final_holding_quantity = (
+            int(sum(engine.positions.values())) if engine.positions else 0
+        )
+        average_holding_cost = 0.0
+
         # 格式化结果以匹配预期的API响应格式
         return {
             "total_pnl": result["performance_metrics"].get("total_return", 0),
@@ -373,16 +432,17 @@ def run_grid_backtest(db, config):
                 "sharpe_ratio", 0
             ),
             "sharpe_ratio": result["performance_metrics"].get("sharpe_ratio", 0),
-            "max_drawdown": result["performance_metrics"].get("max_drawdown", 0) / 100,
+            "max_drawdown": result["performance_metrics"].get("max_drawdown", 0)
+            / 100,
             "win_rate": result["performance_metrics"].get("win_rate", 0) / 100,
             "trade_count": result["performance_metrics"].get("total_trades", 0),
-            "chart_data": result["equity_curve"],
-            "kline_data": [],  # 需要从原始数据生成
-            "transaction_log": result["trades"],
-            "strategy_config": config.dict(),
-            "market_type": "US_stock",  # 需要从数据库获取实际的市场类型
-            "final_holding_quantity": len(result["final_positions"]),
-            "average_holding_cost": 0.0,  # 需要计算平均持仓成本
+            "chart_data": chart_data,
+            "kline_data": kline_data,
+            "transaction_log": transaction_log,
+            "strategy_config": config,
+            "market_type": "A_share",
+            "final_holding_quantity": final_holding_quantity,
+            "average_holding_cost": average_holding_cost,
         }
 
     except Exception as e:

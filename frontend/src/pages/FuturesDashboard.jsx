@@ -58,12 +58,13 @@ const FuturesDashboard = () => {
           raw_name: name,
         }));
         setAllFutures(futures);
-        if (futures.length > 0) {
-          const initialFuture = futures[0];
-          setSelectedFuture(initialFuture.ts_code);
-          setDisplayedFutureCode(initialFuture.ts_code);
-          setDisplayedFutureName(initialFuture.raw_name);
-        }
+        // 移除自动选中第一个期货，保持默认未选中，等待用户主动选择
+        // if (futures.length > 0) {
+        //   const initialFuture = futures[0];
+        //   setSelectedFuture(initialFuture.ts_code);
+        //   setDisplayedFutureCode(initialFuture.ts_code);
+        //   setDisplayedFutureName(initialFuture.raw_name);
+        // }
       })
       .catch(error => {
         const errorMsg = '加载期货列表失败。';

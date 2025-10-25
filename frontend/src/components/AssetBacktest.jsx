@@ -141,7 +141,7 @@ const AssetBacktest = ({ assetType, title }) => {
       layout="vertical"
       onFinish={handleBacktest}
       initialValues={{
-        date_range: [dayjs().subtract(1, 'year'), dayjs()],
+        date_range: [dayjs().subtract(2, 'year').startOf('year'), dayjs()],
         initial_capital: 100000,
         grid_count: 10,
         price_range: 0.2,

@@ -8,6 +8,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.data.fetchers import a_industries_fetcher as fetcher
 from app.schemas.industry import ConstituentStock
+from enum import Enum
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -22,26 +23,39 @@ def clean_json_data(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return data
 
 
+class WindowEnum(str, Enum):
+    D5 = "5D"
+    D20 = "20D"
+    D60 = "60D"
+
+class ProviderEnum(str, Enum):
+    EM = "em"
+    THS = "ths"
+
+
 @router.get("/overview", response_model=list[dict[str, object]])
 async def get_industry_overview(
-    window: str = Query("20D", enum=["5D", "20D", "60D"]),
-    provider: str = Query("em", enum=["em", "ths"]),
+    window: WindowEnum = Query(WindowEnum.D20),
+    provider: ProviderEnum = Query(ProviderEnum.EM),
 ):
     """
     Get an overview of all industries from the default provider (Eastmoney).
     The data is cached for 1 hour.
     """
     try:
-        logger.info(f"Fetching industry overview: window={window}, provider={provider}")
+        logger.info(
+            f"Fetching industry overview: window={window.value}, provider={provider.value}"
+        )
         data = cast(
-            "list[dict[str, object]]", await fetcher.build_overview(window, provider)
+            "list[dict[str, object]]",
+            await fetcher.build_overview(window.value, provider.value),
         )
         logger.info(f"Industry overview fetched: count={len(data)}")
     except Exception as e:
         logger.error(f"Failed to fetch industry overview: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Failed to fetch industry overview"
-        ) from e
+        )
     else:
         return data
 

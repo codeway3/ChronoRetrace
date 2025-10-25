@@ -56,6 +56,8 @@ class PerformanceConfig:
     cache_size: int = 10000
     processing_mode: ProcessingMode = ProcessingMode.BATCH
     optimization_strategy: OptimizationStrategy = OptimizationStrategy.BALANCED
+    # 是否启用进程池（CPU 密集任务），默认关闭以避免过多 FD/进程资源占用
+    use_process_pool: bool = False
 
 
 @dataclass
@@ -215,11 +217,15 @@ class PerformanceOptimizationService:
         # 性能指标
         self.metrics = PerformanceMetrics(start_time=datetime.now())
 
-        # 线程池
+        # 线程池（用于 IO/轻量并行）
         self.thread_pool = ThreadPoolExecutor(max_workers=self.config.max_workers)
 
-        # 进程池 (用于CPU密集型任务)
-        self.process_pool = ProcessPoolExecutor(max_workers=min(4, mp.cpu_count()))
+        # 进程池（用于 CPU 密集型任务），惰性/可选创建
+        self.process_pool = (
+            ProcessPoolExecutor(max_workers=min(4, mp.cpu_count()))
+            if self.config.use_process_pool
+            else None
+        )
 
     @performance_monitor
     def batch_validate_data(
@@ -635,8 +641,10 @@ class PerformanceOptimizationService:
     def cleanup_resources(self) -> None:
         """清理资源"""
         try:
-            self.thread_pool.shutdown(wait=True)
-            self.process_pool.shutdown(wait=True)
+            if hasattr(self, "thread_pool") and self.thread_pool:
+                self.thread_pool.shutdown(wait=True)
+            if hasattr(self, "process_pool") and self.process_pool:
+                self.process_pool.shutdown(wait=True)
             self.cache_manager.clear()
             self.memory_manager.force_garbage_collection()
 

@@ -107,8 +107,8 @@ const BacktestPage = () => {
     const currencySymbol = stockInfo.market === 'A_share' ? '¥' : '$';
 
     const initialValues = {
-        stock_code: '000001.SZ',
-        date_range: [dayjs('2022-01-01'), dayjs('2023-01-01')],
+        // stock_code: '000001.SZ', // 移除默认选中，保持为空以强制用户选择
+        date_range: [dayjs().subtract(2, 'year').startOf('year'), dayjs()],
         lower_price: 10,
         upper_price: 15,
         grid_count: 10,
@@ -365,7 +365,7 @@ const BacktestPage = () => {
 
             {results && (
                 <div className="results-container">
-                    <h2>回测结果: {stockInfo.name} ({stockInfo.code})</h2>
+                    <h2>回测结果: { (stockInfo?.name ? stockInfo.name : '—') } ({ (stockInfo?.code ? stockInfo.code : '—') })</h2>
                     <Row gutter={[16, 16]} className="kpi-grid">
                         <Col xs={12} sm={12} md={6} lg={4}><KpiCard title="总盈亏" value={results.total_pnl} format="currency" market={results.market_type} /></Col>
                         <Col xs={12} sm={12} md={6} lg={4}><KpiCard title="总回报率" value={results.total_return_rate} format="percent" market={results.market_type} /></Col>
@@ -399,7 +399,7 @@ const BacktestPage = () => {
 
             {optimizationResults && (
                 <div className="results-container">
-                    <h2>参数优化结果: {stockInfo.name} ({stockInfo.code})</h2>
+                    <h2>参数优化结果: { (stockInfo?.name ? stockInfo.name : '—') } ({ (stockInfo?.code ? stockInfo.code : '—') })</h2>
 
                     <div style={{ marginBottom: 24 }}>
                         <h3>最佳参数组合</h3>

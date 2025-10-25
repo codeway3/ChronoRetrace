@@ -87,12 +87,13 @@ const CommodityDashboard = () => {
           raw_name: name,
         }));
         setAllCommodities(commodities);
-        if (commodities.length > 0) {
-          const initialCommodity = commodities[0];
-          setSelectedCommodity(initialCommodity.ts_code);
-          setDisplayedCommodityCode(initialCommodity.ts_code);
-          setDisplayedCommodityName(initialCommodity.raw_name);
-        }
+        // 移除自动选中第一个商品，保持默认未选中，等待用户主动选择
+        // if (commodities.length > 0) {
+        //   const initialCommodity = commodities[0];
+        //   setSelectedCommodity(initialCommodity.ts_code);
+        //   setDisplayedCommodityCode(initialCommodity.ts_code);
+        //   setDisplayedCommodityName(initialCommodity.raw_name);
+        // }
       })
       .catch((error) => {
         if (cancelled) return;
@@ -116,17 +117,17 @@ const CommodityDashboard = () => {
   }, []);
 
   // 当当前选中的商品不在最新列表中时，自动重置为列表第一个合法项
-  useEffect(() => {
-    if (allCommodities.length > 0) {
-      const exists = allCommodities.some((c) => c.ts_code === selectedCommodity);
-      if (!exists) {
-        const initialCommodity = allCommodities[0];
-        setSelectedCommodity(initialCommodity.ts_code);
-        setDisplayedCommodityCode(initialCommodity.ts_code);
-        setDisplayedCommodityName(initialCommodity.raw_name);
-      }
-    }
-  }, [allCommodities, selectedCommodity]);
+  // useEffect(() => {
+  //   if (allCommodities.length > 0) {
+  //     const exists = allCommodities.some((c) => c.ts_code === selectedCommodity);
+  //     if (!exists) {
+  //       const initialCommodity = allCommodities[0];
+  //       setSelectedCommodity(initialCommodity.ts_code);
+  //       setDisplayedCommodityCode(initialCommodity.ts_code);
+  //       setDisplayedCommodityName(initialCommodity.raw_name);
+  //     }
+  //   }
+  // }, [allCommodities, selectedCommodity]);
 
   // 组件卸载时清理防抖与中断标记
   useEffect(() => {

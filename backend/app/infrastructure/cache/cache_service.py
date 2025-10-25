@@ -1,24 +1,27 @@
-from __future__ import annotations
-
-# !/usr/bin/env python3
 """
-
 统一缓存服务接口
 整合Redis缓存和内存缓存，提供简单易用的缓存API
 """
+from __future__ import annotations
 
+# !/usr/bin/env python3
 import asyncio
 import logging
 from collections.abc import Callable
 
 # from datetime import datetime  # 未使用，移除以消除静态检查警告
 from functools import wraps
+from contextlib import suppress
 from typing import Any, cast
 
 from .memory_cache import LRUMemoryCache, MultiLevelCache
 from .redis_manager import CacheKeyManager, RedisCacheManager
 
 logger = logging.getLogger(__name__)
+
+# 默认缓存策略常量，避免魔法值
+DEFAULT_USE_MULTI_LEVEL = False
+DEFAULT_REDIS_TTL_SECONDS = 3600
 
 
 class CacheService:
@@ -704,27 +707,42 @@ def smart_cache(
         @wraps(func)
         async def wrapper(*args, **kwargs):
             # 生成缓存键
-            if identifier_func:
-                identifier = identifier_func(*args, **kwargs)
-            else:
-                # 默认使用第一个参数作为标识符
-                identifier = str(args[0]) if args else "default"
+            identifier = (
+                identifier_func(*args, **kwargs)
+                if identifier_func
+                else (str(args[0]) if args else "default")
+            )
 
             key = cache_service.key_manager.generate_key(key_type, identifier)
 
             # 根据策略选择缓存方法
             strategy = cache_service.cache_strategies.get(
-                key_type, {"use_multi_level": False, "redis_ttl": 3600}
+                key_type,
+                {
+                    "use_multi_level": DEFAULT_USE_MULTI_LEVEL,
+                    "redis_ttl": DEFAULT_REDIS_TTL_SECONDS,
+                },
             )
-
+            ttl_value = (
+                ttl if ttl is not None else strategy.get("redis_ttl", DEFAULT_REDIS_TTL_SECONDS)
+            )
             # 尝试从缓存获取
-            if strategy["use_multi_level"]:
-                cached_result = await cache_service.multi_cache.get(key)
-            else:
-                cached_result = await cache_service.redis_cache.get(key)
+            cache_layer = (
+                cache_service.multi_cache
+                if strategy.get("use_multi_level")
+                else cache_service.redis_cache
+            )
+            cached_result = await cache_layer.get(key)
 
             if cached_result is not None:
+                # 命中计数
+                with suppress(Exception):
+                    cache_service.hit_count += 1
                 return cached_result
+
+            # 未命中计数
+            with suppress(Exception):
+                cache_service.miss_count += 1
 
             # 执行函数并缓存结果
             if asyncio.iscoroutinefunction(func):
@@ -735,14 +753,9 @@ def smart_cache(
             if result is not None:
                 # 设置缓存结果
                 try:
-                    if strategy["use_multi_level"]:
-                        await cache_service.multi_cache.set(
-                            key, result, ttl=strategy.get("redis_ttl", 3600)
-                        )
-                    else:
-                        await cache_service.redis_cache.set(
-                            key, result, ttl=strategy.get("redis_ttl", 3600)
-                        )
+                    await cache_layer.set(
+                        key, result, ttl=ttl_value
+                    )
                     logger.debug(f"Cached result for {key}")
                 except Exception as e:
                     logger.warning(f"Failed to cache result for {key}: {e}")

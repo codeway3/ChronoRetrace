@@ -463,6 +463,9 @@ class DataQualityManager:
 
             if hasattr(self, "logging_service"):
                 self.logging_service.cleanup_old_logs()
+                # 关闭日志处理器以避免文件句柄泄漏
+                if hasattr(self.logging_service, "shutdown"):
+                    self.logging_service.shutdown()
 
             self.logger.info("资源清理完成")
 

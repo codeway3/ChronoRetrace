@@ -21,7 +21,7 @@ const { Option } = Select;
 const { Title, Text } = Typography;
 
 const OptionsDashboard = () => {
-  const [underlyingSymbol, setUnderlyingSymbol] = useState('SPY');
+  const [underlyingSymbol, setUnderlyingSymbol] = useState(null); // 原默认 'SPY' 改为 null，需用户主动搜索/选择
   const [expirations, setExpirations] = useState([]);
   const [selectedExpiration, setSelectedExpiration] = useState(null);
   const [optionChain, setOptionChain] = useState([]);
@@ -49,9 +49,10 @@ const OptionsDashboard = () => {
     getOptionExpirations(symbol)
       .then(response => {
         setExpirations(response.data);
-        if (response.data.length > 0) {
-          setSelectedExpiration(response.data[0]);
-        }
+        // 取消到期日下拉的自动默认选中，保持为空等待用户选择
+        // if (response.data.length > 0) {
+        //   setSelectedExpiration(response.data[0]);
+        // }
       })
       .catch(error => {
         const errorMsg = error.response?.data?.detail || `加载 ${symbol} 到期日失败。`;
@@ -142,6 +143,8 @@ const OptionsDashboard = () => {
     { title: '隐含波动率', dataIndex: 'implied_volatility', key: 'implied_volatility', render: val => `${(val * 100).toFixed(2)}%`, sorter: (a, b) => a.implied_volatility - b.implied_volatility },
   ];
 
+  const fmt = (v) => (v ? v : '—');
+
   return (
     <div>
       <Title level={4}>期权链分析</Title>
@@ -194,7 +197,8 @@ const OptionsDashboard = () => {
         </Row>
       </Card>
 
-      <Title level={5}>期权链: {underlyingSymbol} @ {selectedExpiration}</Title>
+-      <Title level={5}>期权链: {underlyingSymbol} @ {selectedExpiration}</Title>
++      <Title level={5}>期权链: {fmt(underlyingSymbol)} @ {fmt(selectedExpiration)}</Title>
       <Spin spinning={loadingChain}>
         <Table
           columns={columns}

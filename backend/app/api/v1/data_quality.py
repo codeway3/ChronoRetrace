@@ -10,9 +10,15 @@ from sqlalchemy.orm import Session
 from app.data.quality.deduplication_service import DeduplicationStrategy
 from app.data.quality.quality_manager import DataQualityConfig, DataQualityManager
 from app.infrastructure.database.session import get_db
+from starlette.concurrency import run_in_threadpool
+
+import asyncio
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+# 全局并发限制：同一时间最多处理 2 个数据质量任务，可根据需要调整
+DATA_QUALITY_SEMAPHORE = asyncio.Semaphore(2)
 
 
 @router.post("/validate")
