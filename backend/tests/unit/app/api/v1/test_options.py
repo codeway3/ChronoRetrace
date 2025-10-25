@@ -1,3 +1,4 @@
+import contextlib
 from unittest.mock import AsyncMock, patch
 
 import anyio
@@ -18,10 +19,8 @@ def anyio_backend():
 
 @pytest.fixture(autouse=True)
 def clear_cache_between_tests():
-    try:
+    with contextlib.suppress(Exception):
         anyio.run(FastAPICache.clear)
-    except Exception:
-        pass
 
 
 client = TestClient(app)
