@@ -148,7 +148,7 @@ spec:
           emptyDir: {}
         - name: tls-certs
           secret:
-            secretName: chronoretrace-tls
+            secretName: chronoretrace-tls # pragma: allowlist secret
 
       affinity:
         podAntiAffinity:

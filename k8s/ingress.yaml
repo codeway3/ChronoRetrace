@@ -60,7 +60,7 @@ spec:
     - hosts:
         - chronoretrace.com
         - www.chronoretrace.com
-      secretName: chronoretrace-tls
+      secretName: chronoretrace-tls # pragma: allowlist secret
   rules:
     - host: chronoretrace.com
       http:
@@ -176,7 +176,7 @@ spec:
   tls:
     - hosts:
         - api.chronoretrace.com
-      secretName: chronoretrace-api-tls
+      secretName: chronoretrace-api-tls # pragma: allowlist secret
   rules:
     - host: api.chronoretrace.com
       http:
@@ -222,7 +222,7 @@ spec:
     - hosts:
         - chronoretrace.com
         - www.chronoretrace.com
-      secretName: chronoretrace-tls
+      secretName: chronoretrace-tls # pragma: allowlist secret
   rules:
     - host: chronoretrace.com
       http:

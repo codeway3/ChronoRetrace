@@ -34,8 +34,8 @@ data:
   JWT_REFRESH_TOKEN_EXPIRE_DAYS: "7"
 
   # Security Settings
-  PASSWORD_HASH_ALGORITHM: "bcrypt"
-  PASSWORD_MIN_LENGTH: "12"
+  PASSWORD_HASH_ALGORITHM: "bcrypt" # pragma: allowlist secret
+  PASSWORD_MIN_LENGTH: "12" # pragma: allowlist secret
   SESSION_EXPIRE_HOURS: "8"
   SECURE_COOKIES: "true"
   HTTPS_ONLY: "true"
