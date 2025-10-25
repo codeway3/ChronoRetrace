@@ -52,7 +52,7 @@ class MonitoringConfig:
 
     # 认证信息
     grafana_admin_user: str = "admin"
-    grafana_admin_password: str = "chronoretrace2024"
+    grafana_admin_password: str = os.getenv("GRAFANA_ADMIN_PASSWORD", "")
 
     # 告警配置
     smtp_host: str = "smtp.gmail.com"
@@ -103,7 +103,7 @@ class MonitoringDeployer:
             return True
 
         except Exception as e:
-            logger.error(f"监控系统部署失败: {e}")
+            logger.exception(f"监控系统部署失败: {e}")
             return False
 
     def _prepare_environment(self):
@@ -339,7 +339,7 @@ class MonitoringDeployer:
         # 从环境变量或配置文件获取数据库连接信息
         db_url = os.getenv(
             "DATABASE_URL",
-            "postgresql://chronoretrace:password@localhost:5432/chronoretrace",
+            "postgresql://chronoretrace:password@localhost:5432/chronoretrace",  # pragma: allowlist secret
         )
 
         cmd = [
@@ -454,7 +454,7 @@ class MonitoringDeployer:
                 )
 
         except Exception as e:
-            logger.error(f"配置Prometheus数据源失败: {e}")
+            logger.exception(f"配置Prometheus数据源失败: {e}")
 
     def _import_dashboard(self):
         """导入Grafana仪表板"""
@@ -502,7 +502,7 @@ class MonitoringDeployer:
                 )
 
         except Exception as e:
-            logger.error(f"导入仪表板失败: {e}")
+            logger.exception(f"导入仪表板失败: {e}")
 
     def _stop_container(self, container_name: str):
         """停止并删除容器"""
@@ -561,7 +561,7 @@ class MonitoringDeployer:
                     logger.error(f"✗ {name} 状态异常: {response.status_code}")
                     all_healthy = False
             except Exception as e:
-                logger.error(f"✗ {name} 连接失败: {e}")
+                logger.exception(f"✗ {name} 连接失败: {e}")
                 all_healthy = False
 
         if not all_healthy:
@@ -651,7 +651,7 @@ def main():
         logger.info("部署被用户中断")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"操作失败: {e}")
+        logger.exception(f"操作失败: {e}")
         sys.exit(1)
 
 

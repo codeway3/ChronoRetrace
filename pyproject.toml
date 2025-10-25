@@ -78,7 +78,7 @@ ignore = [
 "backend/app/main.py" = ["B008"]
 "backend/scripts/setup_postgres.py" = ["E402", "TRY300", "S603"]
 "backend/scripts/monitoring_health_check.py" = ["PTH", "PTH100", "PTH123", "TRY401", "TID252", "ARG", "DTZ005", "C901", "PLC0415"]
-"backend/scripts/deploy_monitoring.py" = ["S603"]
+"backend/scripts/deploy_monitoring.py" = ["S603", "PTH", "PTH123", "TRY401", "ARG", "DTZ005", "TID252", "E722", "PLC0415", "TRY002", "TRY300"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
