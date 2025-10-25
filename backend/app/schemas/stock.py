@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import date  # noqa: TC003
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.screener import ScreenerCondition
-
-if TYPE_CHECKING:
-    from datetime import date
 
 
 class StockDataBase(BaseModel):

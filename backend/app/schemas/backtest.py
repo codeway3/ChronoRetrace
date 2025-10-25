@@ -1,12 +1,10 @@
 from __future__ import annotations
 
+from datetime import date  # noqa: TC003
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pydantic import BaseModel, field_validator
-
-if TYPE_CHECKING:
-    from datetime import date
 
 # --- Enums and Basic Types ---
 
