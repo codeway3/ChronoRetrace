@@ -3,14 +3,16 @@ from __future__ import annotations
 import secrets
 import uuid
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from sqlalchemy.orm import Session
 
 from ..core.config import settings
 from ..infrastructure.database.models import User, UserSession
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class AuthService:

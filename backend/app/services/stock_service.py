@@ -9,15 +9,18 @@ from __future__ import annotations
 import hashlib
 import logging
 from datetime import date, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
 
 from app.data.managers import data_manager
 from app.infrastructure.cache import cache_service, smart_cache
-from app.infrastructure.database import models
 from app.schemas.stock import StockDataBase, StockInfo
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from app.infrastructure.database import models
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +88,7 @@ class CachedStockService:
             return stock_list
 
         except Exception as e:
-            logger.error(f"Error fetching stock list for {market_type}: {e}")
+            logger.exception(f"Error fetching stock list for {market_type}")
             raise HTTPException(
                 status_code=500, detail=f"Failed to fetch stock list: {e!s}"
             ) from e
@@ -124,7 +127,7 @@ class CachedStockService:
             }
 
         except Exception as e:
-            logger.error(f"Error refreshing stock list for {market_type}: {e}")
+            logger.exception(f"Error refreshing stock list for {market_type}")
             raise HTTPException(
                 status_code=500, detail=f"Failed to refresh stock list: {e!s}"
             ) from e
@@ -186,7 +189,7 @@ class CachedStockService:
             return stock_data
 
         except Exception as e:
-            logger.error(f"Error fetching stock data for {stock_code}: {e}")
+            logger.exception(f"Error fetching stock data for {stock_code}")
             raise HTTPException(
                 status_code=500, detail=f"Failed to fetch stock data: {e!s}"
             ) from e
@@ -267,7 +270,7 @@ class CachedStockService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error fetching fundamental data for {symbol}: {e}")
+            logger.exception(f"Error fetching fundamental data for {symbol}")
             raise HTTPException(
                 status_code=500, detail=f"Failed to fetch fundamental data: {e!s}"
             ) from e
@@ -303,7 +306,7 @@ class CachedStockService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error fetching corporate actions for {symbol}: {e}")
+            logger.exception(f"Error fetching corporate actions for {symbol}")
             raise HTTPException(
                 status_code=500, detail=f"Failed to fetch corporate actions: {e!s}"
             ) from e
@@ -339,7 +342,7 @@ class CachedStockService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error fetching annual earnings for {symbol}: {e}")
+            logger.exception(f"Error fetching annual earnings for {symbol}")
             raise HTTPException(
                 status_code=500, detail=f"Failed to fetch annual earnings: {e!s}"
             ) from e
@@ -374,8 +377,8 @@ class CachedStockService:
 
             logger.info(f"Cache invalidation completed for stock: {stock_code}")
 
-        except Exception as e:
-            logger.error(f"Error invalidating cache for {stock_code}: {e}")
+        except Exception:
+            logger.exception(f"Error invalidating cache for {stock_code}")
 
     async def preload_hot_stocks(
         self, db: Session, market_type: str = "A_share", limit: int = 100
@@ -416,8 +419,8 @@ class CachedStockService:
 
             logger.info(f"Preload completed: {preload_count}/{len(hot_stocks)} stocks")
 
-        except Exception as e:
-            logger.error(f"Error during hot stocks preload: {e}")
+        except Exception:
+            logger.exception("Error during hot stocks preload")
 
     async def get_cache_stats(self) -> dict[str, Any]:
         """获取缓存统计信息
@@ -438,7 +441,7 @@ class CachedStockService:
             return {"service_stats": service_stats, "cache_stats": stats}
 
         except Exception as e:
-            logger.error(f"Error getting cache stats: {e}")
+            logger.exception("Error getting cache stats")
             return {"error": str(e)}
 
     async def health_check(self) -> dict[str, Any]:
@@ -477,7 +480,7 @@ class CachedStockService:
             }
 
         except Exception as e:
-            logger.error(f"Error during health check: {e}")
+            logger.exception("Error during health check")
             return {
                 "overall_status": "unhealthy",
                 "error": str(e),
