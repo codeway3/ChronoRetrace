@@ -253,10 +253,7 @@ class MessageHandler:
 
             # 验证时间间隔
             valid_intervals = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1M"]
-            if interval not in valid_intervals:
-                return False
-
-            return True
+            return interval in valid_intervals
 
         except Exception:
             return False

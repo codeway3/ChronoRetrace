@@ -5,6 +5,7 @@
 """
 
 import asyncio
+import contextlib
 import logging
 from datetime import datetime
 from typing import Any
@@ -52,8 +53,8 @@ class DataStreamService:
             # 启动清理任务
             self.cleanup_task = asyncio.create_task(self._cleanup_inactive_streams())
             logger.info("数据流服务启动成功")
-        except Exception as e:
-            logger.error(f"启动数据流服务失败: {e}")
+        except Exception:
+            logger.exception("启动数据流服务失败")
             raise
 
     async def stop(self) -> None:
@@ -70,14 +71,12 @@ class DataStreamService:
             # 停止清理任务
             if self.cleanup_task and not self.cleanup_task.done():
                 self.cleanup_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await self.cleanup_task
-                except asyncio.CancelledError:
-                    pass
 
             logger.info("数据流服务停止成功")
-        except Exception as e:
-            logger.error(f"停止数据流服务失败: {e}")
+        except Exception:
+            logger.exception("停止数据流服务失败")
 
     async def start_data_stream(self, topic: str) -> bool:
         """
@@ -120,8 +119,8 @@ class DataStreamService:
             logger.info(f"启动数据流: {topic}")
             return True
 
-        except Exception as e:
-            logger.error(f"启动数据流 {topic} 失败: {e}")
+        except Exception:
+            logger.exception(f"启动数据流 {topic} 失败")
             return False
 
     async def stop_data_stream(self, topic: str) -> bool:
@@ -142,11 +141,8 @@ class DataStreamService:
             # 取消任务
             task = self.active_streams[topic]
             task.cancel()
-
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await task
-            except asyncio.CancelledError:
-                pass
 
             # 清理资源
             del self.active_streams[topic]
@@ -160,8 +156,8 @@ class DataStreamService:
             logger.info(f"停止数据流: {topic}")
             return True
 
-        except Exception as e:
-            logger.error(f"停止数据流 {topic} 失败: {e}")
+        except Exception:
+            logger.exception(f"停止数据流 {topic} 失败")
             return False
 
     async def _data_stream_worker(self, topic: str, topic_info: dict[str, Any]) -> None:
@@ -210,8 +206,8 @@ class DataStreamService:
                     # 等待下次更新
                     await asyncio.sleep(update_interval)
 
-                except Exception as e:
-                    logger.error(f"数据流 {topic} 处理出错: {e}")
+                except Exception:
+                    logger.exception(f"数据流 {topic} 处理出错")
 
                     # 更新错误统计
                     if topic in self.stream_stats:
@@ -222,8 +218,8 @@ class DataStreamService:
 
         except asyncio.CancelledError:
             logger.debug(f"数据流工作器 {topic} 被取消")
-        except Exception as e:
-            logger.error(f"数据流工作器 {topic} 异常退出: {e}")
+        except Exception:
+            logger.exception(f"数据流工作器 {topic} 异常退出")
 
     async def _fetch_real_time_data(
         self, data_type: str, symbol: str, interval: str
@@ -252,8 +248,8 @@ class DataStreamService:
                 logger.warning(f"不支持的数据类型: {data_type}")
                 return None
 
-        except Exception as e:
-            logger.error(f"获取实时数据失败 {data_type}.{symbol}.{interval}: {e}")
+        except Exception:
+            logger.exception(f"获取实时数据失败 {data_type}.{symbol}.{interval}")
             return None
 
     async def _fetch_stock_data(
@@ -331,8 +327,8 @@ class DataStreamService:
 
             return None
 
-        except Exception as e:
-            logger.error(f"获取股票数据失败 {symbol}: {e}")
+        except Exception:
+            logger.exception(f"获取股票数据失败 {symbol}")
             return None
 
     async def _fetch_crypto_data(
@@ -359,8 +355,8 @@ class DataStreamService:
                 "timestamp": datetime.utcnow().isoformat(),
             }
 
-        except Exception as e:
-            logger.error(f"获取加密货币数据失败 {symbol}: {e}")
+        except Exception:
+            logger.exception(f"获取加密货币数据失败 {symbol}")
             return None
 
     async def _fetch_futures_data(
@@ -387,8 +383,8 @@ class DataStreamService:
                 "timestamp": datetime.utcnow().isoformat(),
             }
 
-        except Exception as e:
-            logger.error(f"获取期货数据失败 {symbol}: {e}")
+        except Exception:
+            logger.exception(f"获取期货数据失败 {symbol}")
             return None
 
     async def _fetch_market_summary(self, market: str) -> dict[str, Any] | None:
@@ -413,8 +409,8 @@ class DataStreamService:
                 "timestamp": datetime.utcnow().isoformat(),
             }
 
-        except Exception as e:
-            logger.error(f"获取市场概览失败 {market}: {e}")
+        except Exception:
+            logger.exception(f"获取市场概览失败 {market}")
             return None
 
     def _parse_topic(self, topic: str) -> dict[str, Any] | None:
@@ -494,8 +490,8 @@ class DataStreamService:
 
             return False
 
-        except Exception as e:
-            logger.error(f"检查数据更新失败: {e}")
+        except Exception:
+            logger.exception("检查数据更新失败")
             return True  # 出错时默认认为有更新
 
     async def _push_data(self, topic: str, data: dict[str, Any]) -> None:
@@ -516,8 +512,8 @@ class DataStreamService:
             if sent_count > 0:
                 logger.debug(f"推送数据到主题 {topic}，接收者: {sent_count}")
 
-        except Exception as e:
-            logger.error(f"推送数据失败 {topic}: {e}")
+        except Exception:
+            logger.exception(f"推送数据失败 {topic}")
 
     async def _cleanup_inactive_streams(self) -> None:
         """
@@ -560,8 +556,8 @@ class DataStreamService:
 
         except asyncio.CancelledError:
             logger.debug("数据流清理任务被取消")
-        except Exception as e:
-            logger.error(f"清理不活跃数据流时出错: {e}")
+        except Exception:
+            logger.exception("清理不活跃数据流时出错")
 
     def get_stream_stats(self) -> dict[str, Any]:
         """
@@ -583,10 +579,8 @@ class DataStreamService:
             # 取消清理任务
             if self.cleanup_task:
                 self.cleanup_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await self.cleanup_task
-                except asyncio.CancelledError:
-                    pass
 
             # 停止所有数据流
             topics = list(self.active_streams.keys())
@@ -595,8 +589,8 @@ class DataStreamService:
 
             logger.info("数据流服务已关闭")
 
-        except Exception as e:
-            logger.error(f"关闭数据流服务时出错: {e}")
+        except Exception:
+            logger.exception("关闭数据流服务时出错")
 
     async def handle_subscription_change(self, topic: str, action: str) -> None:
         """
@@ -621,5 +615,5 @@ class DataStreamService:
                     if not subscribers:
                         await self.stop_data_stream(topic)
 
-        except Exception as e:
-            logger.error(f"处理订阅变化失败 {topic}: {e}")
+        except Exception:
+            logger.exception(f"处理订阅变化失败 {topic}")

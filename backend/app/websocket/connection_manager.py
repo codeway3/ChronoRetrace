@@ -83,8 +83,8 @@ class ConnectionManager:
 
             return True
 
-        except Exception as e:
-            logger.error(f"客户端 {client_id} 连接失败: {e}")
+        except Exception:
+            logger.exception(f"客户端 {client_id} 连接失败")
             return False
 
     async def disconnect(self, client_id: str) -> None:
@@ -115,13 +115,13 @@ class ConnectionManager:
             else:
                 logger.debug(f"客户端 {client_id} 不在活跃连接列表中")
 
-        except Exception as e:
-            logger.error(f"断开客户端 {client_id} 连接时出错: {e}")
+        except Exception:
+            logger.exception(f"断开客户端 {client_id} 连接时出错")
             # 即使出错也要尝试清理
             try:
                 await self._cleanup_connection(client_id)
-            except Exception as cleanup_error:
-                logger.error(f"强制清理客户端 {client_id} 连接时出错: {cleanup_error}")
+            except Exception:
+                logger.exception(f"强制清理客户端 {client_id} 连接时出错")
 
     async def _cleanup_connection(self, client_id: str) -> None:
         """
@@ -155,8 +155,8 @@ class ConnectionManager:
 
             logger.debug(f"客户端 {client_id} 连接清理完成")
 
-        except Exception as e:
-            logger.error(f"清理客户端 {client_id} 连接时出错: {e}")
+        except Exception:
+            logger.exception(f"清理客户端 {client_id} 连接时出错")
 
     async def subscribe(self, client_id: str, topic: str) -> bool:
         """
@@ -196,8 +196,8 @@ class ConnectionManager:
 
             return True
 
-        except Exception as e:
-            logger.error(f"客户端 {client_id} 订阅主题 {topic} 失败: {e}")
+        except Exception:
+            logger.exception(f"客户端 {client_id} 订阅主题 {topic} 失败")
             return False
 
     async def unsubscribe(self, client_id: str, topic: str) -> bool:
@@ -237,8 +237,8 @@ class ConnectionManager:
 
             return True
 
-        except Exception as e:
-            logger.error(f"客户端 {client_id} 取消订阅主题 {topic} 失败: {e}")
+        except Exception:
+            logger.exception(f"客户端 {client_id} 取消订阅主题 {topic} 失败")
             return False
 
     async def send_to_client(self, client_id: str, message: dict[str, Any]) -> bool:
@@ -281,7 +281,7 @@ class ConnectionManager:
             return False
         except Exception as e:
             error_msg = str(e).lower()
-            logger.error(f"向客户端 {client_id} 发送消息失败: {e}")
+            logger.exception(f"向客户端 {client_id} 发送消息失败")
 
             # 检查是否是连接相关的错误
             connection_errors = [
@@ -337,8 +337,8 @@ class ConnectionManager:
                     success_count += 1
                 else:
                     failed_clients.append(client_id)
-            except Exception as e:
-                logger.error(f"向客户端 {client_id} 广播消息失败: {e}")
+            except Exception:
+                logger.exception(f"向客户端 {client_id} 广播消息失败")
                 failed_clients.append(client_id)
 
         # 清理失败的连接
@@ -411,7 +411,7 @@ class ConnectionManager:
                     break
                 except Exception as e:
                     error_msg = str(e).lower()
-                    logger.error(f"向客户端 {client_id} 发送心跳失败: {e}")
+                    logger.exception(f"向客户端 {client_id} 发送心跳失败")
 
                     # 检查是否是连接相关的错误
                     connection_errors = [
@@ -430,8 +430,8 @@ class ConnectionManager:
 
         except asyncio.CancelledError:
             logger.debug(f"客户端 {client_id} 心跳监控任务被取消")
-        except Exception as e:
-            logger.error(f"客户端 {client_id} 心跳监控出错: {e}")
+        except Exception:
+            logger.exception(f"客户端 {client_id} 心跳监控出错")
         finally:
             # 清理心跳任务记录
             if client_id in self.heartbeat_tasks:
