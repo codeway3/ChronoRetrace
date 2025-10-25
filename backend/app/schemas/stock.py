@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.screener import ScreenerCondition
 
 if TYPE_CHECKING:
     from datetime import date
@@ -49,14 +51,6 @@ class StockDataResponse(BaseModel):
 
 
 # Legacy compatibility for screener tests
-from typing import TYPE_CHECKING
-
-from pydantic import Field
-
-if TYPE_CHECKING:
-    from app.schemas.screener import (
-        ScreenerCondition,
-    )
 
 
 class StockScreenerRequest(BaseModel):
@@ -71,3 +65,15 @@ class StockScreenerRequest(BaseModel):
     sort_order: str = Field("desc", description="排序方向: asc, desc")
     page: int = Field(1, ge=1, description="页码")
     size: int = Field(20, ge=1, le=100, description="每页大小")
+
+
+# Explicitly export for tests that import from app.schemas.stock
+__all__ = [
+    "ScreenerCondition",
+    "StockDataBase",
+    "StockDataCreate",
+    "StockDataInDB",
+    "StockDataResponse",
+    "StockInfo",
+    "StockScreenerRequest",
+]
