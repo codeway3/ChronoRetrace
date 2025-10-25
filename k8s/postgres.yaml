@@ -186,7 +186,7 @@ data:
 
     # Security
     ssl = off  # Handled by Kubernetes TLS
-    password_encryption = scram-sha-256
+    password_encryption = scram-sha-256 # pragma: allowlist secret
 
 ---
 apiVersion: v1
@@ -216,7 +216,7 @@ data:
     GRANT ALL PRIVILEGES ON DATABASE chronoretrace TO chronoretrace;
 
     -- Create read-only user for monitoring
-    CREATE USER chronoretrace_readonly WITH PASSWORD 'readonly_password';
+    CREATE USER chronoretrace_readonly;
     GRANT CONNECT ON DATABASE chronoretrace TO chronoretrace_readonly;
     GRANT USAGE ON SCHEMA public TO chronoretrace_readonly;
     GRANT SELECT ON ALL TABLES IN SCHEMA public TO chronoretrace_readonly;

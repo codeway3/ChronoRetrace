@@ -5,25 +5,26 @@
 repos:
   # Black - Python code formatter (consistent with CI)
   - repo: https://github.com/psf/black
-    rev: 25.1.0
+    rev: 25.9.0
     hooks:
       - id: black
         language_version: python3
 
   # Ruff - Python linter and formatter (align with project config)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.14.2
     hooks:
       - id: ruff
       - id: ruff-format
 
   # Built-in hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        args: ['--allow-multiple-documents']
       - id: check-json
       - id: check-toml
       - id: check-merge-conflict
@@ -35,7 +36,7 @@ repos:
 
   # Check for secrets
   - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.4.0
+    rev: v1.5.0
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
