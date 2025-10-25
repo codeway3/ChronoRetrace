@@ -153,7 +153,7 @@ class MonitoringHealthChecker:
         except KeyboardInterrupt:
             logger.info("健康检查被用户中断")
         except Exception as e:
-            logger.error(f"健康检查异常: {e}")
+            logger.exception(f"健康检查异常: {e}")
 
     def check_all_services(self) -> dict[str, ServiceStatus]:
         """检查所有服务状态"""
@@ -384,7 +384,7 @@ URL: {status.url}
             logger.info(f"邮件告警已发送: {service_name}")
 
         except Exception as e:
-            logger.error(f"发送邮件告警失败: {e}")
+            logger.exception(f"发送邮件告警失败: {e}")
 
     def _send_slack_alert(self, service_name: str, message: str):
         """发送Slack告警"""
@@ -406,7 +406,7 @@ URL: {status.url}
                 logger.error(f"Slack告警发送失败: {response.status_code}")
 
         except Exception as e:
-            logger.error(f"发送Slack告警失败: {e}")
+            logger.exception(f"发送Slack告警失败: {e}")
 
     def _save_status(self, results: dict[str, ServiceStatus], overall_healthy: bool):
         """保存状态到文件"""
@@ -422,7 +422,7 @@ URL: {status.url}
                 json.dump(status_data, f, indent=2, ensure_ascii=False)
 
         except Exception as e:
-            logger.error(f"保存状态文件失败: {e}")
+            logger.exception(f"保存状态文件失败: {e}")
 
     def _print_status_summary(
         self, results: dict[str, ServiceStatus], overall_healthy: bool
@@ -546,7 +546,7 @@ def main():
         logger.info("健康检查被用户中断")
         sys.exit(0)
     except Exception as e:
-        logger.error(f"健康检查失败: {e}")
+        logger.exception(f"健康检查失败: {e}")
         sys.exit(1)
 
 
