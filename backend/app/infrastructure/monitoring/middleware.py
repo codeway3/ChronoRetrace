@@ -10,16 +10,24 @@ Date: 2024
 
 from __future__ import annotations
 
+import asyncio
+
 # !/usr/bin/env python3
 import logging
+import re
 import time
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
-from fastapi import Request, Response
+from fastapi import HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
 
 from .performance_monitor import performance_monitor
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fastapi import Request, Response
+    from starlette.types import ASGIApp
 
 logger = logging.getLogger(__name__)
 
@@ -58,22 +66,20 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         ]
         self.include_request_body = include_request_body
         self.include_response_body = include_response_body
+        # 精准并发请求计数
+        self._concurrent_lock = asyncio.Lock()
+        self._concurrent_requests = 0
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
         处理请求并收集性能指标
-
-        Args:
-            request: HTTP请求
-            call_next: 下一个中间件或路由处理器
-
-        Returns:
-            Response: HTTP响应
         """
         # 检查是否需要排除此路径
         if self._should_exclude_path(request.url.path):
             return await call_next(request)
 
+        # 请求进入：并发 +1
+        await self._increment_concurrent()
         # 记录请求开始时间
         start_time = time.time()
 
@@ -115,21 +121,13 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
                 success,
             )
 
-            # 确保response不为None
-            if response is None:
-                from fastapi import HTTPException
-
-                raise HTTPException(status_code=500, detail="Internal server error")
-
-            return response
-
-        except Exception as e:
+        except Exception:
             # 处理异常
             success = False
             status_code = 500
             response_time_ms = (time.time() - start_time) * 1000
 
-            logger.error(f"请求处理异常: {endpoint} - {e}")
+            logger.exception(f"请求处理异常: {endpoint}")
 
             # 记录异常情况的指标
             performance_monitor.record_api_request(
@@ -141,6 +139,14 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
 
             # 重新抛出异常
             raise
+        else:
+            # 确保response不为None
+            if response is None:
+                raise HTTPException(status_code=500, detail="Internal server error")
+
+            return response
+        finally:
+            await self._decrement_concurrent()
 
     def _should_exclude_path(self, path: str) -> bool:
         """
@@ -174,7 +180,6 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         # 简化路径参数（将数字ID替换为占位符）
-        import re
 
         path = re.sub(r"/\d+", "/{id}", path)
         path = re.sub(r"/[a-f0-9-]{36}", "/{uuid}", path)  # UUID
@@ -213,6 +218,14 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
                 "type": "api",
             }
 
+            # 衍生状态族标签（例如：2xx、4xx、5xx），便于聚合分析
+            try:
+                status_family = f"{int(status_code) // 100}xx"
+                tags["status_family"] = status_family
+            except Exception:
+                # 回退：无法解析时不添加该标签
+                pass
+
             # 添加用户代理信息
             user_agent = request.headers.get("user-agent", "unknown")
             if "python" in user_agent.lower():
@@ -231,6 +244,13 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
                 tags["response_time_bucket"] = "slow"
             else:
                 tags["response_time_bucket"] = "very_slow"
+
+            # 请求计数指标（带端点与派生标签）
+            performance_monitor.record_metric(
+                f"api.{endpoint.replace('/', '_')}.requests.count",
+                1,
+                tags,
+            )
 
             # 记录请求大小（如果可用）
             content_length = request.headers.get("content-length")
@@ -264,8 +284,27 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
                 "api.concurrent_requests", 1, {"type": "api", "endpoint": endpoint}
             )
 
-        except Exception as e:
-            logger.error(f"记录详细指标失败: {e}")
+        except Exception:
+            logger.exception("记录详细指标失败")
+
+    async def _increment_concurrent(self) -> None:
+        async with self._concurrent_lock:
+            self._concurrent_requests += 1
+            performance_monitor.record_metric(
+                "api.concurrent_requests",
+                float(self._concurrent_requests),
+                {"type": "api"},
+            )
+
+    async def _decrement_concurrent(self) -> None:
+        async with self._concurrent_lock:
+            if self._concurrent_requests > 0:
+                self._concurrent_requests -= 1
+            performance_monitor.record_metric(
+                "api.concurrent_requests",
+                float(self._concurrent_requests),
+                {"type": "api"},
+            )
 
 
 class CacheMonitoringMiddleware(BaseHTTPMiddleware):
@@ -339,8 +378,8 @@ class CacheMonitoringMiddleware(BaseHTTPMiddleware):
                     {"endpoint": endpoint, "type": "http_cache"},
                 )
 
-        except Exception as e:
-            logger.error(f"分析缓存响应失败: {e}")
+        except Exception:
+            logger.exception("分析缓存响应失败")
 
     def _extract_endpoint(self, request: Request) -> str:
         """
@@ -352,7 +391,6 @@ class CacheMonitoringMiddleware(BaseHTTPMiddleware):
                 return route.path
 
         path = request.url.path
-        import re
 
         path = re.sub(r"/\d+", "/{id}", path)
         path = re.sub(r"/[a-f0-9-]{36}", "/{uuid}", path)

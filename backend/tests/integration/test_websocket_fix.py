@@ -62,7 +62,7 @@ def test_multiple_connections(client):
 
                 # 等待确认
                 _ack = websocket.receive_text()
-                print(f"✅ 连接 {i+1}/5 创建成功")
+                print(f"✅ 连接 {i + 1}/5 创建成功")
 
             # 发送消息
             for client_id, websocket in connections:

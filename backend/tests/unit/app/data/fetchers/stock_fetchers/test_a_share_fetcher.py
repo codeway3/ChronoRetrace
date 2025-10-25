@@ -37,9 +37,11 @@ class TestBaostockSession:
         mock_result.error_msg = "Login failed"
         mock_login.return_value = mock_result
 
-        with pytest.raises(RuntimeError, match="Baostock login failed: Login failed"):
-            with baostock_session():
-                pass
+        with (
+            pytest.raises(RuntimeError, match="Baostock login failed: Login failed"),
+            baostock_session(),
+        ):
+            pass
 
         mock_login.assert_called_once()
         mock_logout.assert_not_called()

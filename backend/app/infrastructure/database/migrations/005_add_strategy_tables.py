@@ -14,22 +14,25 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    inspect,
     text,
 )
 from sqlalchemy.sql import func
 
 
+class MigrationPreconditionError(Exception):
+    """迁移前置条件不满足错误"""
+
+
 def upgrade(engine):
     """执行数据库升级"""
-    from sqlalchemy import inspect
-
     inspector = inspect(engine)
     existing_tables = inspector.get_table_names()
 
     # 检查users表是否存在
     if "users" not in existing_tables:
         print("❌ users表不存在，无法创建策略表")
-        raise Exception("users表不存在，请先执行用户认证相关迁移")
+        raise MigrationPreconditionError("users表不存在，请先执行用户认证相关迁移")
 
     try:
         # 创建strategies表
@@ -112,11 +115,11 @@ def upgrade(engine):
             print("✅ backtest_results表已存在")
 
         print("✅ 策略相关数据表创建完成")
-        return True
-
     except Exception as e:
         print(f"❌ 策略相关数据表创建失败: {e}")
         raise
+    else:
+        return True
 
 
 def downgrade(engine):
@@ -128,11 +131,11 @@ def downgrade(engine):
             conn.execute(text("DROP TABLE IF EXISTS strategies"))
 
         print("✅ 策略相关数据表删除完成")
-        return True
-
     except Exception as e:
         print(f"❌ 策略相关数据表删除失败: {e}")
         raise
+    else:
+        return True
 
 
 def insert_initial_data(engine):

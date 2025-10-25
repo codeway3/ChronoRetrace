@@ -1,6 +1,6 @@
-import os
 import sys
 from datetime import date, datetime
+from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
@@ -15,7 +15,7 @@ from app.data.managers import database_writer as db_writer
 from app.data.managers.data_manager import StockDataFetcher
 from app.infrastructure.database import models
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 # --- Test Database Setup ---
@@ -307,7 +307,7 @@ def test_store_stock_data_upsert(db_session, mock_kline_data):
         ).fetchall()
         assert len(result) == 3
         # Check updated row
-        updated_row = [row for row in result if to_date(row[2]) == date(2023, 1, 2)][0]
+        updated_row = next(row for row in result if to_date(row[2]) == date(2023, 1, 2))
         assert updated_row[6] == 99.9  # close price should be updated
 
 

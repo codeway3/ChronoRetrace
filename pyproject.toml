@@ -74,7 +74,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"backend/tests/*" = ["ARG", "PLR2004", "S101", "TID252", "E402", "F401"]
+"backend/tests/*" = ["ARG", "PLR2004", "S101", "TID252", "E402", "F401", "PLC0415", "ERA001", "SIM115", "PTH108"]
 "backend/app/main.py" = ["B008"]
 "backend/app/schemas/stock.py" = ["E402", "UP007"]
 "backend/scripts/setup_postgres.py" = ["E402", "TRY300", "S603"]
@@ -85,8 +85,8 @@ ignore = [
 "backend/app/websocket/connection_manager.py" = ["D400", "D415", "RUF002", "COM812", "TRY", "ARG", "SIM"]
 "backend/app/websocket/data_stream_service.py" = ["D400", "D415", "RUF002", "COM812", "TRY", "ARG", "SIM"]
 "backend/app/websocket/message_handler.py" = ["D400", "D415", "RUF002", "COM812", "TRY", "ARG", "SIM"]
-"backend/app/infrastructure/error_handling_service.py" = ["D400", "D415", "ANN204", "D105", "DTZ005"]
-"backend/app/infrastructure/logging_service.py" = ["D400", "D415", "ANN204", "D105", "D107", "TRY300", "ARG"]
+"backend/app/infrastructure/error_handling_service.py" = ["D400", "D415"]
+"backend/app/infrastructure/logging_service.py" = ["D400", "D415", "TRY300", "ARG"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

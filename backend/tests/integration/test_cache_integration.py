@@ -26,9 +26,10 @@ async def is_redis_available():
     """检查Redis是否可用"""
     try:
         result = await cache_service.redis_cache.health_check()
-        return result
     except Exception:
         return False
+    else:
+        return result
 
 
 # 如果Redis不可用则跳过集成测试的装饰器

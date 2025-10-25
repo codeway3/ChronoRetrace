@@ -7,11 +7,11 @@ global:
   smtp_smarthost: 'smtp.gmail.com:587'
   smtp_from: 'alerts@chronoretrace.com'
   smtp_auth_username: 'alerts@chronoretrace.com'
-  smtp_auth_password: 'your-app-password'
+  smtp_auth_password: 'your-app-password' # pragma: allowlist secret
   smtp_require_tls: true
 
   # Slack配置
-  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK' # pragma: allowlist secret
 
   # 其他全局设置
   resolve_timeout: 5m
@@ -147,7 +147,7 @@ receivers:
   # 严重告警接收器
   - name: 'critical-alerts'
     slack_configs:
-      - api_url: 'https://hooks.slack.com/services/YOUR/CRITICAL/WEBHOOK'
+      - api_url: 'https://hooks.slack.com/services/YOUR/CRITICAL/WEBHOOK' # pragma: allowlist secret
         channel: '#alerts-critical'
         title: '🚨 严重告警 - {{ .GroupLabels.alertname }}'
         text: |
@@ -184,13 +184,13 @@ receivers:
         http_config:
           basic_auth:
             username: 'alertmanager'
-            password: 'sms-gateway-password'
+            password: 'sms-gateway-password' # pragma: allowlist secret
         send_resolved: false
 
   # 数据库严重告警
   - name: 'database-critical'
     slack_configs:
-      - api_url: 'https://hooks.slack.com/services/YOUR/DATABASE/WEBHOOK'
+      - api_url: 'https://hooks.slack.com/services/YOUR/DATABASE/WEBHOOK' # pragma: allowlist secret
         channel: '#database-alerts'
         title: '🗄️ 数据库严重告警 - {{ .GroupLabels.alertname }}'
         text: |
@@ -209,14 +209,14 @@ receivers:
   # API服务严重告警
   - name: 'api-critical'
     slack_configs:
-      - api_url: 'https://hooks.slack.com/services/YOUR/API/WEBHOOK'
+      - api_url: 'https://hooks.slack.com/services/YOUR/API/WEBHOOK' # pragma: allowlist secret
         channel: '#api-alerts'
         title: '🔌 API严重告警 - {{ .GroupLabels.alertname }}'
         color: 'danger'
 
     # PagerDuty集成
     pagerduty_configs:
-      - routing_key: 'your-pagerduty-integration-key'
+      - routing_key: 'your-pagerduty-integration-key' # pragma: allowlist secret
         description: '{{ .GroupLabels.alertname }} - {{ .Annotations.summary }}'
         severity: 'critical'
         client: 'ChronoRetrace Alertmanager'

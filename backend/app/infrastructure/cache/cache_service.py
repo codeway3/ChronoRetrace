@@ -7,16 +7,17 @@ from __future__ import annotations
 
 # !/usr/bin/env python3
 import asyncio
+import inspect
 import logging
-from collections.abc import Callable
 from contextlib import suppress
-
-# from datetime import datetime  # 未使用，移除以消除静态检查警告
 from functools import wraps
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from .memory_cache import LRUMemoryCache, MultiLevelCache
 from .redis_manager import CacheKeyManager, RedisCacheManager
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -249,7 +250,7 @@ class CacheService:
         strategy = self.cache_strategies["filter_result"]
         return await self.redis_cache.set(key, data, ttl=strategy["redis_ttl"])
 
-    def invalidate_stock_data(self, stock_code: str, market: str = "A_share"):
+    def invalidate_stock_data(self, stock_code: str, _market: str = "A_share"):
         """失效股票相关的所有缓存
 
         Args:
@@ -321,8 +322,6 @@ class CacheService:
                 )
                 if not self.redis_cache.exists(info_key):
                     # 这里应该调用实际的数据获取函数
-                    # stock_info = fetch_stock_info(stock_code, market)
-                    # self.set_stock_info(stock_code, stock_info, market)
                     pass
 
             except Exception:
@@ -352,10 +351,11 @@ class CacheService:
                 await self.multi_cache.set(
                     key, value, ttl=self.memory_cache.default_ttl
                 )
-            return value
         except Exception:
             logger.exception(f"Failed to get cache for key {key}")
             return None
+        else:
+            return value
 
     async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
         """设置缓存数据
@@ -374,10 +374,11 @@ class CacheService:
             # 同时设置到内存缓存(L1+L2)和Redis（保证测试中对redis_cache.set的调用可见）
             memory_success = await self.multi_cache.set(key, value, ttl=ttl_value)
             redis_success = await self.redis_cache.set(key, value, ttl=ttl_value)
-            return bool(memory_success and redis_success)
-        except Exception as e:
-            logger.error(f"Failed to set cache for key {key}: {e}")
+        except Exception:
+            logger.exception(f"Failed to set cache for key {key}")
             return False
+        else:
+            return bool(memory_success and redis_success)
 
     def delete(self, key: str) -> bool:
         """删除缓存数据
@@ -392,10 +393,11 @@ class CacheService:
             # 从内存缓存和Redis中删除
             memory_success = self.multi_cache.delete(key)
             redis_success = self.redis_cache.delete(key)
-            return memory_success or redis_success  # 只要有一个成功就算成功
         except Exception:
             logger.exception(f"Failed to delete cache for key {key}")
             return False
+        else:
+            return memory_success or redis_success  # 只要有一个成功就算成功
 
     def exists(self, key: str) -> bool:
         """检查缓存是否存在
@@ -470,8 +472,8 @@ class CacheService:
                 "hit_rate": round(hit_rate, 4),
                 "miss_rate": round(miss_rate, 4),
             }
-        except Exception as e:
-            logger.error(f"Failed to get cache stats: {e}")
+        except Exception:
+            logger.exception("Failed to get cache stats")
             return {
                 "total_keys": 0,
                 "memory_usage": "0B",
@@ -521,7 +523,6 @@ class CacheService:
             # set
             set_fn = getattr(self.multi_cache, "set", None)
             if set_fn:
-                import inspect
 
                 if inspect.iscoroutinefunction(set_fn):
                     await set_fn(test_key, test_value, ttl=10)
@@ -532,7 +533,6 @@ class CacheService:
             get_fn = getattr(self.multi_cache, "get", None)
             retrieved = None
             if get_fn:
-                import inspect
 
                 if inspect.iscoroutinefunction(get_fn):
                     retrieved = await get_fn(test_key)
@@ -566,8 +566,8 @@ class CacheService:
             # 检查Redis连接
             self.redis_cache.redis_client.ping()
             health_status["redis_connected"] = True
-        except Exception as e:
-            logger.error(f"Redis health check failed: {e}")
+        except Exception:
+            logger.exception("Redis health check failed")
 
         try:
             # 检查内存缓存
@@ -576,8 +576,8 @@ class CacheService:
             if self.memory_cache.get(test_key) == "test_value":
                 health_status["memory_cache_active"] = True
             self.memory_cache.delete(test_key)
-        except Exception as e:
-            logger.error(f"Memory cache health check failed: {e}")
+        except Exception:
+            logger.exception("Memory cache health check failed")
 
         # 确定整体状态
         if health_status["redis_connected"] and health_status["memory_cache_active"]:

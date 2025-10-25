@@ -23,7 +23,11 @@ def clear_all_financial_data(db: Session):
         logger.info(f"Cleared {num_deleted_fundamentals} fundamental data records.")
         logger.info(f"Cleared {num_deleted_actions} corporate action records.")
         logger.info(f"Cleared {num_deleted_earnings} annual earning records.")
-
+    except Exception:
+        db.rollback()
+        logger.exception("Error clearing financial data cache")
+        raise
+    else:
         return {
             "message": "All financial data cache has been cleared successfully.",
             "deleted_counts": {
@@ -32,7 +36,3 @@ def clear_all_financial_data(db: Session):
                 "annual_earnings": num_deleted_earnings,
             },
         }
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error clearing financial data cache: {e}", exc_info=True)
-        raise

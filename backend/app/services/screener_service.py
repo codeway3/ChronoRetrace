@@ -17,7 +17,7 @@ from app.schemas.screener import (
 
 
 def _build_screener_query(
-    db: Session, request: ScreenerRequest
+    _db: Session, request: ScreenerRequest
 ) -> tuple[Select, list[Any]]:
     """构建筛选器查询"""
     StockInfoAlias = aliased(StockInfo)

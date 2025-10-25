@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import ipaddress
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 from ..infrastructure.database.models import (
     User,
@@ -30,23 +33,31 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+    def raise_exc() -> None:
+        raise credentials_exception
+
+    user_id: int | None = None
+    payload: dict[str, Any] | None = None
+
     try:
         payload = auth_service.verify_token(credentials.credentials)
         if payload is None:
-            raise credentials_exception
+            raise_exc()
 
+        assert payload is not None
         sub = payload.get("sub")
         user_id = int(sub) if sub is not None else None
         if user_id is None:
-            raise credentials_exception
+            raise_exc()
 
     except Exception:
-        raise credentials_exception from None
+        raise_exc()
 
     user = db.query(User).filter_by(id=user_id).first()
     if user is None or not user.is_active:
-        raise credentials_exception
+        raise_exc()
 
+    assert user is not None
     return user
 
 
@@ -169,7 +180,7 @@ def check_rate_limit(request: Request):
     if client_ip and not rate_limiter.is_allowed(client_ip):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="请求过于频繁，请稍后再试",
+            detail="请求过于频繁, 请稍后再试",
         )
 
 
@@ -239,7 +250,9 @@ def validate_ip_whitelist(request: Request, whitelist: list[str] | None = None):
         ) from None
 
 
-def check_user_permissions(user: User, resource: str, action: str, db: Session) -> bool:
+def check_user_permissions(
+    user: User, _resource: str, _action: str, db: Session
+) -> bool:
     """检查用户权限"""
     # 管理员拥有所有权限
     admin_role = db.query(UserRole).filter_by(name="admin").first()

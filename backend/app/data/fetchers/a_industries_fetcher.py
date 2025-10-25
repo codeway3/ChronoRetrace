@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Hashable, Sequence
+import time
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import akshare as ak
 import pandas as pd
 from fastapi_cache.decorator import cache
 
+if TYPE_CHECKING:
+    from collections.abc import Hashable, Sequence
+
 logger = logging.getLogger(__name__)
+
+SLEEP_INTERVAL_SECONDS = 2
 
 
 def _standardize_dataframe_columns(
@@ -88,8 +93,6 @@ def fetch_industry_list_em() -> Sequence[dict[Hashable, Any]]:
                 return []
 
             result = df[["industry_name", "industry_code"]].to_dict(orient="records")
-            return result
-
         except Exception as exc:
             logger.warning(
                 f"Attempt {attempt + 1}/{max_retries} failed to fetch Eastmoney industry list: {exc}"
@@ -98,8 +101,6 @@ def fetch_industry_list_em() -> Sequence[dict[Hashable, Any]]:
                 # 指数退避策略：每次重试增加延迟时间
                 sleep_time = retry_delay * (2**attempt)
                 logger.info(f"Retrying in {sleep_time} seconds...")
-                import time
-
                 time.sleep(sleep_time)
             else:
                 logger.error(
@@ -107,6 +108,8 @@ def fetch_industry_list_em() -> Sequence[dict[Hashable, Any]]:
                     exc_info=True,
                 )
                 return []
+        else:
+            return result
 
     # 如果循环正常结束但没有返回，返回空列表
     return []
@@ -127,11 +130,11 @@ def fetch_industry_list_ths() -> Sequence[dict[Hashable, Any]]:
             return []
 
         result = df[["industry_name", "industry_code"]].to_dict(orient="records")
-        return result
-
     except Exception as exc:
         logger.error(f"Failed to fetch THS industry list: {exc}", exc_info=True)
         return []
+    else:
+        return result
 
 
 def fetch_industry_hist(industry_name: str) -> pd.DataFrame:
@@ -214,8 +217,6 @@ async def build_overview(
         logger.info(f"Limiting to {max_industries} industries to avoid rate limiting")
         industry_list = industry_list[:max_industries]
 
-    # removed: import time
-
     for i, industry in enumerate(industry_list):
         name = industry.get("industry_name")
         code = industry.get("industry_code")
@@ -227,7 +228,7 @@ async def build_overview(
             logger.info(
                 f"Processed {i}/{len(industry_list)} industries, pausing briefly..."
             )
-            await asyncio.sleep(2)
+            await asyncio.sleep(SLEEP_INTERVAL_SECONDS)
 
         hist = fetch_industry_hist(name)
 
@@ -291,7 +292,6 @@ def fetch_industry_constituents(industry_code: str) -> Sequence[dict[Hashable, A
             return []
 
         result = df.to_dict(orient="records")
-        return result
 
     except Exception as exc:
         logger.error(
@@ -299,6 +299,8 @@ def fetch_industry_constituents(industry_code: str) -> Sequence[dict[Hashable, A
             exc_info=True,
         )
         return []
+    else:
+        return result
 
 
 def build_industry_overview(window: str = "20D") -> dict[str, dict[str, Any]]:
@@ -320,7 +322,6 @@ def build_industry_overview(window: str = "20D") -> dict[str, dict[str, Any]]:
         industry_list = industry_list[:max_industries]
 
     results = {}
-    import time
 
     for i, industry in enumerate(industry_list):
         name = industry.get("industry_name")

@@ -5,13 +5,12 @@ import gc
 import logging
 import multiprocessing as mp
 import time
-from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import psutil
 from sqlalchemy.orm import Session, sessionmaker
@@ -22,6 +21,9 @@ from app.data.quality.deduplication_service import (
     DeduplicationStrategy,
 )
 from app.data.quality.validation_service import DataValidationService, ValidationReport
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class ProcessingMode(Enum):
@@ -191,13 +193,12 @@ def performance_monitor(func: Callable) -> Callable:
                 f"耗时 {execution_time:.2f}s, "
                 f"内存变化 {memory_delta:+.2f}MB"
             )
-
-            return result
-
-        except Exception as e:
+        except Exception:
             logger = logging.getLogger(func.__module__)
-            logger.error(f"函数 {func.__name__} 执行失败: {e!s}")
+            logger.exception(f"函数 {func.__name__} 执行失败")
             raise
+        else:
+            return result
 
     return wrapper
 
@@ -274,8 +275,8 @@ class PerformanceOptimizationService:
                 if (i + 1) % 100 == 0:
                     self.logger.info(f"已处理 {i + 1}/{len(data_list)} 条记录")
 
-            except Exception as e:
-                self.logger.error(f"校验第 {i} 条记录失败: {e!s}")
+            except Exception:
+                self.logger.exception(f"校验第 {i} 条记录失败")
                 self.metrics.error_count += 1
 
         self.metrics.end_time = datetime.now()
@@ -304,8 +305,8 @@ class PerformanceOptimizationService:
                     report = validation_service.validate_stock_data(data, market_type)
                     batch_reports.append(report)
                     self.metrics.processed_records += 1
-                except Exception as e:
-                    self.logger.error(f"批量校验失败: {e!s}")
+                except Exception:
+                    self.logger.exception("批量校验失败")
                     self.metrics.error_count += 1
 
             reports.extend(batch_reports)
@@ -346,8 +347,8 @@ class PerformanceOptimizationService:
                 chunk_reports = future.result()
                 reports.extend(chunk_reports)
                 self.metrics.processed_records += len(chunk_reports)
-            except Exception as e:
-                self.logger.error(f"并行校验块失败: {e!s}")
+            except Exception:
+                self.logger.exception("并行校验块失败")
                 self.metrics.error_count += 1
 
         self.metrics.end_time = datetime.now()
@@ -372,8 +373,8 @@ class PerformanceOptimizationService:
                 try:
                     report = validation_service.validate_stock_data(data, market_type)
                     reports.append(report)
-                except Exception as e:
-                    self.logger.error(f"校验数据块中的记录失败: {e!s}")
+                except Exception:
+                    self.logger.exception("校验数据块中的记录失败")
 
             return reports
 
@@ -414,7 +415,7 @@ class PerformanceOptimizationService:
 
         # 批量处理重复组
         if self.config.processing_mode == ProcessingMode.PARALLEL:
-            return self._parallel_deduplicate(dedup_service, duplicate_groups)
+            return self._parallel_deduplicate(duplicate_groups)
         else:
             return self._batch_deduplicate(dedup_service, duplicate_groups)
 
@@ -461,8 +462,8 @@ class PerformanceOptimizationService:
                     f"删除 {removed_count} 条重复记录"
                 )
 
-            except Exception as e:
-                self.logger.error(f"批量去重失败: {e!s}")
+            except Exception:
+                self.logger.exception("批量去重失败")
                 self.metrics.error_count += 1
 
         execution_time = (datetime.now() - start_time).total_seconds()
@@ -476,9 +477,7 @@ class PerformanceOptimizationService:
             processed_at=datetime.now(),
         )
 
-    def _parallel_deduplicate(
-        self, dedup_service: DataDeduplicationService, duplicate_groups: list
-    ) -> DeduplicationReport:
+    def _parallel_deduplicate(self, duplicate_groups: list) -> DeduplicationReport:
         """并行去重"""
         start_time = datetime.now()
         total_removed = 0
@@ -500,8 +499,8 @@ class PerformanceOptimizationService:
             try:
                 removed_count = future.result()
                 total_removed += removed_count
-            except Exception as e:
-                self.logger.error(f"并行去重块失败: {e!s}")
+            except Exception:
+                self.logger.exception("并行去重块失败")
                 self.metrics.error_count += 1
 
         execution_time = (datetime.now() - start_time).total_seconds()
@@ -582,8 +581,8 @@ class PerformanceOptimizationService:
 
             self.logger.info("数据库查询优化完成")
 
-        except Exception as e:
-            self.logger.error(f"数据库查询优化失败: {e!s}")
+        except Exception:
+            self.logger.exception("数据库查询优化失败")
 
     def get_performance_report(self) -> dict[str, Any]:
         """获取性能报告"""
@@ -657,8 +656,8 @@ class PerformanceOptimizationService:
             self.cache_manager.clear()
             self.memory_manager.force_garbage_collection()
             self.logger.info("资源清理完成")
-        except Exception as e:
-            self.logger.exception(f"资源清理失败: {e!s}")
+        except Exception:
+            self.logger.exception("资源清理失败")
 
     def __del__(self):
         """析构函数"""

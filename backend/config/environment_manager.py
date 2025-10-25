@@ -6,7 +6,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from dotenv import load_dotenv
 
@@ -16,8 +16,13 @@ logger = logging.getLogger(__name__)
 class EnvironmentManager:
     """Manages environment-specific configuration loading and validation."""
 
-    SUPPORTED_ENVIRONMENTS = ["development", "testing", "staging", "production"]
-    DEFAULT_ENVIRONMENT = "development"
+    SUPPORTED_ENVIRONMENTS: ClassVar[list[str]] = [
+        "development",
+        "testing",
+        "staging",
+        "production",
+    ]
+    DEFAULT_ENVIRONMENT: ClassVar[str] = "development"
 
     def __init__(self, base_path: Path | None = None):
         """Initialize the environment manager.
@@ -130,9 +135,9 @@ class EnvironmentManager:
 
         # Convert environment variables to dictionary
         config = {}
-        with open(env_file) as f:
-            for line in f:
-                line = line.strip()
+        with env_file.open() as f:
+            for raw_line in f:
+                line = raw_line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     key, value = line.split("=", 1)
                     config[key.strip()] = value.strip().strip("\"'")

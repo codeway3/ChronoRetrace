@@ -30,10 +30,11 @@ class DatabaseInitializer:
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             logger.info("✅ 数据库连接正常")
-            return True
-        except Exception as e:
-            logger.error(f"❌ 数据库连接失败: {e}")
+        except Exception:
+            logger.exception("❌ 数据库连接失败")
             return False
+        else:
+            return True
 
     def check_database_exists(self) -> bool:
         """检查数据库是否存在"""
@@ -91,8 +92,8 @@ class DatabaseInitializer:
                 logger.info("SQLite数据库将在首次连接时自动创建")
                 return True
 
-        except Exception as e:
-            logger.error(f"❌ 创建数据库失败: {e}")
+        except Exception:
+            logger.exception("❌ 创建数据库失败")
             return False
 
     def run_migrations(self) -> bool:
@@ -118,11 +119,11 @@ class DatabaseInitializer:
             else:
                 logger.error("❌ 数据库迁移执行失败")
 
-            return success
-
-        except Exception as e:
-            logger.error(f"❌ 执行数据库迁移时出错: {e}")
+        except Exception:
+            logger.exception("❌ 执行数据库迁移时出错")
             return False
+        else:
+            return success
 
     def verify_tables(self) -> bool:
         """验证关键表是否存在"""
@@ -164,11 +165,11 @@ class DatabaseInitializer:
                         return False
 
             logger.info("✅ 所有关键表验证通过")
-            return True
-
-        except Exception as e:
-            logger.error(f"❌ 验证表结构时出错: {e}")
+        except Exception:
+            logger.exception("❌ 验证表结构时出错")
             return False
+        else:
+            return True
 
     def initialize(self, force_recreate: bool = False) -> bool:
         """完整的数据库初始化流程"""
@@ -201,11 +202,11 @@ class DatabaseInitializer:
                 return False
 
             logger.info("✅ 数据库初始化完成")
-            return True
-
-        except Exception as e:
-            logger.error(f"❌ 数据库初始化失败: {e}")
+        except Exception:
+            logger.exception("❌ 数据库初始化失败")
             return False
+        else:
+            return True
         finally:
             # 清理连接
             self.engine.dispose()
@@ -243,28 +244,28 @@ class DatabaseInitializer:
                 # 获取迁移状态
                 migration_status = self.migration_manager.get_migration_status()
 
-                return {
-                    "database_name": db_name,
-                    "database_version": db_version,
-                    "table_count": table_count,
-                    "migration_status": migration_status,
-                    "connection_url": (
-                        self.database_url.replace(
-                            self.database_url.split("@")[0].split("//")[-1], "***:***"
-                        )
-                        if "@" in self.database_url
-                        else self.database_url
-                    ),
-                }
-
-        except Exception as e:
-            logger.error(f"❌ 获取数据库信息失败: {e}")
+        except Exception:
+            logger.exception("❌ 获取数据库信息失败")
             return {
                 "database_name": "unknown",
                 "database_version": "unknown",
                 "table_count": 0,
                 "migration_status": {},
                 "connection_url": self.database_url,
+            }
+        else:
+            return {
+                "database_name": db_name,
+                "database_version": db_version,
+                "table_count": table_count,
+                "migration_status": migration_status,
+                "connection_url": (
+                    self.database_url.replace(
+                        self.database_url.split("@")[0].split("//")[-1], "***:***"
+                    )
+                    if "@" in self.database_url
+                    else self.database_url
+                ),
             }
 
 

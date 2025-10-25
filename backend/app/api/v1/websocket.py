@@ -4,14 +4,16 @@ WebSocket API路由
 提供WebSocket连接端点和相关管理接口
 """
 
+import contextlib
 import json
 import logging
-import contextlib
 from datetime import datetime
 
 from fastapi import (
     APIRouter,
+    FastAPI,
     HTTPException,
+    Request,
     WebSocket,
     WebSocketDisconnect,
     status,
@@ -40,22 +42,31 @@ message_handler: MessageHandler | None = None
 data_stream_service: DataStreamService | None = None
 
 
-def init_websocket_services(redis_manager: RedisCacheManager):
+def init_websocket_services(app: FastAPI, redis_manager: RedisCacheManager):
     """
     初始化WebSocket服务
 
     Args:
+        app: FastAPI应用实例，用于在 app.state 中注册服务对象
         redis_manager: Redis缓存管理器实例
     """
-    global connection_manager, message_handler
+    # 使用应用状态存储服务实例，避免使用全局变量
+    # 依赖 main.py 中已创建的 connection_manager 与 data_stream_service
+    connection_manager = getattr(app.state, "connection_manager", None)
+    if connection_manager is None:
+        # 若未预先创建，则按需创建一个（保证函数健壮）
+        connection_manager = ConnectionManager(
+            heartbeat_interval_seconds=settings.WEBSOCKET_HEARTBEAT_INTERVAL_SECONDS
+        )
+        app.state.connection_manager = connection_manager
 
-    # 使用传入的redis_manager创建连接管理器
-    connection_manager = ConnectionManager(
-        heartbeat_interval_seconds=settings.WEBSOCKET_HEARTBEAT_INTERVAL_SECONDS
-    )
-    message_handler = MessageHandler(connection_manager)
+    # 初始化并注册消息处理器
+    app.state.message_handler = MessageHandler(connection_manager)
 
-    print("WebSocket services initialized successfully")
+    # 保存 redis_manager 到应用状态，确保参数被使用且可供后续服务访问
+    app.state.redis_manager = redis_manager
+
+    logger.info("WebSocket services initialized successfully")
 
 
 async def get_current_user_from_token(token: str) -> dict | None:
@@ -72,9 +83,10 @@ async def get_current_user_from_token(token: str) -> dict | None:
         payload = auth_service.verify_token(token)
         if payload:
             return {"user_id": payload.get("sub"), "username": payload.get("username")}
-        return None
-    except Exception as e:
-        logger.exception("解析token失败: %s", e)
+        else:
+            return None
+    except Exception:
+        logger.exception("解析token失败")
         return None
 
 
@@ -98,23 +110,20 @@ async def websocket_endpoint(
     app = websocket.app
     connection_manager = getattr(app.state, "connection_manager", None)
     # 移除未使用的局部变量赋值，避免遮蔽全局 data_stream_service 并产生未使用警告
-    # data_stream_service = getattr(app.state, "data_stream_service", None)
 
     if not connection_manager:
         logger.error("WebSocket服务未初始化 - connection_manager为空")
         try:
             await websocket.close(code=1011, reason="WebSocket服务未初始化")
-        except Exception as e:
-            logger.exception("关闭WebSocket连接时出错: %s", e)
+        except Exception:
+            logger.exception("关闭WebSocket连接时出错")
         return
 
     # 创建消息处理器
     try:
-        from app.websocket.message_handler import MessageHandler
-
         message_handler = MessageHandler(connection_manager)
-    except Exception as e:
-        logger.exception("创建消息处理器失败: %s", e)
+    except Exception:
+        logger.exception("创建消息处理器失败")
         with contextlib.suppress(Exception):
             await websocket.close(code=1011, reason="消息处理器初始化失败")
         return
@@ -128,8 +137,8 @@ async def websocket_endpoint(
             logger.warning(f"客户端 {client_id} 提供了无效的认证token")
             try:
                 await websocket.close(code=1008, reason="无效的认证token")
-            except Exception as e:
-                logger.exception("关闭WebSocket连接时出错: %s", e)
+            except Exception:
+                logger.exception("关闭WebSocket连接时出错")
             return
 
     # 建立连接
@@ -142,12 +151,12 @@ async def websocket_endpoint(
             logger.error(f"客户端 {client_id} 连接建立失败")
             try:
                 await websocket.close(code=1011, reason="连接建立失败")
-            except Exception as e:
-                logger.exception("关闭WebSocket连接时出错: %s", e)
+            except Exception:
+                logger.exception("关闭WebSocket连接时出错")
             return
 
-    except Exception as e:
-        logger.exception("建立WebSocket连接时出错: %s", e)
+    except Exception:
+        logger.exception("建立WebSocket连接时出错")
         with contextlib.suppress(Exception):
             await websocket.close(code=1011, reason="连接建立异常")
         return
@@ -178,7 +187,8 @@ async def websocket_endpoint(
                         {
                             "type": "error",
                             "error_code": "invalid_json",
-                            "error_message": "消息格式错误，请发送有效的JSON",
+                            "error_message": "消息格式错误, 请发送有效的JSON",
+                            "timestamp": datetime.now().isoformat(),
                         },
                     )
                     continue
@@ -194,7 +204,7 @@ async def websocket_endpoint(
                 break
             except Exception as e:
                 error_msg = str(e).lower()
-                logger.error(f"处理客户端 {client_id} 消息时出错: {e}")
+                logger.exception(f"处理客户端 {client_id} 消息时出错")
 
                 # 检查是否是连接相关的错误
                 connection_errors = [
@@ -207,7 +217,7 @@ async def websocket_endpoint(
                 ]
 
                 if any(err in error_msg for err in connection_errors):
-                    logger.info(f"检测到客户端 {client_id} 连接问题，断开连接")
+                    logger.info(f"检测到客户端 {client_id} 连接问题, 断开连接")
                     break
 
                 # 发送错误消息给客户端
@@ -221,21 +231,19 @@ async def websocket_endpoint(
                             "timestamp": datetime.now().isoformat(),
                         },
                     )
-                except Exception as send_error:
-                    logger.exception(
-                        "向客户端 %s 发送错误消息失败: %s", client_id, send_error
-                    )
+                except Exception:
+                    logger.exception("向客户端 %s 发送错误消息失败", client_id)
                     break  # 如果无法发送错误消息，断开连接
 
-    except Exception as e:
-        logger.exception("WebSocket连接 %s 异常: %s", client_id, e)
+    except Exception:
+        logger.exception("WebSocket连接 %s 异常", client_id)
     finally:
         # 清理连接
         try:
             await connection_manager.disconnect(client_id)
             logger.debug(f"客户端 {client_id} 连接清理完成")
-        except Exception as cleanup_error:
-            logger.exception("清理客户端 %s 连接时出错: %s", client_id, cleanup_error)
+        except Exception:
+            logger.exception("清理客户端 %s 连接时出错", client_id)
 
 
 @router.get("/ws/stats")
@@ -323,20 +331,21 @@ async def get_active_connections():
 
 
 @router.get("/ws/topics")
-async def get_active_topics():
+async def get_active_topics(request: Request):
     """
     获取活跃主题列表
 
     Returns:
         dict: 活跃主题信息
     """
-    if not connection_manager:
+    cm = getattr(request.app.state, "connection_manager", None)
+    if cm is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="WebSocket服务未初始化",
         )
 
-    stats = connection_manager.get_connection_stats()
+    stats = cm.get_connection_stats()
 
     # 统计每个主题的订阅者数量
     topic_stats = {}
@@ -355,7 +364,7 @@ async def get_active_topics():
 
 
 @router.post("/ws/broadcast/{topic}")
-async def broadcast_message(topic: str, message: dict):
+async def broadcast_message(request: Request, topic: str, message: dict):
     """
     向指定主题广播消息（管理员功能）
 
@@ -366,18 +375,22 @@ async def broadcast_message(topic: str, message: dict):
     Returns:
         dict: 广播结果
     """
-    if not connection_manager:
+    cm = getattr(request.app.state, "connection_manager", None)
+    if cm is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="WebSocket服务未初始化",
         )
 
-    # 这里应该添加管理员权限验证
-    # current_user = Depends(get_current_admin_user)
-
     try:
-        sent_count = await connection_manager.broadcast_to_topic(topic, message)
-
+        sent_count = await cm.broadcast_to_topic(topic, message)
+    except Exception as e:
+        logger.exception("广播消息失败")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="广播消息失败",
+        ) from e
+    else:
         return {
             "success": True,
             "topic": topic,
@@ -385,16 +398,9 @@ async def broadcast_message(topic: str, message: dict):
             "message": "消息广播成功",
         }
 
-    except Exception as e:
-        logger.exception("广播消息失败: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"广播消息失败: {e!s}",
-        )
-
 
 @router.delete("/ws/connections/{client_id}")
-async def disconnect_client(client_id: str):
+async def disconnect_client(request: Request, client_id: str):
     """
     断开指定客户端连接（管理员功能）
 
@@ -404,64 +410,58 @@ async def disconnect_client(client_id: str):
     Returns:
         dict: 断开结果
     """
-    if not connection_manager:
+    cm = getattr(request.app.state, "connection_manager", None)
+    if cm is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="WebSocket服务未初始化",
         )
 
-    # 这里应该添加管理员权限验证
-    # current_user = Depends(get_current_admin_user)
-
     try:
-        await connection_manager.disconnect(client_id)
-
-        return {"success": True, "client_id": client_id, "message": "客户端连接已断开"}
-
+        await cm.disconnect(client_id)
     except Exception as e:
-        logger.exception("断开客户端连接失败: %s", e)
+        logger.exception("断开客户端连接失败")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"断开连接失败: {e!s}",
-        )
+            detail="断开连接失败",
+        ) from e
+    else:
+        return {"success": True, "client_id": client_id, "message": "客户端连接已断开"}
 
 
 @router.post("/ws/cleanup")
-async def cleanup_inactive_connections():
+async def cleanup_inactive_connections(request: Request):
     """
     清理不活跃的连接（管理员功能）
 
     Returns:
         dict: 清理结果
     """
-    if not connection_manager:
+    cm = getattr(request.app.state, "connection_manager", None)
+    if cm is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="WebSocket服务未初始化",
         )
 
-    # 这里应该添加管理员权限验证
-    # current_user = Depends(get_current_admin_user)
-
     try:
-        cleaned_count = await connection_manager.cleanup_inactive_connections()
-
+        cleaned_count = await cm.cleanup_inactive_connections()
+    except Exception as e:
+        logger.exception("清理不活跃连接失败")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="清理失败",
+        ) from e
+    else:
         return {
             "success": True,
             "cleaned_count": cleaned_count,
             "message": f"清理了 {cleaned_count} 个不活跃的连接",
         }
 
-    except Exception as e:
-        logger.exception("清理不活跃连接失败: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"清理失败: {e!s}",
-        )
-
 
 # 获取WebSocket服务实例的辅助函数
-def get_connection_manager() -> ConnectionManager:
+def get_connection_manager(app: FastAPI) -> ConnectionManager:
     """
     获取连接管理器实例
 
@@ -469,42 +469,45 @@ def get_connection_manager() -> ConnectionManager:
         ConnectionManager: 连接管理器实例
     """
 
-    # 这个函数需要在依赖注入中使用，暂时保留原有逻辑
-    if not connection_manager:
+    cm = getattr(app.state, "connection_manager", None)
+    if cm is None:
         raise HTTPException(status_code=500, detail="WebSocket服务未初始化")
-    return connection_manager
+    return cm
 
 
-def get_data_stream_service() -> DataStreamService:
+def get_data_stream_service(app: FastAPI) -> DataStreamService:
     """获取数据流服务实例"""
-    if not data_stream_service:
+    dss = getattr(app.state, "data_stream_service", None)
+    if dss is None:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="数据流服务未初始化"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="数据流服务未初始化",
         )
-    return data_stream_service
+    return dss
 
 
-async def shutdown_websocket_services():
+async def shutdown_websocket_services(app: FastAPI):
     """
     关闭WebSocket服务
     """
-    global connection_manager, message_handler, data_stream_service
 
     try:
-        if data_stream_service:
-            await data_stream_service.shutdown()
+        dss = getattr(app.state, "data_stream_service", None)
+        if dss:
+            await dss.shutdown()
 
-        if connection_manager:
+        cm = getattr(app.state, "connection_manager", None)
+        if cm:
             # 断开所有连接
-            stats = connection_manager.get_connection_stats()
+            stats = cm.get_connection_stats()
             for client_id in list(stats["connections"].keys()):
-                await connection_manager.disconnect(client_id)
+                await cm.disconnect(client_id)
 
         logger.info("WebSocket服务已关闭")
 
-    except Exception as e:
-        logger.exception("关闭WebSocket服务时出错: %s", e)
+    except Exception:
+        logger.exception("关闭WebSocket服务时出错")
     finally:
-        connection_manager = None
-        message_handler = None
-        data_stream_service = None
+        app.state.connection_manager = None
+        app.state.message_handler = None
+        app.state.data_stream_service = None

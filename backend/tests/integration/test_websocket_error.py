@@ -46,7 +46,7 @@ def test_websocket_invalid_json(client):
                 pass
 
     except Exception as e:
-        logger.error(f"无效JSON测试失败: {e}")
+        logger.exception("无效JSON测试失败")
         pytest.fail(f"无效JSON测试失败: {e}")
 
 
@@ -77,7 +77,7 @@ def test_websocket_invalid_message_type(client):
                 pass
 
     except Exception as e:
-        logger.error(f"无效消息类型测试失败: {e}")
+        logger.exception("无效消息类型测试失败")
         pytest.fail(f"无效消息类型测试失败: {e}")
 
 
@@ -111,7 +111,7 @@ def test_websocket_malformed_subscribe(client):
                 pass
 
     except Exception as e:
-        logger.error(f"格式错误订阅测试失败: {e}")
+        logger.exception("格式错误订阅测试失败")
         pytest.fail(f"格式错误订阅测试失败: {e}")
 
 
@@ -166,7 +166,7 @@ def test_websocket_large_message(client):
                 pass
 
     except Exception as e:
-        logger.error(f"大消息测试失败: {e}")
+        logger.exception("大消息测试失败")
         pytest.fail(f"大消息测试失败: {e}")
 
 
@@ -193,7 +193,7 @@ def test_websocket_concurrent_subscriptions(client):
                 websocket.send_text(json.dumps(subscribe_message))
 
     except Exception as e:
-        logger.error(f"并发订阅测试失败: {e}")
+        logger.exception("并发订阅测试失败")
         pytest.fail(f"并发订阅测试失败: {e}")
 
 

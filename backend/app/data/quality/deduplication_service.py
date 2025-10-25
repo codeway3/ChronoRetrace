@@ -6,14 +6,15 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any
-
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING, Any
 
 from app.infrastructure.database.models import (  # type: ignore
     DailyStockMetrics,
     DataQualityLog,
 )
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class DeduplicationStrategy(Enum):
@@ -88,7 +89,6 @@ class DataDeduplicationService:
         self.db_session = db_session
         self.logger = logging.getLogger(__name__)
 
-        # 字段权重配置 (用于相似度计算)
         self.field_weights = {
             "code": 0.3,
             "date": 0.3,
@@ -99,7 +99,6 @@ class DataDeduplicationService:
             "low": 0.025,
         }
 
-        # 相似度阈值
         self.similarity_thresholds = {"exact": 1.0, "partial": 0.8, "similar": 0.6}
 
     def deduplicate_stock_data(
@@ -250,7 +249,7 @@ class DataDeduplicationService:
 
     def find_database_duplicates(
         self,
-        table_name: str = "daily_stock_metrics",
+        _table_name: str = "daily_stock_metrics",
         date_range: tuple[str, str] | None = None,
     ) -> list[DuplicateGroup]:
         """查找数据库中的重复记录
@@ -551,8 +550,8 @@ class DataDeduplicationService:
 
             self.db_session.commit()
 
-        except Exception as e:
-            self.logger.error(f"删除重复记录失败: {e!s}")
+        except Exception:
+            self.logger.exception("删除重复记录失败")
             self.db_session.rollback()
             raise
 
@@ -565,7 +564,6 @@ class DataDeduplicationService:
         groups = defaultdict(list)
 
         for data in data_list:
-            # 构建唯一键 (code + date)
             code = data.get("code", "")
             date = data.get("date", "")
             unique_key = f"{code}_{date}"
@@ -663,7 +661,6 @@ class DataDeduplicationService:
         if str1 == str2:
             return 1.0
 
-        # 简单的字符串相似度 (可以使用更复杂的算法如编辑距离)
         common_chars = set(str1) & set(str2)
         total_chars = set(str1) | set(str2)
 
@@ -758,8 +755,8 @@ class DataDeduplicationService:
             self.db_session.add(log_entry)
             # 注意：这里不提交，由调用方统一提交
 
-        except Exception as e:
-            self.logger.error(f"记录去重日志失败: {e!s}")
+        except Exception:
+            self.logger.exception("记录去重日志失败")
 
     def generate_duplicate_hash(
         self,

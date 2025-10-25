@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import traceback
 import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -14,12 +15,77 @@ from fastapi_cache.backends.redis import RedisBackend
 from redis import asyncio as aioredis
 
 from app.analytics.api import endpoints as analytics_endpoints
+from app.api.v1 import (
+    a_industries as a_industries_v1,
+)
+from app.api.v1 import (
+    admin as admin_v1,
+)
+from app.api.v1 import (
+    asset_backtest as asset_backtest_v1,
+)
+from app.api.v1 import (
+    asset_config as asset_config_v1,
+)
+from app.api.v1 import (
+    asset_screener as asset_screener_v1,
+)
+from app.api.v1 import (
+    auth as auth_v1,
+)
+from app.api.v1 import (
+    backtest as backtest_v1,
+)
+from app.api.v1 import (
+    cache as cache_v1,
+)
+from app.api.v1 import (
+    cached_stocks as cached_stocks_v1,
+)
+from app.api.v1 import (
+    commodities as commodities_v1,
+)
+from app.api.v1 import (
+    crypto as crypto_v1,
+)
+from app.api.v1 import (
+    data_quality as data_quality_v1,
+)
+from app.api.v1 import (
+    futures as futures_v1,
+)
+from app.api.v1 import (
+    health as health_v1,
+)
+from app.api.v1 import (
+    monitoring as monitoring_v1,
+)
+from app.api.v1 import (
+    options as options_v1,
+)
+from app.api.v1 import (
+    screener as screener_v1,
+)
+from app.api.v1 import (
+    stocks as stocks_v1,
+)
+from app.api.v1 import (
+    users as users_v1,
+)
+from app.api.v1 import (
+    watchlist as watchlist_v1,
+)
+from app.api.v1 import (
+    websocket as websocket_v1,
+)
+from app.api.v1.websocket import init_websocket_services
 from app.core.config import settings
 from app.core.middleware import setup_middleware
 
 # Logger is already configured above with logging.basicConfig
 from app.data.fetchers import a_industries_fetcher
 from app.infrastructure.cache.cache_warming import cache_warming_service
+from app.infrastructure.cache.redis_manager import RedisCacheManager
 from app.infrastructure.database import models
 from app.infrastructure.database.init_db import initialize_database
 from app.infrastructure.database.session import SessionLocal, engine
@@ -28,6 +94,9 @@ from app.infrastructure.monitoring.middleware import (
     CacheMonitoringMiddleware,
     PerformanceMonitoringMiddleware,
 )
+from app.jobs.update_daily_metrics import update_metrics_for_market
+from app.websocket.connection_manager import ConnectionManager
+from app.websocket.data_stream_service import DataStreamService
 
 # Suppress the specific FutureWarning from baostock
 warnings.filterwarnings(
@@ -54,6 +123,10 @@ logging.getLogger("app.infrastructure.cache.cache_warming").setLevel(logging.DEB
 # FastAPICache will be initialized in lifespan function with Redis backend
 
 
+class DatabaseInitializationError(Exception):
+    """Raised when database initialization fails during application startup."""
+
+
 def create_db_and_tables():
     """
     Creates database tables and seeds initial data if necessary.
@@ -65,13 +138,7 @@ def create_db_and_tables():
         # Check if the table is empty before seeding
         if db.query(models.StockInfo).count() == 0:
             print("Stock info table is empty. Seeding with default stocks...")
-            # The DEFAULT_STOCKS list was removed from stocks.py, so this part is commented out.
-            # If seeding is needed, it should be handled by a dedicated script or logic.
-            # for stock in stocks_v1.DEFAULT_STOCKS:
-            #     db_stock = models.StockInfo(ts_code=stock["ts_code"], name=stock["name"])
-            #     db.add(db_stock)
-            # db.commit()
-            # print(f"{len(stocks_v1.DEFAULT_STOCKS)} default stocks seeded.")
+            # Default seeding is disabled. Use a dedicated script if needed.
             print("Default stock seeding is currently disabled.")
         else:
             print("Stock info table already contains data. Skipping seeding.")
@@ -124,8 +191,6 @@ async def warm_up_cache():
             print("未找到上次预热时间记录，开始首次预热")
     except Exception as e:
         print(f"获取上次预热时间失败，继续执行预热: {e}")
-        import traceback
-
         traceback.print_exc()
 
     print("=== PROCEEDING WITH CACHE WARMING ===")
@@ -168,12 +233,11 @@ async def warm_up_cache():
             )
         except Exception as set_e:
             print(f"保存预热时间失败: {set_e}")
-
-        # 新增：预热完成后直接返回，避免下方旧逻辑再次拉取数据
-        return
-
     except Exception as e:
         print(f"预热 build_overview 发生异常: {e}")
+    else:
+        # 新增：预热完成后直接返回，避免下方旧逻辑再次拉取数据
+        return
 
     # 旧的手动行业预热逻辑已删除，预热由 build_overview 统一负责。
 
@@ -200,15 +264,13 @@ async def lifespan(app: FastAPI):
         logger.info("检测到测试环境，跳过数据库/缓存/调度器等重型初始化。")
         # 测试环境中仍需初始化最基本的 WebSocket 服务以支持集成测试
         try:
-            from app.websocket.connection_manager import ConnectionManager
-
             app.state.connection_manager = ConnectionManager(
                 heartbeat_interval_seconds=settings.WEBSOCKET_HEARTBEAT_INTERVAL_SECONDS
             )
             app.state.data_stream_service = None
             logger.info("测试环境下WebSocket最小初始化完成")
-        except Exception as e:
-            logger.exception(f"测试环境下WebSocket最小初始化失败: {e}")
+        except Exception:
+            logger.exception("测试环境下WebSocket最小初始化失败")
             app.state.connection_manager = None
             app.state.data_stream_service = None
         yield
@@ -218,14 +280,15 @@ async def lifespan(app: FastAPI):
     # 初始化数据库
     try:
         success = initialize_database()
-        if success:
-            logger.info("✅ 数据库初始化成功")
-        else:
-            logger.error("❌ 数据库初始化失败")
-            raise Exception("数据库初始化失败")
-    except Exception as e:
-        logger.exception("启动时数据库初始化出错: %s", e)
+    except Exception:
+        logger.exception("启动时数据库初始化出错")
         raise
+
+    if success:
+        logger.info("✅ 数据库初始化成功")
+    else:
+        logger.error("❌ 数据库初始化失败")
+        raise DatabaseInitializationError("数据库初始化失败")
 
     create_db_and_tables()
 
@@ -240,7 +303,7 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(warm_up_cache, "interval", hours=1, id="warm_up_cache_job")
 
     # Add stock metrics update job
-    from app.jobs.update_daily_metrics import update_metrics_for_market
+    # 已在模块顶层导入 update_metrics_for_market 以满足 PLC0415
 
     async def update_stock_metrics():
         """更新股票指标的定时任务"""
@@ -273,7 +336,10 @@ async def lifespan(app: FastAPI):
     # 同步运行预热（会检查时间间隔限制）
     try:
         # 使用 asyncio.create_task 创建任务但不等待，使其在后台运行
-        asyncio.create_task(warm_up_cache())
+        if not hasattr(app.state, "background_tasks"):
+            app.state.background_tasks = []
+        warm_task = asyncio.create_task(warm_up_cache())
+        app.state.background_tasks.append(warm_task)
         print("行业数据预热任务已启动（后台运行）")
     except Exception as e:
         print(f"启动预热任务出错: {e}")
@@ -294,11 +360,6 @@ async def lifespan(app: FastAPI):
 
     # Initialize WebSocket services
     try:
-        from app.api.v1.websocket import init_websocket_services
-        from app.infrastructure.cache.redis_manager import RedisCacheManager
-        from app.websocket.connection_manager import ConnectionManager
-        from app.websocket.data_stream_service import DataStreamService
-
         logger.info("正在初始化WebSocket服务...")
 
         connection_manager = ConnectionManager(
@@ -312,14 +373,14 @@ async def lifespan(app: FastAPI):
         app.state.data_stream_service = data_stream_service
 
         # Initialize WebSocket services in the router
-        init_websocket_services(redis_manager)
+        init_websocket_services(app, redis_manager)
 
         # Start data stream service
         await data_stream_service.start()
         logger.info("✅ WebSocket服务初始化并启动成功")
 
-    except Exception as e:
-        logger.exception(f"❌ WebSocket服务初始化失败: {e}")
+    except Exception:
+        logger.exception("❌ WebSocket服务初始化失败")
         # 不抛出异常，允许应用继续启动( WebSocket功能可能不可用 )
         app.state.connection_manager = None
         app.state.data_stream_service = None
@@ -334,8 +395,8 @@ async def lifespan(app: FastAPI):
         if hasattr(app.state, "data_stream_service") and app.state.data_stream_service:
             await app.state.data_stream_service.stop()
             logger.info("✅ WebSocket服务已停止")
-    except Exception as e:
-        logger.exception(f"停止WebSocket服务时出错: {e}")
+    except Exception:
+        logger.exception("停止WebSocket服务时出错")
 
     performance_monitor.stop_monitoring()
     scheduler.shutdown()
@@ -383,28 +444,7 @@ def _register_routers(app: FastAPI) -> None:
         return
 
     # 非测试环境：延迟导入并注册全部路由
-    from app.api.v1 import a_industries as a_industries_v1
-    from app.api.v1 import admin as admin_v1
-    from app.api.v1 import asset_backtest as asset_backtest_v1
-    from app.api.v1 import asset_config as asset_config_v1
-    from app.api.v1 import asset_screener as asset_screener_v1
-    from app.api.v1 import auth as auth_v1
-    from app.api.v1 import backtest as backtest_v1
-    from app.api.v1 import cache as cache_v1
-    from app.api.v1 import cached_stocks as cached_stocks_v1
-    from app.api.v1 import commodities as commodities_v1
-    from app.api.v1 import crypto as crypto_v1
-    from app.api.v1 import data_quality as data_quality_v1
-    from app.api.v1 import futures as futures_v1
-    from app.api.v1 import health as health_v1
-    from app.api.v1 import monitoring as monitoring_v1
-    from app.api.v1 import options as options_v1
-    from app.api.v1 import screener as screener_v1
-    from app.api.v1 import stocks as stocks_v1
-    from app.api.v1 import users as users_v1
-    from app.api.v1 import watchlist as watchlist_v1
-    from app.api.v1 import websocket as websocket_v1
-
+    # Imports moved to top-level to comply with PLC0415
     app.include_router(auth_v1.router, prefix="/api/v1", tags=["auth"])
     app.include_router(users_v1.router, prefix="/api/v1", tags=["users"])
     app.include_router(

@@ -6,9 +6,10 @@ pytest 配置文件
 
 import os
 import sys
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pytest
 from fastapi.testclient import TestClient
@@ -148,8 +149,9 @@ def client(test_engine):
 
     # Dependency override for database session
     def override_get_db():
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+        db = SessionLocal()
         try:
-            db = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)()
             yield db
         finally:
             db.close()

@@ -283,7 +283,7 @@ def update_strategy(
 @router.delete("/strategies/{strategy_id}", response_model=DeleteStrategyResponse)
 def delete_strategy(
     strategy_id: int,
-    user_id: int = 1,  # TODO: 从认证中获取实际用户ID
+    _user_id: int = 1,  # TODO: 从认证中获取实际用户ID
     service: Any = Depends(get_strategy_service),
 ):
     """删除策略"""

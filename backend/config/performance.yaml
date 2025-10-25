@@ -96,9 +96,9 @@ database:
   read_write_split:
     enabled: false
     read_replicas:
-      - "postgresql://user:pass@read1:5432/chronoretrace"
-      - "postgresql://user:pass@read2:5432/chronoretrace"
-    write_master: "postgresql://user:pass@master:5432/chronoretrace"
+      - "postgresql://user:pass@read1:5432/chronoretrace" # pragma: allowlist secret
+      - "postgresql://user:pass@read2:5432/chronoretrace" # pragma: allowlist secret
+    write_master: "postgresql://user:pass@master:5432/chronoretrace" # pragma: allowlist secret
 
 # 性能监控配置
 monitoring:

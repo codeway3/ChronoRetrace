@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-from sqlalchemy.orm import Session
 
-from ...infrastructure.error_handling_service import ErrorHandlingService
-from ...infrastructure.logging_service import LoggingService, LogStatus, OperationType
+from ...infrastructure.error_handling_service import ErrorContext, ErrorHandlingService
+from ...infrastructure.logging_service import (
+    LoggingService,
+    LogLevel,
+    LogStatus,
+    OperationType,
+)
 from ...infrastructure.performance.performance_optimization_service import (
     PerformanceConfig,
     PerformanceOptimizationService,
@@ -22,6 +27,9 @@ from .deduplication_service import (
     DeduplicationStrategy,
 )
 from .validation_service import DataValidationService, ValidationReport
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 @dataclass
@@ -157,7 +165,6 @@ class DataQualityManager:
 
             # 记录开始日志
             if self.config.enable_logging:
-                from ...infrastructure.logging_service import LogLevel
 
                 self.logging_service.log_operation(
                     operation_id=str(uuid.uuid4()),
@@ -184,7 +191,6 @@ class DataQualityManager:
                 performance_metrics={},
             )
 
-            # 阶段1: 数据校验
             if self.config.enable_validation:
                 validation_result = self._validate_data(data, data_type)
                 result.validation_reports = validation_result["reports"]
@@ -193,7 +199,6 @@ class DataQualityManager:
                 result.quality_score = validation_result["quality_score"]
                 result.warnings.extend(validation_result["warnings"])
 
-            # 阶段2: 数据去重
             if self.config.enable_deduplication:
                 dedup_result = self._deduplicate_data(data)
                 result.deduplication_report = dedup_result["report"]
@@ -201,7 +206,6 @@ class DataQualityManager:
                 result.duplicates_removed = dedup_result["duplicates_removed"]
                 result.warnings.extend(dedup_result["warnings"])
 
-            # 阶段3: 性能指标收集
             if self.config.enable_performance_optimization:
                 perf_metrics = self._collect_performance_metrics(start_time)
                 result.performance_metrics = perf_metrics
@@ -215,8 +219,6 @@ class DataQualityManager:
 
             # 记录成功日志
             if self.config.enable_logging:
-                from ...infrastructure.logging_service import LogLevel
-
                 self.logging_service.log_operation(
                     operation_id=str(uuid.uuid4()),
                     operation_type=OperationType.PIPELINE,
@@ -236,11 +238,8 @@ class DataQualityManager:
 
             self.logger.info(f"数据质量处理完成，耗时: {result.processing_time:.2f}秒")
 
-            return result
-
         except Exception as e:
             # 错误处理
-            from ...infrastructure.error_handling_service import ErrorContext
 
             error_response = self.error_service.handle_exception(
                 exception=e,
@@ -252,10 +251,6 @@ class DataQualityManager:
 
             # 记录错误日志
             if self.config.enable_logging:
-                import json
-
-                from ...infrastructure.logging_service import LogLevel
-
                 # 将ErrorResponse对象序列化为JSON字符串
                 error_details_json = json.dumps(
                     {
@@ -284,7 +279,7 @@ class DataQualityManager:
                     error_details=error_details_json,
                 )
 
-            self.logger.error(f"数据质量处理失败: {e!s}")
+            self.logger.exception("数据质量处理失败")
 
             # 返回错误结果
             end_time = datetime.now()
@@ -304,6 +299,9 @@ class DataQualityManager:
                 performance_metrics={},
             )
 
+            return result
+
+        else:
             return result
 
     def _validate_data(
@@ -328,6 +326,10 @@ class DataQualityManager:
             if invalid_count > 0:
                 warnings.append(f"发现 {invalid_count} 条无效数据")
 
+        except Exception:
+            self.logger.exception("数据校验失败")
+            raise
+        else:
             return {
                 "reports": reports,
                 "valid_count": valid_count,
@@ -335,10 +337,6 @@ class DataQualityManager:
                 "quality_score": quality_score,
                 "warnings": warnings,
             }
-
-        except Exception as e:
-            self.logger.error(f"数据校验失败: {e!s}")
-            raise
 
     def _deduplicate_data(self, data: list[dict[str, Any]]) -> dict[str, Any]:
         """执行数据去重"""
@@ -373,16 +371,16 @@ class DataQualityManager:
                     f"发现 {duplicates_found} 组重复数据，移除 {duplicates_removed} 条"
                 )
 
+        except Exception:
+            self.logger.exception("数据去重失败")
+            raise
+        else:
             return {
                 "report": dedup_report,
                 "duplicates_found": duplicates_found,
                 "duplicates_removed": duplicates_removed,
                 "warnings": warnings,
             }
-
-        except Exception as e:
-            self.logger.error(f"数据去重失败: {e!s}")
-            raise
 
     def _collect_performance_metrics(self, start_time: datetime) -> dict[str, Any]:
         """收集性能指标"""
@@ -452,7 +450,7 @@ class DataQualityManager:
             else:
                 return {"message": "日志功能未启用，无法获取统计信息"}
         except Exception as e:
-            self.logger.error(f"获取质量统计失败: {e!s}")
+            self.logger.exception("获取质量统计失败")
             return {"error": str(e)}
 
     def cleanup_resources(self):
@@ -469,8 +467,8 @@ class DataQualityManager:
 
             self.logger.info("资源清理完成")
 
-        except Exception as e:
-            self.logger.error(f"资源清理失败: {e!s}")
+        except Exception:
+            self.logger.exception("资源清理失败")
 
     def __enter__(self) -> DataQualityManager:
         """上下文管理器入口"""

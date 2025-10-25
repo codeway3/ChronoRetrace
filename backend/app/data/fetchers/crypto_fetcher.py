@@ -20,9 +20,10 @@ def get_top_cryptos(limit: int = 100) -> list[dict[str, Any]]:
         if "Data" in data:
             result = data["Data"]
             return cast("list[dict[str, Any]]", result)
-        return []
     except requests.exceptions.RequestException as e:
         print(f"Error fetching crypto data: {e}")
+        return []
+    else:
         return []
 
 
@@ -91,10 +92,10 @@ def get_crypto_ohlcv(
             df = calculate_ma(df)
             result = cast("list[dict[str, Any]]", df.to_dict(orient="records"))
             return result
-
-        return []
     except requests.exceptions.RequestException as e:
         print(f"Error fetching crypto OHLCV data: {e}")
+        return []
+    else:
         return []
 
 

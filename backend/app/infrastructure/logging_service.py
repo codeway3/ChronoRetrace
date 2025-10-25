@@ -1,10 +1,12 @@
+"""数据质量与批量操作的日志服务，提供日志写入、查询、统计与清理等能力."""
+
 from __future__ import annotations
 
 import contextlib
 import logging
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -18,7 +20,7 @@ if TYPE_CHECKING:
 
 
 class LogLevel(Enum):
-    """日志级别枚举"""
+    """日志级别枚举."""
 
     DEBUG = "debug"
     INFO = "info"
@@ -28,7 +30,7 @@ class LogLevel(Enum):
 
 
 class OperationType(Enum):
-    """操作类型枚举"""
+    """操作类型枚举."""
 
     VALIDATION = "validation"
     DEDUPLICATION = "deduplication"
@@ -43,7 +45,7 @@ class OperationType(Enum):
 
 
 class LogStatus(Enum):
-    """日志状态枚举"""
+    """日志状态枚举."""
 
     STARTED = "started"
     IN_PROGRESS = "in_progress"
@@ -55,7 +57,7 @@ class LogStatus(Enum):
 
 @dataclass
 class LogEntry:
-    """日志条目数据类"""
+    """日志条目数据类."""
 
     operation_id: str
     operation_type: OperationType
@@ -75,7 +77,7 @@ class LogEntry:
 
 @dataclass
 class OperationMetrics:
-    """操作指标数据类"""
+    """操作指标数据类."""
 
     total_records: int = 0
     processed_records: int = 0
@@ -93,7 +95,7 @@ class OperationMetrics:
 
 @dataclass
 class BatchOperationLog:
-    """批量操作日志数据类"""
+    """批量操作日志数据类."""
 
     batch_id: str
     operation_type: OperationType
@@ -104,7 +106,8 @@ class BatchOperationLog:
     sub_operations: list[str] | None = None  # 子操作ID列表
     error_summary: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Initialize default metrics and sub-operations."""
         if self.metrics is None:
             self.metrics = OperationMetrics()
         if self.sub_operations is None:
@@ -112,9 +115,10 @@ class BatchOperationLog:
 
 
 class LoggingService:
-    """日志记录服务类"""
+    """日志记录服务类."""
 
-    def __init__(self, db_session: Session, log_file_path: str | None = None):
+    def __init__(self, db_session: Session, log_file_path: str | None = None) -> None:
+        """Initialize logging service with optional file logging."""
         self.db_session = db_session
         self.logger = logging.getLogger(__name__)
 
@@ -130,7 +134,7 @@ class LoggingService:
         self.max_log_entries = 100000
 
     def _setup_file_logging(self, log_file_path: str) -> None:
-        """设置文件日志记录"""
+        """设置文件日志记录."""
         log_path = Path(log_file_path)
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -151,23 +155,23 @@ class LoggingService:
         user_id: int | None = None,
         session_id: str | None = None,
     ) -> str:
-        """开始一个操作并返回操作ID
+        """开始一个操作并返回操作ID.
 
         Args:
-            operation_type: 操作类型
-            description: 操作描述
-            user_id: 用户ID
-            session_id: 会话ID
+            operation_type: 操作类型。
+            description: 操作描述。
+            user_id: 用户ID。
+            session_id: 会话ID。
 
         Returns:
-            str: 操作ID
+            str: 操作ID。
         """
         operation_id = str(uuid.uuid4())
 
         batch_log = BatchOperationLog(
             batch_id=operation_id,
             operation_type=operation_type,
-            start_time=datetime.now(),
+            start_time=datetime.now(timezone.utc),
             status=LogStatus.STARTED,
         )
 
@@ -202,30 +206,31 @@ class LoggingService:
         error_details: str | None = None,
         metrics: dict[str, int | float] | None = None,
     ) -> None:
-        """记录操作日志
+        """记录操作日志.
 
         Args:
-            operation_id: 操作ID
-            operation_type: 操作类型
-            status: 操作状态
-            level: 日志级别
-            message: 日志消息
-            record_id: 记录ID
-            table_name: 表名
-            user_id: 用户ID
-            session_id: 会话ID
-            execution_time: 执行时间
-            details: 详细信息
-            error_details: 错误详情
-            metrics: 指标数据
+            operation_id: 操作ID。
+            operation_type: 操作类型。
+            status: 操作状态。
+            level: 日志级别。
+            message: 日志消息。
+            record_id: 记录ID。
+            table_name: 表名。
+            user_id: 用户ID。
+            session_id: 会话ID。
+            execution_time: 执行时间。
+            details: 详细信息。
+            error_details: 错误详情。
+            metrics: 指标数据。
         """
+
         log_entry = LogEntry(
             operation_id=operation_id,
             operation_type=operation_type,
             status=status,
             level=level,
             message=message,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             record_id=record_id,
             table_name=table_name,
             user_id=user_id,
@@ -256,17 +261,18 @@ class LoggingService:
         validation_errors: list[str] | None = None,
         execution_time: float = 0.0,
     ) -> None:
-        """记录数据校验结果
+        """记录数据校验结果.
 
         Args:
-            operation_id: 操作ID
-            record_id: 记录ID
-            table_name: 表名
-            is_valid: 是否有效
-            quality_score: 质量评分
-            validation_errors: 校验错误列表
-            execution_time: 执行时间
+            operation_id: 操作ID。
+            record_id: 记录ID。
+            table_name: 表名。
+            is_valid: 是否有效。
+            quality_score: 质量评分。
+            validation_errors: 校验错误列表。
+            execution_time: 执行时间。
         """
+
         status = LogStatus.SUCCESS if is_valid else LogStatus.FAILED
         level = LogLevel.INFO if is_valid else LogLevel.WARNING
 
@@ -309,17 +315,18 @@ class LoggingService:
         execution_time: float = 0.0,
         strategy: str = "",
     ) -> None:
-        """记录去重处理结果
+        """记录去重处理结果.
 
         Args:
-            operation_id: 操作ID
-            table_name: 表名
-            total_processed: 处理总数
-            duplicates_found: 发现重复数
-            duplicates_removed: 删除重复数
-            execution_time: 执行时间
-            strategy: 去重策略
+            operation_id: 操作ID。
+            table_name: 表名。
+            total_processed: 处理总数。
+            duplicates_found: 发现重复数。
+            duplicates_removed: 删除重复数。
+            execution_time: 执行时间。
+            strategy: 去重策略。
         """
+
         message = f"去重处理完成: 处理{total_processed}条记录, 发现{duplicates_found}条重复, 删除{duplicates_removed}条"
 
         details = {
@@ -357,20 +364,21 @@ class LoggingService:
         final_message: str = "",
         final_metrics: OperationMetrics | None = None,
     ) -> None:
-        """结束操作
+        """结束操作.
 
         Args:
-            operation_id: 操作ID
-            status: 最终状态
-            final_message: 最终消息
-            final_metrics: 最终指标
+            operation_id: 操作ID。
+            status: 最终状态。
+            final_message: 最终消息。
+            final_metrics: 最终指标。
         """
+
         if operation_id not in self.active_operations:
             self.logger.warning(f"尝试结束不存在的操作: {operation_id}")
             return
 
         batch_log = self.active_operations[operation_id]
-        batch_log.end_time = datetime.now()
+        batch_log.end_time = datetime.now(timezone.utc)
         batch_log.status = status
 
         if final_metrics:
@@ -404,19 +412,20 @@ class LoggingService:
         end_time: datetime | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
-        """查询操作日志
+        """查询操作日志.
 
         Args:
-            operation_id: 操作ID
-            operation_type: 操作类型
-            status: 状态
-            start_time: 开始时间
-            end_time: 结束时间
-            limit: 限制数量
+            operation_id: 操作ID。
+            operation_type: 操作类型。
+            status: 状态。
+            start_time: 开始时间。
+            end_time: 结束时间。
+            limit: 限制数量。
 
         Returns:
-            List[Dict[str, Any]]: 日志列表
+            list[dict[str, Any]]: 日志列表。
         """
+
         query = self.db_session.query(DataQualityLog)
 
         # 构建查询条件
@@ -461,16 +470,17 @@ class LoggingService:
     def get_operation_statistics(
         self, operation_type: OperationType | None = None, days: int = 7
     ) -> dict[str, Any]:
-        """获取操作统计信息
+        """获取操作统计信息.
 
         Args:
-            operation_type: 操作类型
-            days: 统计天数
+            operation_type: 操作类型。
+            days: 统计天数。
 
         Returns:
-            Dict[str, Any]: 统计信息
+            dict[str, Any]: 统计信息。
         """
-        start_time = datetime.now() - timedelta(days=days)
+
+        start_time = datetime.now(timezone.utc) - timedelta(days=days)
 
         query = self.db_session.query(DataQualityLog).filter(
             DataQualityLog.created_at >= start_time
@@ -518,12 +528,13 @@ class LoggingService:
         }
 
     def cleanup_old_logs(self) -> int:
-        """清理过期日志
+        """清理过期日志.
 
         Returns:
-            int: 清理的日志数量
+            int: 清理的日志数量。
         """
-        cutoff_date = datetime.now() - timedelta(days=self.retention_days)
+
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
 
         try:
             # 删除过期日志
@@ -550,17 +561,16 @@ class LoggingService:
                 deleted_count += excess_count
 
             self.db_session.commit()
-
-            self.logger.info(f"清理了 {deleted_count} 条过期日志")
-            return deleted_count
-
         except Exception:
             self.logger.exception("清理日志失败")
             self.db_session.rollback()
             return 0
+        else:
+            self.logger.info(f"清理了 {deleted_count} 条过期日志")
+            return deleted_count
 
     def shutdown(self) -> None:
-        """关闭日志资源（文件句柄等）以防 FD 泄漏"""
+        """关闭日志资源（文件句柄等）以防 FD 泄漏."""
         try:
             # 关闭并移除所有处理器
             for handler in list(self.logger.handlers):
@@ -574,7 +584,7 @@ class LoggingService:
             self.logger.exception("关闭日志处理器失败")
 
     def _log_to_file(self, log_entry: LogEntry) -> None:
-        """记录到文件"""
+        """记录到文件."""
         log_level = {
             LogLevel.DEBUG: logging.DEBUG,
             LogLevel.INFO: logging.INFO,
@@ -596,7 +606,7 @@ class LoggingService:
         self.logger.log(log_level, log_message, extra=extra_info)
 
     def _log_to_database(self, log_entry: LogEntry) -> None:
-        """记录到数据库"""
+        """记录到数据库."""
         try:
             # 对于系统级别的日志（没有具体record_id），使用默认值0
             record_id = log_entry.record_id if log_entry.record_id is not None else 0
@@ -619,7 +629,7 @@ class LoggingService:
             self.db_session.rollback()
 
     def _update_batch_operation(self, operation_id: str, log_entry: LogEntry) -> None:
-        """更新批量操作状态"""
+        """更新批量操作状态."""
         if operation_id not in self.active_operations:
             return
 

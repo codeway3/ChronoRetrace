@@ -21,11 +21,11 @@ class BacktestService:
     async def create_backtest(
         self,
         user: User,
-        template_id: int,
+        _template_id: int,
         start_date: datetime,
         end_date: datetime,
         initial_capital: float,
-        db: Session,
+        _db: Session,
     ) -> dict[str, Any]:
         """
         创建回测任务
@@ -58,7 +58,7 @@ class BacktestService:
         }
 
     async def get_backtest_results(
-        self, backtest_id: str, user: User, db: Session
+        self, _backtest_id: str, _user: User, _db: Session
     ) -> dict[str, Any] | None:
         """
         获取回测结果
@@ -75,7 +75,7 @@ class BacktestService:
         return None
 
     async def list_user_backtests(
-        self, user: User, page: int = 1, size: int = 20, db: Session | None = None
+        self, _user: User, page: int = 1, size: int = 20, _db: Session | None = None
     ) -> dict[str, Any]:
         """
         获取用户的回测列表
@@ -92,7 +92,9 @@ class BacktestService:
         # 这里是获取用户回测列表的占位符
         return {"items": [], "total": 0, "page": page, "size": size, "pages": 0}
 
-    async def delete_backtest(self, backtest_id: str, user: User, db: Session) -> bool:
+    async def delete_backtest(
+        self, _backtest_id: str, _user: User, _db: Session
+    ) -> bool:
         """
         删除回测
 
@@ -108,7 +110,7 @@ class BacktestService:
         return True
 
     async def get_backtest_templates(
-        self, asset_type: str | None = None, db: Session | None = None
+        self, _asset_type: str | None = None, _db: Session | None = None
     ) -> list[AssetBacktestTemplateResponse]:
         """
         获取回测模板列表

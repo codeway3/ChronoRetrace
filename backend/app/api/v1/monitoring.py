@@ -17,7 +17,15 @@ from dataclasses import asdict
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
 from pydantic import BaseModel, Field
 
 from app.infrastructure.cache import cache_service
@@ -468,6 +476,115 @@ async def export_metrics(
     except Exception as e:
         logger.exception("导出指标数据失败")
         raise HTTPException(status_code=500, detail="导出数据失败") from e
+
+
+@router.get("/prom_metrics")
+async def export_prometheus_metrics():
+    """
+    Prometheus 文本暴露端点，将 PerformanceMonitor 内部指标映射到 Prometheus registry。
+    - Counter: api_requests_total{method,endpoint,status}
+    - Histogram: api_response_time_seconds{method,endpoint}
+    - Gauge: system_cpu_usage_percent, system_memory_usage_percent, system_memory_available_mb, system_disk_usage_percent
+    - Gauge: api_concurrent_requests
+    """
+    try:
+        registry = CollectorRegistry()
+
+        # Counters for API requests
+        api_requests_total = Counter(
+            "api_requests_total",
+            "Total API requests grouped by method/endpoint/status",
+            ["method", "endpoint", "status"],
+            registry=registry,
+        )
+
+        # Histogram for API response times (seconds)
+        api_response_time_seconds = Histogram(
+            "api_response_time_seconds",
+            "API response time in seconds",
+            ["method", "endpoint"],
+            registry=registry,
+        )
+
+        # System gauges
+        system_cpu_usage_percent = Gauge(
+            "system_cpu_usage_percent",
+            "System CPU usage percent",
+            registry=registry,
+        )
+        system_memory_usage_percent = Gauge(
+            "system_memory_usage_percent",
+            "System memory usage percent",
+            registry=registry,
+        )
+        system_memory_available_mb = Gauge(
+            "system_memory_available_mb",
+            "System memory available in MB",
+            registry=registry,
+        )
+        system_disk_usage_percent = Gauge(
+            "system_disk_usage_percent",
+            "System disk usage percent",
+            registry=registry,
+        )
+
+        # Concurrent requests gauge
+        api_concurrent_requests = Gauge(
+            "api_concurrent_requests",
+            "Current number of concurrent API requests",
+            registry=registry,
+        )
+
+        # Populate API counters and histograms from PerformanceMonitor
+        api_metrics = performance_monitor.get_api_metrics()
+        for _key, m in api_metrics.items():
+            # Counters
+            api_requests_total.labels(m.method, m.endpoint, "success").inc(
+                m.success_requests
+            )
+            api_requests_total.labels(m.method, m.endpoint, "error").inc(
+                m.error_requests
+            )
+
+            # Histogram observations from recorded response times (ms -> seconds)
+            for rt_ms in list(m.response_times):
+                api_response_time_seconds.labels(m.method, m.endpoint).observe(
+                    rt_ms / 1000.0
+                )
+
+        # Populate system gauges
+        sys = performance_monitor.get_system_metrics()
+        if sys:
+            cpu = float(sys.get("cpu_percent", 0))
+            mem_pct = float(sys.get("memory_percent", 0))
+            mem_avail_mb = float(sys.get("memory_available_mb", 0))
+            disk_pct = float(sys.get("disk_usage_percent", 0))
+            system_cpu_usage_percent.set(cpu)
+            system_memory_usage_percent.set(mem_pct)
+            system_memory_available_mb.set(mem_avail_mb)
+            system_disk_usage_percent.set(disk_pct)
+
+        # Concurrent requests gauge from latest metric history
+        latest_concurrent = None
+        # get last metric named 'api.concurrent_requests'
+        try:
+            metrics_list = list(performance_monitor.metrics_history)
+            for metric in reversed(metrics_list):
+                if metric.name == "api.concurrent_requests":
+                    latest_concurrent = float(metric.value)
+                    break
+        except Exception:
+            latest_concurrent = None
+        if latest_concurrent is not None:
+            api_concurrent_requests.set(latest_concurrent)
+
+        # Return Prometheus exposition
+        data = generate_latest(registry)
+        return Response(content=data, media_type=CONTENT_TYPE_LATEST)
+
+    except Exception:
+        logger.exception("导出 Prometheus 指标失败")
+        raise HTTPException(status_code=500, detail="无法导出 Prometheus 指标")
 
 
 MEMORY_AVAILABLE_MIN_MB = 500

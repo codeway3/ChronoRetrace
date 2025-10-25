@@ -5,6 +5,7 @@ import threading
 import time
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING
 
 import akshare as ak
 import baostock as bs
@@ -13,9 +14,11 @@ import pandas as pd
 # 新增：按方言引入 PostgreSQL insert（最小范围引入，不影响 SQLite）
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.orm import Session
 
 from app.infrastructure.database import models
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 baostock_lock = threading.Lock()
@@ -122,10 +125,9 @@ def _fetch_spot_data_batch() -> dict[str, pd.DataFrame]:
             code = str(row["代码"])
 
             # 根据代码前缀确定市场后缀
-            if code.startswith("15"):
-                ts_code = code + ".SZ"  # 深市ETF
-            else:
-                ts_code = code + ".SH"  # 沪市ETF
+            ts_code = (
+                code + ".SZ" if code.startswith("15") else code + ".SH"
+            )  # 深市/沪市ETF
 
             open_val = row.get("开盘", row.get("开盘价"))
             high_val = row.get("最高", row.get("最高价"))
@@ -156,8 +158,8 @@ def _fetch_spot_data_batch() -> dict[str, pd.DataFrame]:
 
             all_data[ts_code] = etf_data
 
-    except Exception as e:
-        logger.error(f"Failed to fetch spot data in batch: {e}")
+    except Exception:
+        logger.exception("Failed to fetch spot data in batch")
     return all_data
 
 
@@ -197,16 +199,16 @@ def _baostock_query_with_retry(query_func, *args, **kwargs):
                             f"Using first {num_data_cols} fields out of {len(query_result.fields)} available: {limited_fields}"
                         )
                         return pd.DataFrame(query_result.data, columns=limited_fields)
-                    except Exception as df_e:
-                        logger.error(
-                            f"Could not manually construct DataFrame after mismatch: {df_e}"
+                    except Exception:
+                        logger.exception(
+                            "Could not manually construct DataFrame after mismatch"
                         )
                         return None
                 elif not query_result.data:
                     return pd.DataFrame()
                 else:
-                    logger.error(
-                        f"An unhandled ValueError occurred in Baostock result processing: {e}"
+                    logger.exception(
+                        "An unhandled ValueError occurred in Baostock result processing"
                     )
                     return None
 
@@ -293,12 +295,13 @@ def update_stock_list_from_akshare(db: Session):
         try:
             df = getattr(ak, func)()
             # Standardize column names
-            if code_col not in df.columns:
+            code_column = code_col
+            if code_column not in df.columns:
                 # Fallback for BJ market or other inconsistencies
                 if "代码" in df.columns:
-                    code_col = "代码"
+                    code_column = "代码"
                 elif "code" in df.columns:
-                    code_col = "code"
+                    code_column = "code"
                 else:
                     # Add more fallbacks if necessary
                     logger.warning(
@@ -307,14 +310,15 @@ def update_stock_list_from_akshare(db: Session):
                     continue
 
             df.rename(
-                columns={code_col: "代码", "名称": "name", "name": "name"}, inplace=True
+                columns={code_column: "代码", "名称": "name", "name": "name"},
+                inplace=True,
             )
 
             df["ts_code"] = df["代码"].astype(str) + suffix
             all_securities.append(df[["ts_code", "name"]])
-        except Exception as e:
-            logger.error(
-                f"Failed to fetch stock list for market {market} from Akshare: {e}"
+        except Exception:
+            logger.exception(
+                f"Failed to fetch stock list for market {market} from Akshare"
             )
 
     # 2. Fetch ETFs
@@ -339,8 +343,8 @@ def update_stock_list_from_akshare(db: Session):
         etf_df = etf_df[etf_df["ts_code"].str.contains(r"\.")]
         all_securities.append(etf_df[["ts_code", "name"]])
         logger.info(f"Successfully fetched and processed {len(etf_df)} ETFs.")
-    except Exception as e:
-        logger.error(f"Failed to fetch ETF list from Akshare: {e}")
+    except Exception:
+        logger.exception("Failed to fetch ETF list from Akshare")
 
     # 3. Combine and Save to DB
     if all_securities:
@@ -375,7 +379,7 @@ def update_stock_list_from_akshare(db: Session):
             )
 
 
-def fetch_fundamental_data_from_baostock(symbol: str) -> dict | None:
+def fetch_fundamental_data_from_baostock(_symbol: str) -> dict | None:
     with baostock_session():
         # This function can also be refactored to use the _baostock_query_with_retry wrapper
         # For now, keeping it as is to focus on the main error source.
@@ -527,11 +531,11 @@ def fetch_a_share_data_from_akshare(
         ]
         df = df.reindex(columns=final_cols, fill_value=0.0)
 
-        return df
-
     except Exception as e:
         logger.error(
             f"Failed to fetch or process data from AKShare for {stock_code}: {e}",
             exc_info=True,
         )
         return pd.DataFrame()
+    else:
+        return df

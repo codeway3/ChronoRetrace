@@ -7,6 +7,7 @@ avoiding issues with frontend node_modules directory.
 
 import logging
 from pathlib import Path
+from typing import ClassVar
 
 import uvicorn
 
@@ -15,7 +16,7 @@ class ColoredFormatter(logging.Formatter):
     """自定义彩色日志格式化器"""
 
     # ANSI颜色代码
-    COLORS = {
+    COLORS: ClassVar[dict[str, str]] = {
         "DEBUG": "\033[36m",  # 青色
         "INFO": "\033[32m",  # 绿色
         "WARNING": "\033[33m",  # 黄色

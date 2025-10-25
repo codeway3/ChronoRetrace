@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import logging
+import math
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
-from typing import Any
-
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING, Any
 
 from app.infrastructure.database.models import DataQualityLog
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class ValidationCategory(Enum):
@@ -322,7 +324,6 @@ class DataValidationService:
             )
 
         # 检查无穷大和NaN值
-        import math
 
         if math.isinf(price_float):
             return ValidationResult(
@@ -481,7 +482,7 @@ class DataValidationService:
         )
 
     def _validate_change_percent(
-        self, pct_chg: Any, market_type: str = "A_share"
+        self, pct_chg: Any, _market_type: str = "A_share"
     ) -> ValidationResult:
         """校验涨跌幅"""
         if pct_chg is None:
@@ -544,7 +545,7 @@ class DataValidationService:
         return is_valid, quality_score
 
     def get_validation_rules(
-        self, table_name: str | None = None
+        self, _table_name: str | None = None
     ) -> list[ValidationRule]:
         """获取所有验证规则"""
         rules = []
@@ -603,8 +604,8 @@ class DataValidationService:
             self.db_session.add(log_entry)
             self.db_session.commit()
 
-        except Exception as e:
-            self.logger.error(f"记录校验日志失败: {e!s}")
+        except Exception:
+            self.logger.exception("记录校验日志失败")
             self.db_session.rollback()
 
     def _format_validation_errors(self, results: list[ValidationResult]) -> str | None:
@@ -620,7 +621,7 @@ class DataValidationService:
         return "; ".join(error_messages) if error_messages else None
 
     def batch_validate_data(
-        self, data_list: list[dict[str, Any]], data_type: str = "stock_data"
+        self, data_list: list[dict[str, Any]], _data_type: str = "stock_data"
     ) -> list[ValidationReport]:
         """批量校验数据"""
         reports = []

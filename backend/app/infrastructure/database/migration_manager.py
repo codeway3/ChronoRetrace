@@ -6,9 +6,10 @@
 - 迁移状态的管理
 """
 
+import contextlib
 import importlib.util
-import os
 from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy import Boolean, DateTime, Integer, String, text
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, sessionmaker
@@ -43,7 +44,7 @@ class MigrationManager:
         self.database_url = database_url or settings.DATABASE_URL
         self.engine = create_configured_engine(self.database_url)
         self.Session = sessionmaker(bind=self.engine)
-        self.migrations_dir = os.path.join(os.path.dirname(__file__), "migrations")
+        self.migrations_dir = Path(__file__).parent / "migrations"
 
         # 确保迁移历史表存在
         self._ensure_migration_table()
@@ -55,84 +56,23 @@ class MigrationManager:
         except Exception as e:
             print(f"创建迁移历史表失败: {e}")
 
-    def get_migration_files(self) -> list[dict[str, str]]:
-        """获取所有迁移文件"""
-        migrations = []
-
-        if not os.path.exists(self.migrations_dir):
-            os.makedirs(self.migrations_dir)
-            return migrations
-
-        for filename in sorted(os.listdir(self.migrations_dir)):
-            if filename.endswith(".py") and not filename.startswith("__"):
-                # 提取版本号（假设文件名格式为：001_description.py）
-                version = filename.split("_")[0]
-                name = filename[:-3]  # 移除.py扩展名
-                filepath = os.path.join(self.migrations_dir, filename)
-
-                migrations.append(
-                    {
-                        "version": version,
-                        "name": name,
-                        "filename": filename,
-                        "filepath": filepath,
-                    }
-                )
-
-        return migrations
-
-    def get_applied_migrations(self) -> list[str]:
-        """获取已应用的迁移版本列表"""
-        session = self.Session()
-        try:
-            applied = (
-                session.query(MigrationHistory.version)
-                .filter(MigrationHistory.success)
-                .all()
-            )
-            return [version[0] for version in applied]
-        except Exception:
-            return []
-        finally:
-            session.close()
-
-    def get_pending_migrations(self) -> list[dict[str, str]]:
-        """获取待执行的迁移"""
-        all_migrations = self.get_migration_files()
-        applied_versions = set(self.get_applied_migrations())
-
-        pending = []
-        for migration in all_migrations:
-            if migration["version"] not in applied_versions:
-                pending.append(migration)
-
-        return pending
-
-    def load_migration_module(self, filepath: str):
-        """动态加载迁移模块"""
-        spec = importlib.util.spec_from_file_location("migration", filepath)
-        if spec is None:
-            raise ImportError("无法加载迁移模块: spec 为空")
-        module = importlib.util.module_from_spec(spec)
-        if spec and spec.loader:
-            spec.loader.exec_module(module)
-        else:
-            raise ImportError("无法加载迁移模块: spec 或 loader为空")
-        return module
+    # 自定义异常类型
+    class MigrationModuleError(Exception):
+        """迁移模块定义错误"""
 
     def apply_migration(self, migration: dict[str, str]) -> bool:
         """应用单个迁移"""
         session = self.Session()
 
+        # 先加载并检查模块，避免在 try 块中直接 raise
+        module = self.load_migration_module(migration["filepath"])
+        if not hasattr(module, "upgrade"):
+            raise self.MigrationModuleError(
+                f"迁移文件 {migration['filename']} 缺少 upgrade 函数"
+            )
+
         try:
             print(f"正在应用迁移: {migration['name']}")
-
-            # 加载迁移模块
-            module = self.load_migration_module(migration["filepath"])
-
-            # 检查是否有upgrade函数
-            if not hasattr(module, "upgrade"):
-                raise Exception(f"迁移文件 {migration['filename']} 缺少 upgrade 函数")
 
             # 执行迁移
             module.upgrade(self.engine)
@@ -167,9 +107,6 @@ class MigrationManager:
                     print("✅ 初始数据插入完成")
                 except Exception as e:
                     print(f"⚠️ 初始数据插入失败: {e}")
-
-            return True
-
         except Exception as e:
             session.rollback()
             error_msg = str(e)
@@ -189,7 +126,8 @@ class MigrationManager:
                 pass
 
             return False
-
+        else:
+            return True
         finally:
             session.close()
 
@@ -197,15 +135,15 @@ class MigrationManager:
         """回滚单个迁移"""
         session = self.Session()
 
+        # 先加载并检查模块，避免在 try 块中直接 raise
+        module = self.load_migration_module(migration["filepath"])
+        if not hasattr(module, "downgrade"):
+            raise self.MigrationModuleError(
+                f"迁移文件 {migration['filename']} 缺少 downgrade 函数"
+            )
+
         try:
             print(f"正在回滚迁移: {migration['name']}")
-
-            # 加载迁移模块
-            module = self.load_migration_module(migration["filepath"])
-
-            # 检查是否有downgrade函数
-            if not hasattr(module, "downgrade"):
-                raise Exception(f"迁移文件 {migration['filename']} 缺少 downgrade 函数")
 
             # 执行回滚
             module.downgrade(self.engine)
@@ -217,15 +155,126 @@ class MigrationManager:
             session.commit()
 
             print(f"✅ 迁移 {migration['name']} 回滚成功")
-            return True
-
         except Exception as e:
             session.rollback()
             print(f"❌ 迁移 {migration['name']} 回滚失败: {e}")
             return False
-
+        else:
+            return True
         finally:
             session.close()
+
+    def reset_database(self) -> bool:
+        """重置数据库（删除所有表）"""
+        try:
+            print("⚠️ 正在重置数据库...")
+
+            # 获取所有表名
+            with self.engine.connect() as conn:
+                # 禁用外键约束检查（MySQL）
+                with contextlib.suppress(Exception):
+                    conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
+
+                # 获取所有表
+                result = conn.execute(
+                    text(
+                        "SELECT table_name FROM information_schema.tables "
+                        "WHERE table_schema = DATABASE()"
+                    )
+                )
+                tables = [row[0] for row in result]
+
+                # 删除所有表
+                for table in tables:
+                    try:
+                        conn.execute(text(f"DROP TABLE IF EXISTS `{table}`"))
+                    except Exception as e:
+                        print(f"删除表 {table} 失败: {e}")
+
+                # 重新启用外键约束检查
+                with contextlib.suppress(Exception):
+                    conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
+
+                conn.commit()
+
+            print("✅ 数据库重置完成")
+
+            # 重新创建迁移历史表
+            self._ensure_migration_table()
+        except Exception as e:
+            print(f"❌ 数据库重置失败: {e}")
+            return False
+        else:
+            return True
+
+    def get_migration_files(self) -> list[dict[str, str]]:
+        """获取所有迁移文件"""
+        migrations: list[dict[str, str]] = []
+
+        if not self.migrations_dir.exists():
+            self.migrations_dir.mkdir(parents=True)
+            return migrations
+
+        for path in sorted(self.migrations_dir.iterdir()):
+            if (
+                path.is_file()
+                and path.suffix == ".py"
+                and not path.name.startswith("__")
+            ):
+                # 提取版本号（假设文件名格式为：001_description.py）
+                version = path.name.split("_")[0]
+                name = path.stem  # 移除.py扩展名
+                filepath = str(path)
+
+                migrations.append(
+                    {
+                        "version": version,
+                        "name": name,
+                        "filename": path.name,
+                        "filepath": filepath,
+                    }
+                )
+
+        return migrations
+
+    def get_applied_migrations(self) -> list[str]:
+        """获取已应用的迁移版本列表"""
+        session = self.Session()
+        try:
+            applied = (
+                session.query(MigrationHistory.version)
+                .filter(MigrationHistory.success)
+                .all()
+            )
+            return [version[0] for version in applied]
+        except Exception:
+            return []
+        finally:
+            session.close()
+
+    def get_pending_migrations(self) -> list[dict[str, str]]:
+        """获取待执行的迁移"""
+        all_migrations = self.get_migration_files()
+        applied_versions = set(self.get_applied_migrations())
+
+        pending: list[dict[str, str]] = []
+        for migration in all_migrations:
+            if migration["version"] not in applied_versions:
+                pending.append(migration)
+
+        return pending
+
+    def load_migration_module(self, filepath: str):
+        """动态加载迁移模块"""
+        spec = importlib.util.spec_from_file_location("migration", filepath)
+        if spec is None:
+            raise ImportError("无法加载迁移模块: spec 为空")
+        module = importlib.util.module_from_spec(spec)
+        if spec and spec.loader:
+            spec.loader.exec_module(module)
+        else:
+            raise ImportError("无法加载迁移模块: spec 或 loader为空")
+        return module
 
     def migrate(self, target_version: str | None = None) -> bool:
         """执行迁移到指定版本（默认为最新版本）"""
@@ -311,54 +360,6 @@ class MigrationManager:
             "current_version": applied_migrations[-1] if applied_migrations else None,
         }
 
-    def reset_database(self) -> bool:
-        """重置数据库（删除所有表）"""
-        try:
-            print("⚠️ 正在重置数据库...")
-
-            # 获取所有表名
-            with self.engine.connect() as conn:
-                # 禁用外键约束检查（MySQL）
-                try:
-                    conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
-                except Exception:
-                    pass
-
-                # 获取所有表
-                result = conn.execute(
-                    text(
-                        "SELECT table_name FROM information_schema.tables "
-                        "WHERE table_schema = DATABASE()"
-                    )
-                )
-                tables = [row[0] for row in result]
-
-                # 删除所有表
-                for table in tables:
-                    try:
-                        conn.execute(text(f"DROP TABLE IF EXISTS `{table}`"))
-                    except Exception as e:
-                        print(f"删除表 {table} 失败: {e}")
-
-                # 重新启用外键约束检查
-                try:
-                    conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
-                except Exception:
-                    pass
-
-                conn.commit()
-
-            print("✅ 数据库重置完成")
-
-            # 重新创建迁移历史表
-            self._ensure_migration_table()
-
-            return True
-
-        except Exception as e:
-            print(f"❌ 数据库重置失败: {e}")
-            return False
-
     def create_migration(self, name: str, description: str = "") -> str:
         """创建新的迁移文件模板"""
         # 获取下一个版本号
@@ -371,13 +372,13 @@ class MigrationManager:
 
         # 生成文件名
         filename = f"{next_version}_{name.lower().replace(' ', '_')}.py"
-        filepath = os.path.join(self.migrations_dir, filename)
+        filepath = self.migrations_dir / filename
 
         # 生成迁移文件模板
         template = f'''"""迁移: {name}
 
 版本: {next_version}
-创建时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+创建时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 描述: {description}
 """
 
@@ -413,14 +414,14 @@ def insert_initial_data(engine):
 '''
 
         # 确保目录存在
-        os.makedirs(self.migrations_dir, exist_ok=True)
+        self.migrations_dir.mkdir(parents=True, exist_ok=True)
 
         # 写入文件
-        with open(filepath, "w", encoding="utf-8") as f:
+        with filepath.open("w", encoding="utf-8") as f:
             f.write(template)
 
         print(f"✅ 迁移文件已创建: {filename}")
-        return filepath
+        return str(filepath)
 
 
 # 便捷函数

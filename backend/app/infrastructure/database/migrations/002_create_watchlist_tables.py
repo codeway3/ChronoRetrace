@@ -15,24 +15,28 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    inspect,
 )
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
+
+
+class MigrationPreconditionError(Exception):
+    """迁移前置条件不满足错误"""
+
 
 Base = declarative_base()
 
 
 def upgrade(engine):
     """执行数据库升级"""
-    from sqlalchemy import inspect
-
     inspector = inspect(engine)
     existing_tables = inspector.get_table_names()
 
     # 检查users表是否存在
     if "users" not in existing_tables:
         print("❌ users表不存在，无法创建关注列表表")
-        raise Exception("users表不存在，请先执行001迁移")
+        raise MigrationPreconditionError("users表不存在，请先执行001迁移")
 
     try:
         # 创建所有表

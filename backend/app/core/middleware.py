@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import ipaddress
 import time
 from collections import defaultdict, deque
@@ -11,6 +12,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 
 from app.core.config import settings
 from app.infrastructure.database.models import UserActivityLog
+from app.infrastructure.database.session import SessionLocal
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -209,9 +211,9 @@ class IPWhitelistMiddleware(BaseHTTPMiddleware):
                             return True
                 except ValueError:
                     continue
-
-            return False
         except ValueError:
+            return False
+        else:
             return False
 
 
@@ -250,15 +252,13 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         """记录请求信息"""
         # 获取用户信息（如果已认证）
         user = None
-        try:
+        with contextlib.suppress(Exception):
             # 这里需要从请求中提取用户信息
             # 由于中间件执行在依赖注入之前，需要手动处理
             pass
-        except Exception:
-            pass
 
         # 记录到数据库（异步）
-        asyncio.create_task(
+        self._log_task = asyncio.create_task(
             self._save_activity_log(
                 user_id=getattr(user, "id", None) if user else None,
                 action="api_request",
@@ -266,7 +266,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                     "method": request.method,
                     "path": request.url.path,
                     "query_params": str(request.query_params),
-                    "user_agent": request.headers.get("User-Agent", ""),
                 },
                 ip_address=self._get_client_ip(request),
                 user_agent=request.headers.get("User-Agent", ""),
@@ -279,7 +278,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         """记录响应信息"""
         # 只记录错误响应或慢请求
         if response.status_code >= 400 or process_time > 1.0:
-            asyncio.create_task(
+            self._log_task = asyncio.create_task(
                 self._save_activity_log(
                     user_id=None,
                     action="api_response",
@@ -313,7 +312,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         try:
             # 这里需要获取数据库会话
             # 由于是异步任务，需要创建新的会话
-            from app.infrastructure.database.session import SessionLocal
 
             db = SessionLocal()
             try:

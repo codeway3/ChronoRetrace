@@ -12,18 +12,22 @@ Date: 2024
 from __future__ import annotations
 
 # !/usr/bin/env python3
+import json
 import logging
+import os
 import threading
 import time
 from collections import defaultdict, deque
-from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import psutil
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -123,13 +127,18 @@ class PerformanceMonitor:
         self._lock = Lock()
 
         # 监控配置
-        self.monitoring_enabled = True
+        # 环境变量开关：ENABLE_SYSTEM_MONITORING = ["1","true","yes"] 开启，否则关闭
+        env_val = os.getenv("ENABLE_SYSTEM_MONITORING", "true").strip().lower()
+        self.monitoring_enabled = env_val in {"1", "true", "yes", "on"}
         self.collection_interval = 60  # 秒
 
         # 启动后台监控线程
         self._monitoring_thread = None
         self._stop_monitoring = threading.Event()
-        self.start_monitoring()
+        if self.monitoring_enabled:
+            self.start_monitoring()
+        else:
+            logger.info("性能监控未启动：ENABLE_SYSTEM_MONITORING=%s", env_val)
 
     def start_monitoring(self):
         """
@@ -164,8 +173,8 @@ class PerformanceMonitor:
                 # 等待下次收集
                 self._stop_monitoring.wait(self.collection_interval)
 
-            except Exception as e:
-                logger.error(f"后台监控出错: {e}")
+            except Exception:
+                logger.exception("后台监控出错")
                 self._stop_monitoring.wait(10)  # 出错后等待10秒
 
     def _collect_system_metrics(self):
@@ -219,8 +228,8 @@ class PerformanceMonitor:
                     }
                 )
 
-        except Exception as e:
-            logger.error(f"收集系统指标失败: {e}")
+        except Exception:
+            logger.exception("收集系统指标失败")
 
     def record_metric(
         self,
@@ -295,6 +304,14 @@ class PerformanceMonitor:
 
             stats = self.cache_stats[cache_name]
             stats.misses += 1
+
+            # 更新平均响应时间（未命中也计入）
+            if response_time_ms > 0:
+                total_time = (
+                    stats.avg_response_time_ms * (stats.misses - 1) + response_time_ms
+                )
+                stats.avg_response_time_ms = total_time / stats.misses
+
             stats.update_hit_rate()
 
         # 记录指标
@@ -428,6 +445,7 @@ class PerformanceMonitor:
             summary = {
                 "time_range_minutes": time_range_minutes,
                 "total_metrics": len(recent_metrics),
+                # 先占位，稍后填充类型统计
                 "metrics_by_type": {},
                 "cache_summary": self._get_cache_summary(),
                 "api_summary": self._get_api_summary(),
@@ -435,14 +453,16 @@ class PerformanceMonitor:
                 "generated_at": datetime.utcnow(),
             }
 
-            # 统计各类型指标
+            # 统计各类型指标（使用强类型字典避免 mypy 将值推断为 object）
+            metrics_by_type_summary: dict[str, dict[str, float | int]] = {}
             for metric_type, metrics in metrics_by_type.items():
-                summary["metrics_by_type"][metric_type] = {
+                metrics_by_type_summary[metric_type] = {
                     "count": len(metrics),
                     "avg_value": (
                         sum(m.value for m in metrics) / len(metrics) if metrics else 0
                     ),
                 }
+            summary["metrics_by_type"] = metrics_by_type_summary
 
             return summary
 
@@ -528,7 +548,7 @@ class PerformanceMonitor:
                 self.cache_stats.clear()
 
             if endpoint:
-                keys_to_remove = [k for k in self.api_metrics.keys() if endpoint in k]
+                keys_to_remove = [k for k in self.api_metrics if endpoint in k]
                 for key in keys_to_remove:
                     del self.api_metrics[key]
             elif endpoint is None and cache_name is None:
@@ -550,8 +570,6 @@ class PerformanceMonitor:
         summary = self.get_metrics_summary()
 
         if format_type.lower() == "json":
-            import json
-
             return json.dumps(summary, indent=2, default=str)
         elif format_type.lower() == "csv":
             # 简化的CSV导出
@@ -614,12 +632,12 @@ def monitor_cache_operation(cache_name: str):
                     performance_monitor.record_cache_hit(cache_name, response_time_ms)
                 else:
                     performance_monitor.record_cache_miss(cache_name, response_time_ms)
-
-                return result
             except Exception:
                 response_time_ms = (time.time() - start_time) * 1000
                 performance_monitor.record_cache_miss(cache_name, response_time_ms)
                 raise
+            else:
+                return result
 
         return wrapper
 

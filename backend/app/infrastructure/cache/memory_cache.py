@@ -6,6 +6,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import inspect
+import json
 import logging
 import threading
 import time
@@ -175,11 +178,12 @@ class LRUMemoryCache:
                     self._cache[key] = item
 
                 self.stats["sets"] += 1
-                return True
 
-            except Exception as e:
-                logger.error(f"Failed to set cache item {key}: {e}")
+            except Exception:
+                logger.exception(f"Failed to set cache item {key}")
                 return False
+            else:
+                return True
 
     def delete(self, key: str) -> bool:
         """删除缓存项
@@ -482,9 +486,7 @@ def memory_cache_result(ttl: int = 300):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             # 生成缓存键
-            import hashlib
-            import inspect
-            import json
+            # internal imports removed; using top-level imports
 
             func_name = func.__name__
             args_str = json.dumps([args, kwargs], default=str, sort_keys=True)

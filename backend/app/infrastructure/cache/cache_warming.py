@@ -16,16 +16,18 @@ import inspect
 # !/usr/bin/env python3
 import logging
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, text
-from sqlalchemy.orm import Session
 
 from app.infrastructure.database.models import DailyStockMetrics, StockData, StockInfo
 from app.infrastructure.database.session import SessionLocal
 
 from .cache_service import cache_service
 from .redis_manager import CacheKeyManager
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +122,7 @@ class CacheWarmingService:
             }
 
         except Exception as e:
-            logger.error(f"缓存预热失败: {e}")
+            logger.exception("缓存预热失败")
             return {
                 "status": "failed",
                 "error": str(e),
@@ -231,8 +233,8 @@ class CacheWarmingService:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"预热股票列表失败: {e}")
+        except Exception:
+            logger.exception("预热股票列表失败")
             stats["failed"] += 1
 
     async def _warm_hot_stocks_data(self, stats: dict[str, int], force: bool = False):
@@ -277,8 +279,8 @@ class CacheWarmingService:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"预热热点股票数据失败: {e}")
+        except Exception:
+            logger.exception("预热热点股票数据失败")
             stats["failed"] += 1
 
     async def _warm_market_metrics(self, stats: dict[str, int], force: bool = False):
@@ -314,8 +316,8 @@ class CacheWarmingService:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"预热市场指标失败: {e}")
+        except Exception:
+            logger.exception("预热市场指标失败")
             stats["failed"] += 1
 
     async def _warm_fundamental_data(self, stats: dict[str, int], force: bool = False):
@@ -350,8 +352,8 @@ class CacheWarmingService:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"预热基本面数据失败: {e}")
+        except Exception:
+            logger.exception("预热基本面数据失败")
             stats["failed"] += 1
 
     async def _get_hot_stocks(self, limit: int = 100) -> list[str]:
@@ -403,8 +405,8 @@ class CacheWarmingService:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"获取热点股票失败: {e}")
+        except Exception:
+            logger.exception("获取热点股票失败")
             # 返回默认热点股票
             return [
                 "000001.SZ",
@@ -464,10 +466,10 @@ class CacheWarmingService:
                     for data in stock_data
                 ]
 
+        except Exception:
+            logger.exception(f"获取股票数据失败 {ts_code}")
             return None
-
-        except Exception as e:
-            logger.error(f"获取股票数据失败 {ts_code}: {e}")
+        else:
             return None
 
     async def _fetch_market_metrics(self, db: Session, market: str) -> dict | None:
@@ -528,10 +530,10 @@ class CacheWarmingService:
                     "timestamp": datetime.now().isoformat(),
                 }
 
+        except Exception:
+            logger.exception(f"获取市场指标失败 {market}")
             return None
-
-        except Exception as e:
-            logger.error(f"获取市场指标失败 {market}: {e}")
+        else:
             return None
 
     async def _fetch_fundamental_data(self, db: Session, ts_code: str) -> dict | None:
@@ -566,10 +568,10 @@ class CacheWarmingService:
                     "timestamp": datetime.now().isoformat(),
                 }
 
+        except Exception:
+            logger.exception(f"获取基本面数据失败 {ts_code}")
             return None
-
-        except Exception as e:
-            logger.error(f"获取基本面数据失败 {ts_code}: {e}")
+        else:
             return None
 
     def _get_cache_ttl(self, interval: str) -> int:
@@ -689,7 +691,7 @@ class CacheWarmingService:
                 except Exception as e:
                     error_msg = f"Failed to update {ts_code}: {e!s}"
                     errors.append(error_msg)
-                    logger.error(error_msg)
+                    logger.exception(f"Failed to update {ts_code}")
                     continue
 
             # 更新统计信息
@@ -707,7 +709,7 @@ class CacheWarmingService:
             }
 
         except Exception as e:
-            logger.error(f"Incremental update failed: {e}")
+            logger.exception("Incremental update failed")
             return {
                 "status": "failed",
                 "updated_count": updated_count,
@@ -744,8 +746,8 @@ class CacheWarmingService:
         try:
             # CacheService 提供 clear_by_pattern 用于按模式清理缓存
             return cache_service.clear_by_pattern(pattern)
-        except Exception as e:
-            logger.error(f"失效缓存模式失败 {pattern}: {e}")
+        except Exception:
+            logger.exception(f"失效缓存模式失败 {pattern}")
             return 0
 
     async def warm_specific_stocks(
@@ -777,7 +779,7 @@ class CacheWarmingService:
                 "timestamp": datetime.now(),
             }
         except Exception as e:
-            logger.error(f"预热指定股票缓存失败: {e}")
+            logger.exception("预热指定股票缓存失败")
             return {"status": "failed", "error": str(e), "timestamp": datetime.now()}
 
     async def refresh_stock_cache(self, stock_codes: list[str]) -> dict[str, Any]:
@@ -832,7 +834,7 @@ class CacheWarmingService:
                 "total_stocks": len(hot_stocks),
             }
         except Exception as e:
-            logger.error(f"Cache warming failed: {e}")
+            logger.exception("Cache warming failed")
             return {"status": "failed", "warmed_count": 0, "error": str(e)}
 
     async def warm_stock_info(
@@ -902,10 +904,11 @@ class CacheWarmingService:
             finally:
                 db.close()
 
-            return {"status": "completed", "warmed_count": warmed_count}
         except Exception as e:
-            logger.error(f"预热股票信息失败: {e}")
+            logger.exception("预热股票信息失败")
             return {"status": "failed", "error": str(e)}
+        else:
+            return {"status": "completed", "warmed_count": warmed_count}
 
     async def warm_stock_data(
         self, stock_codes: list[str], force_refresh: bool = False
@@ -958,10 +961,11 @@ class CacheWarmingService:
             finally:
                 db.close()
 
-            return {"status": "completed", "warmed_count": warmed_count}
         except Exception as e:
-            logger.error(f"预热股票数据失败: {e}")
+            logger.exception("预热股票数据失败")
             return {"status": "failed", "error": str(e)}
+        else:
+            return {"status": "completed", "warmed_count": warmed_count}
 
     def get_warming_stats(self) -> dict[str, Any]:
         """
@@ -990,9 +994,10 @@ class CacheWarmingService:
         try:
             # 检查统计数据是否可用
             stats = self.get_warming_stats()
-            return stats is not None
         except Exception:
             return False
+        else:
+            return stats is not None
 
 
 # 全局缓存预热服务实例

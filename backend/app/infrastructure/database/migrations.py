@@ -14,13 +14,15 @@ from __future__ import annotations
 # !/usr/bin/env python3
 import logging
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
-from sqlalchemy.orm import Session
 
 from .index_optimization import DatabaseIndexOptimizer
 from .session import get_db
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +72,9 @@ class DatabaseMigration:
                 )
             )
             session.commit()
-        except Exception as e:
+        except Exception:
             session.rollback()
-            logger.error(f"创建迁移表失败: {e}")
+            logger.exception("创建迁移表失败")
             raise
 
     def _is_migration_applied(self, session: Session, version: str) -> bool:
@@ -84,9 +86,10 @@ class DatabaseMigration:
                 text("SELECT version FROM schema_migrations WHERE version = :version"),
                 {"version": version},
             ).fetchone()
-            return result is not None
         except Exception:
             return False
+        else:
+            return result is not None
 
     def _record_migration(
         self, session: Session, migration: dict, execution_time_ms: int
@@ -110,9 +113,9 @@ class DatabaseMigration:
                 },
             )
             session.commit()
-        except Exception as e:
+        except Exception:
             session.rollback()
-            logger.error(f"记录迁移失败: {e}")
+            logger.exception("记录迁移失败")
             raise
 
     def _migration_001_up(self, session: Session) -> None:
@@ -269,22 +272,21 @@ class DatabaseMigration:
                         f"迁移 {migration['version']} 执行成功，耗时 {execution_time_ms}ms"
                     )
 
-                except Exception as e:
-                    error_msg = f"迁移 {migration['version']} 执行失败: {e}"
+                except Exception:
+                    error_msg = f"迁移 {migration['version']} 执行失败"
                     migration_result["errors"].append(error_msg)
-                    logger.error(error_msg)
+                    logger.exception(error_msg)
                     raise
 
             migration_result["end_time"] = datetime.utcnow()
             migration_result["success"] = len(migration_result["errors"]) == 0
-
-            return migration_result
-
         except Exception as e:
             migration_result["errors"].append(str(e))
             migration_result["success"] = False
-            logger.error(f"迁移过程失败: {e}")
+            logger.exception("迁移过程失败")
             raise
+        else:
+            return migration_result
         finally:
             db.close()
 
@@ -337,12 +339,11 @@ class DatabaseMigration:
                             "description": migration["description"],
                         }
                     )
-
-            return status
-
         except Exception as e:
-            logger.error(f"获取迁移状态失败: {e}")
+            logger.exception("获取迁移状态失败")
             return {"error": str(e)}
+        else:
+            return status
         finally:
             db.close()
 

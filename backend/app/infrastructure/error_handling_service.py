@@ -4,7 +4,7 @@ import json
 import logging
 import traceback
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -77,9 +77,10 @@ class ErrorResponse:
     timestamp: datetime | None = None
     request_id: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Post-initialize default timestamp."""
         if self.timestamp is None:
-            self.timestamp = datetime.now()
+            self.timestamp = datetime.now(timezone.utc)
 
 
 class DataQualityError(Exception):
@@ -99,7 +100,7 @@ class DataQualityError(Exception):
         self.severity = severity
         self.category = category
         self.context = context or ErrorContext(operation="unknown")
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(timezone.utc)
 
 
 class ValidationError(DataQualityError):
@@ -313,7 +314,7 @@ class ErrorHandlingService:
                 severity=ErrorSeverity.HIGH,
                 category=ErrorCategory.DATABASE,
                 context=context,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(timezone.utc),
                 stack_trace=traceback.format_exc(),
                 suggested_action=self._get_suggested_action(error_code),
             )
@@ -326,7 +327,7 @@ class ErrorHandlingService:
                 severity=ErrorSeverity.HIGH,
                 category=ErrorCategory.SYSTEM,
                 context=context,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(timezone.utc),
                 stack_trace=traceback.format_exc(),
                 suggested_action="请联系系统管理员",
             )
@@ -467,7 +468,7 @@ class ErrorHandlingService:
             error_code="SYSTEM_ERROR",
             error_message="系统内部错误",
             user_message="系统繁忙，请稍后重试",
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
         )
 
     def create_success_response(
@@ -478,5 +479,5 @@ class ErrorHandlingService:
             "success": True,
             "message": message,
             "data": data,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }

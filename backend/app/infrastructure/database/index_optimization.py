@@ -14,15 +14,17 @@ from __future__ import annotations
 # !/usr/bin/env python3
 import logging
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
-from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
 
 from .models import DailyStockMetrics
 from .session import get_db
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
+    from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -103,11 +105,11 @@ class DatabaseIndexOptimizer:
                 )
 
             logger.info(f"查询模式分析完成，发现 {len(common_patterns)} 种常见模式")
-            return analysis_result
-
-        except Exception as e:
-            logger.error(f"查询模式分析失败: {e}")
+        except Exception:
+            logger.exception("查询模式分析失败")
             raise
+        else:
+            return analysis_result
 
     def create_optimized_indexes(self, session: Session) -> dict[str, bool]:
         """
@@ -172,8 +174,8 @@ class DatabaseIndexOptimizer:
                 else:
                     logger.warning(f"索引创建跳过: {index_config['name']} (可能已存在)")
 
-            except Exception as e:
-                logger.error(f"索引创建失败: {index_config['name']} - {e}")
+            except Exception:
+                logger.exception(f"索引创建失败: {index_config['name']}")
                 results[index_config["name"]] = False
 
         # 记录优化历史
@@ -223,13 +225,13 @@ class DatabaseIndexOptimizer:
 
             session.execute(text(sql))
             session.commit()
-            return True
-
         except SQLAlchemyError as e:
             session.rollback()
             if "already exists" in str(e).lower():
                 return False
             raise
+        else:
+            return True
 
     def _index_exists(self, session: Session, index_name: str) -> bool:
         """
@@ -250,9 +252,10 @@ class DatabaseIndexOptimizer:
                 ),
                 {"name": index_name},
             ).fetchone()
-            return result is not None
         except Exception:
             return False
+        else:
+            return result is not None
 
     def analyze_index_usage(self, session: Session) -> dict[str, Any]:
         """
@@ -312,11 +315,11 @@ class DatabaseIndexOptimizer:
                 except Exception as e:
                     logger.warning(f"无法分析表 {table}: {e}")
 
-            return analysis
-
-        except Exception as e:
-            logger.error(f"索引使用分析失败: {e}")
+        except Exception:
+            logger.exception("索引使用分析失败")
             raise
+        else:
+            return analysis
 
     def optimize_database(self, session: Session) -> dict[str, Any]:
         """
@@ -333,31 +336,27 @@ class DatabaseIndexOptimizer:
         }
 
         try:
-            # 步骤1: 分析查询模式
             logger.info("开始查询模式分析...")
             query_analysis = self.analyze_query_patterns(session)
             optimization_report["steps_completed"].append("query_pattern_analysis")
             optimization_report["query_analysis"] = query_analysis
 
-            # 步骤2: 创建优化索引
             logger.info("开始创建优化索引...")
             index_results = self.create_optimized_indexes(session)
             optimization_report["steps_completed"].append("index_creation")
             optimization_report["index_results"] = index_results
 
-            # 步骤3: 分析索引使用情况
             logger.info("开始索引使用分析...")
             usage_analysis = self.analyze_index_usage(session)
             optimization_report["steps_completed"].append("index_usage_analysis")
             optimization_report["usage_analysis"] = usage_analysis
 
-            # 步骤4: 执行VACUUM优化
             logger.info("执行数据库VACUUM优化...")
             session.execute(text("VACUUM"))
             session.commit()
             optimization_report["steps_completed"].append("vacuum_optimization")
 
-            # 步骤5: 更新统计信息
+            # 更新统计信息  # noqa: ERA001
             logger.info("更新数据库统计信息...")
             session.execute(text("ANALYZE"))
             session.commit()
@@ -374,7 +373,7 @@ class DatabaseIndexOptimizer:
 
         except Exception as e:
             optimization_report["errors"].append(str(e))
-            logger.error(f"数据库优化过程中出现错误: {e}")
+            logger.exception("数据库优化过程中出现错误")
             raise
 
         return optimization_report
@@ -416,11 +415,11 @@ class DatabaseIndexOptimizer:
             if index_count < 5:
                 recommendations.append("当前索引数量较少，建议创建更多针对性索引")
 
-            return recommendations
-
-        except Exception as e:
-            logger.error(f"获取优化建议失败: {e}")
+        except Exception:
+            logger.exception("获取优化建议失败")
             return ["无法分析当前数据库状态，请检查数据库连接"]
+        else:
+            return recommendations
 
 
 # 全局优化器实例

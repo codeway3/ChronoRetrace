@@ -58,9 +58,9 @@ def store_stock_data(db: Session, ts_code: str, interval: str, df: pd.DataFrame)
                 f"Data quality summary for {ts_code}: {quality_result.deduplication_report.summary if quality_result.deduplication_report else 'No deduplication performed'}"
             )
 
-    except Exception as e:
-        logger.error(
-            f"Data quality check failed for {ts_code}: {e}. Proceeding with original data."
+    except Exception:
+        logger.exception(
+            f"Data quality check failed for {ts_code}. Proceeding with original data"
         )
         processed_df = df
 
@@ -152,9 +152,9 @@ def store_corporate_actions(db: Session, symbol: str, actions_data: list[dict]):
             # Data quality manager only returns quality reports, not processed data
             processed_actions = actions_data
 
-    except Exception as e:
-        logger.error(
-            f"Data quality check failed for corporate actions {symbol}: {e}. Proceeding with original data."
+    except Exception:
+        logger.exception(
+            f"Data quality check failed for corporate actions {symbol}. Proceeding with original data"
         )
         processed_actions = actions_data
 
@@ -233,9 +233,9 @@ def store_fundamental_data(db: Session, symbol: str, data: dict):
             # Data quality manager only returns quality reports, not processed data
             processed_data = data
 
-    except Exception as e:
-        logger.error(
-            f"Data quality check failed for fundamental data {symbol}: {e}. Proceeding with original data."
+    except Exception:
+        logger.exception(
+            f"Data quality check failed for fundamental data {symbol}. Proceeding with original data"
         )
         processed_data = data
 
@@ -263,13 +263,14 @@ def store_fundamental_data(db: Session, symbol: str, data: dict):
         result: Any = db.execute(stmt)
         db.commit()
         logger.info(f"Successfully upserted fundamental data for {symbol}.")
-        return result.rowcount
-    except Exception as e:
-        logger.error(
-            f"Database error while upserting fundamental data for {symbol}: {e}"
+    except Exception:
+        logger.exception(
+            f"Database error while upserting fundamental data for {symbol}"
         )
         db.rollback()
         raise
+    else:
+        return result.rowcount
 
 
 def store_annual_earnings(db: Session, symbol: str, annual_earnings_data: list[dict]):
@@ -310,9 +311,9 @@ def store_annual_earnings(db: Session, symbol: str, annual_earnings_data: list[d
             # Data quality manager 仅返回质量报告，不会产出处理后的数据
             processed_earnings = annual_earnings_data
 
-    except Exception as e:
-        logger.error(
-            f"Data quality check failed for annual earnings {symbol}: {e}. Proceeding with original data."
+    except Exception:
+        logger.exception(
+            f"Data quality check failed for annual earnings {symbol}. Proceeding with original data"
         )
         processed_earnings = annual_earnings_data
 

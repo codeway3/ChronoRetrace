@@ -4,9 +4,10 @@ import logging
 from datetime import datetime
 
 # 新增：为静态类型检查引入 cast
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
+import requests
 
 # 新增：用于 Wikipedia 回退抓取
 import yahoo_fin.stock_info as si
@@ -15,9 +16,12 @@ import yfinance as yf
 # 新增：按方言引入 PostgreSQL insert（最小范围引入，不影响 SQLite）
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.infrastructure.database import models
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -172,21 +176,22 @@ def fetch_from_yfinance(
 def _fetch_sp500_from_alphavantage() -> list[str]:
     """使用 Alpha Vantage API 获取 S&P 500 成分股列表"""
     try:
-        from app.core.config import settings
 
         if (
-            not settings.ALPHAVANTAGE_API_KEY
-            or settings.ALPHAVANTAGE_API_KEY == "YOUR_KEY_HERE"
+            not settings.ALPHAVANTAGE_API_KEY  # pragma: allowlist secret
+            or settings.ALPHAVANTAGE_API_KEY
+            == "YOUR_KEY_HERE"  # pragma: allowlist secret
         ):
             logger.warning(
                 "Alpha Vantage API key not configured, falling back to yfinance"
             )
             return []
 
-        import requests
-
         url = "https://www.alphavantage.co/query"
-        params = {"function": "LISTING_STATUS", "apikey": settings.ALPHAVANTAGE_API_KEY}
+        params = {
+            "function": "LISTING_STATUS",
+            "apikey": settings.ALPHAVANTAGE_API_KEY,  # pragma: allowlist secret
+        }
 
         resp = requests.get(url, params=params, timeout=15)
         resp.raise_for_status()
@@ -252,11 +257,8 @@ def _fetch_us_stocks_from_yfinance() -> list[str]:
         # 获取主要交易所的股票
         symbols = set()
 
-        # 方法1: 尝试获取主要指数成分股（yfinance 不支持此功能）
-        # yfinance 库设计用于获取单个股票数据，不提供指数成分股列表
-        # 此功能会失败，直接进入方法2
+        # yfinance 不提供指数成分股列表，直接使用主要股票列表作为备用方案
 
-        # 方法2: 使用更全面的主要股票列表
         logger.info("Using comprehensive US stock list as yfinance fallback")
 
         # 扩展的主要美股代码列表（约100个主要股票）
@@ -425,10 +427,11 @@ def update_us_stock_list(db: Session):
             logger.info(f"Fetching {name} tickers...")
             tickers = fetcher()
             logger.info(f"Fetched {len(tickers)} {name} tickers.")
-            return tickers or []
         except Exception as e:
             logger.error(f"Error fetching {name} tickers: {e}", exc_info=True)
             return []
+        else:
+            return tickers or []
 
     # IMPORTANT: For S&P 500, if it raises exception, STOP immediately (match tests)
     try:
@@ -571,10 +574,11 @@ def fetch_us_fundamental_data_from_yfinance(symbol: str) -> dict | None:
             "debt_to_asset_ratio": info.get("debtToEquity"),
             "current_ratio": info.get("currentRatio"),
         }
-        return data
-    except Exception as e:
-        logger.error(f"yfinance: Failed to fetch fundamental data for {symbol}: {e}")
+    except Exception:
+        logger.exception(f"yfinance: Failed to fetch fundamental data for {symbol}")
         return None
+    else:
+        return data
 
 
 def fetch_us_corporate_actions_from_yfinance(symbol: str) -> list[dict]:
@@ -599,10 +603,11 @@ def fetch_us_corporate_actions_from_yfinance(symbol: str) -> list[dict]:
                 actions_list.append(
                     {"action_type": "split", "ex_date": ex_dt, "value": value}
                 )
-        return actions_list
-    except Exception as e:
-        logger.error(f"yfinance: Failed to fetch corporate actions for {symbol}: {e}")
+    except Exception:
+        logger.exception(f"yfinance: Failed to fetch corporate actions for {symbol}")
         return []
+    else:
+        return actions_list
 
 
 def fetch_us_annual_earnings_from_yfinance(symbol: str) -> list[dict]:
@@ -617,10 +622,11 @@ def fetch_us_annual_earnings_from_yfinance(symbol: str) -> list[dict]:
                 if not pd.isna(value).any():
                     year_val = pd.Timestamp(cast("Any", idx)).year
                     earnings_list.append({"year": year_val, "net_profit": value})
-        return earnings_list
-    except Exception as e:
-        logger.error(f"yfinance: Failed to fetch annual earnings for {symbol}: {e}")
+    except Exception:
+        logger.exception(f"yfinance: Failed to fetch annual earnings for {symbol}")
         return []
+    else:
+        return earnings_list
 
 
 def update_stock_names_from_yfinance(db: Session):

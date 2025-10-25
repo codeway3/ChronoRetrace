@@ -9,16 +9,16 @@ from .memory_cache import LRUMemoryCache, MultiLevelCache, memory_cache
 from .redis_manager import CacheKeyManager, RedisCacheManager, redis_cache_manager
 
 __all__ = [
-    # Redis缓存
-    "RedisCacheManager",
     "CacheKeyManager",
-    "redis_cache_manager",
+    # 统一缓存服务
+    "CacheService",
     # 内存缓存
     "LRUMemoryCache",
     "MultiLevelCache",
-    "memory_cache",
-    # 统一缓存服务
-    "CacheService",
+    # Redis缓存
+    "RedisCacheManager",
     "cache_service",
+    "memory_cache",
+    "redis_cache_manager",
     "smart_cache",
 ]

@@ -217,10 +217,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
         # 检查缓存控制头
         cache_control = response.headers.get("cache-control", "")
-        if "no-cache" in cache_control or "no-store" in cache_control:
-            return False
-
-        return True
+        return not ("no-cache" in cache_control or "no-store" in cache_control)
 
     async def _cache_response(
         self,
@@ -263,8 +260,8 @@ class CacheMiddleware(BaseHTTPMiddleware):
             else:
                 logger.warning(f"Failed to cache response for key: {cache_key}")
 
-        except Exception as e:
-            logger.error(f"Error caching response: {e}")
+        except Exception:
+            logger.exception("Error caching response")
 
 
 class CacheInvalidationMiddleware(BaseHTTPMiddleware):
@@ -345,13 +342,9 @@ class CacheInvalidationMiddleware(BaseHTTPMiddleware):
         path = request.url.path.lower()
         method_keywords = self.rules[request.method]
 
-        for keyword in method_keywords:
-            if keyword in path:
-                return True
+        return any(keyword in path for keyword in method_keywords)
 
-        return False
-
-    async def _invalidate_cache(self, request: Request, response: Response):
+    async def _invalidate_cache(self, request: Request, _response: Response):
         """失效相关缓存
 
         Args:
@@ -377,8 +370,8 @@ class CacheInvalidationMiddleware(BaseHTTPMiddleware):
                     logger.debug(
                         f"Invalidated {count} cache entries for pattern: {pattern}"
                     )
-                except Exception as e:
-                    logger.error(f"Error invalidating cache pattern {pattern}: {e}")
+                except Exception:
+                    logger.exception(f"Error invalidating cache pattern {pattern}")
 
             # 失效HTTP缓存
             http_cache_pattern = "http_cache:*"
@@ -388,16 +381,16 @@ class CacheInvalidationMiddleware(BaseHTTPMiddleware):
                 )
                 total_invalidated += http_count
                 logger.debug(f"Invalidated {http_count} HTTP cache entries")
-            except Exception as e:
-                logger.error(f"Error invalidating HTTP cache: {e}")
+            except Exception:
+                logger.exception("Error invalidating HTTP cache")
 
             if total_invalidated > 0:
                 logger.info(
                     f"Cache invalidation completed for {path}: {total_invalidated} entries"
                 )
 
-        except Exception as e:
-            logger.error(f"Error in cache invalidation: {e}")
+        except Exception:
+            logger.exception("Error in cache invalidation")
 
 
 def create_cache_middleware(cache_config: dict[str, Any] | None = None):

@@ -35,8 +35,8 @@ def test_websocket_multiple_connections(client):
                 websocket.send_text(json.dumps(message))
                 logger.info(f"向连接 {i} 发送消息成功")
                 return True
-        except Exception as e:
-            logger.error(f"客户端 stress_client_{i} 连接失败: {e}")
+        except Exception:
+            logger.exception(f"客户端 stress_client_{i} 连接失败")
             return False
 
     with ThreadPoolExecutor(max_workers=connection_count) as executor:
@@ -79,7 +79,7 @@ def test_websocket_message_burst(client):
                 logger.info(f"总共收到 {responses} 个响应")
 
     except Exception as e:
-        logger.error(f"消息突发测试失败: {e}")
+        logger.exception("消息突发测试失败")
         pytest.fail(f"消息突发测试失败: {e}")
 
 
@@ -200,5 +200,5 @@ def test_websocket_long_running_connection(client):
             logger.info(f"长连接测试完成，持续时间: {duration}秒")
 
     except Exception as e:
-        logger.error(f"长连接测试失败: {e}")
+        logger.exception("长连接测试失败")
         pytest.fail(f"长连接测试失败: {e}")

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import secrets
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
@@ -123,7 +125,10 @@ async def initialize_admin_account(request: Request, db: Session = Depends(get_d
         # 创建默认管理员用户
         admin_username = "admin"
         admin_email = "admin@chronoretrace.com"
-        admin_password = "ChronoAdmin2024!"  # 生产环境中应该使用更安全的密码
+        # 通过环境变量提供初始管理员密码，否则生成一个安全随机密码
+        admin_password = os.getenv("ADMIN_INITIAL_PASSWORD") or secrets.token_urlsafe(
+            16
+        )
 
         # 检查管理员用户是否已存在
         existing_admin_criterion = cast(

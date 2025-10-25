@@ -61,8 +61,8 @@ def calculate_technical_metrics(df: pd.DataFrame) -> dict[str, Any] | None:
             "ma20": float(latest["ma20"]) if pd.notna(latest["ma20"]) else None,
             "volume": volume_val,
         }
-    except Exception as e:
-        logger.error(f"Error calculating technical metrics: {e}")
+    except Exception:
+        logger.exception("Error calculating technical metrics")
         return None
 
 
@@ -78,16 +78,16 @@ async def fetch_a_share_fundamentals(stock_code: str) -> dict[str, Any]:
         # 可以使用以下API：
         # - ak.stock_individual_info_em() 获取基本信息
         # - ak.stock_zh_a_spot_em() 获取实时行情（包含PE、PB等）
-
+    except Exception:
+        logger.exception(f"Failed to fetch A-share fundamentals for {stock_code}")
+        return {}
+    else:
         return {
             "pe_ratio": None,
             "pb_ratio": None,
             "market_cap": None,
             "dividend_yield": None,
         }
-    except Exception as e:
-        logger.error(f"Failed to fetch A-share fundamentals for {stock_code}: {e}")
-        return {}
 
 
 async def update_metrics_for_market(db: Session, market: str) -> int:
@@ -111,103 +111,39 @@ async def update_metrics_for_market(db: Session, market: str) -> int:
         try:
             logger.info("Using batch fetch for A-share data to avoid frequency limits")
             batch_data = await asyncio.to_thread(_fetch_spot_data_batch)
+        except Exception:
+            logger.exception("Failed to fetch batch spot data")
+            batch_data = None
 
-            if batch_data:
-                if not isinstance(batch_data, dict):
-                    raise TypeError(
-                        "Malformed batch spot data: expected dict[ts_code -> DataFrame]"
-                    )
-                logger.info(
-                    f"Successfully fetched batch data for {len(batch_data)} instruments"
-                )
+        # TRY301: 将类型检查和 raise 放到 try 块之外
+        if batch_data is not None and not isinstance(batch_data, dict):
+            raise TypeError(
+                "Malformed batch spot data: expected dict[ts_code -> DataFrame]"
+            )
 
-                for stock in stocks:
-                    try:
-                        # 检查是否应该停止处理
-                        if consecutive_failures >= max_consecutive_failures:
-                            logger.warning(
-                                f"Too many consecutive failures ({consecutive_failures}), stopping A-share update"
-                            )
-                            break
-                        if failed_count >= max_total_failures:
-                            logger.warning(
-                                f"Too many total failures ({failed_count}), stopping A-share update"
-                            )
-                            break
+        if batch_data:
+            logger.info(
+                f"Successfully fetched batch data for {len(batch_data)} instruments"
+            )
 
-                        if stock.ts_code in batch_data:
-                            stock_df = batch_data[stock.ts_code]
-                            if stock_df is None or stock_df.empty:
-                                logger.warning(f"Empty batch row for {stock.ts_code}")
-                                failed_count += 1
-                                consecutive_failures += 1
-                                # 逐标的回退
-                                fallback_df = await asyncio.to_thread(
-                                    fetch_a_share_data_from_akshare,
-                                    stock_code=stock.ts_code,
-                                    interval="daily",
-                                )
-                                if fallback_df is None or fallback_df.empty:
-                                    continue
-                                last = fallback_df.iloc[-1]
-                                metrics_data = {
-                                    "code": stock.ts_code,
-                                    "market": market,
-                                    "date": date.today(),
-                                    "close_price": (
-                                        float(last["close"])
-                                        if pd.notna(last["close"])
-                                        else None
-                                    ),
-                                    "volume": to_int_if_valid(last.get("vol")),
-                                }
-                                consecutive_failures = 0  # 重置连续失败计数
-                            else:
-                                row = stock_df.iloc[0]
-                                metrics_data = {
-                                    "code": stock.ts_code,
-                                    "market": market,
-                                    "date": date.today(),
-                                    "close_price": to_float_if_valid(row.get("close")),
-                                    "volume": to_int_if_valid(row.get("vol")),
-                                    "pe_ratio": to_float_if_valid(row.get("pe_ratio")),
-                                    "pb_ratio": to_float_if_valid(row.get("pb_ratio")),
-                                    "market_cap": to_int_if_valid(
-                                        row.get("market_cap")
-                                    ),
-                                }
-                                consecutive_failures = 0  # 重置连续失败计数
+            for stock in stocks:
+                try:
+                    # 检查是否应该停止处理
+                    if consecutive_failures >= max_consecutive_failures:
+                        logger.warning(
+                            f"Too many consecutive failures ({consecutive_failures}), stopping A-share update"
+                        )
+                        break
+                    if failed_count >= max_total_failures:
+                        logger.warning(
+                            f"Too many total failures ({failed_count}), stopping A-share update"
+                        )
+                        break
 
-                            # 更新数据库
-                            existing = (
-                                db.query(DailyStockMetrics)
-                                .filter(
-                                    DailyStockMetrics.code == stock.ts_code,
-                                    DailyStockMetrics.date == date.today(),
-                                    DailyStockMetrics.market == market,
-                                )
-                                .first()
-                            )
-
-                            if existing:
-                                for key, value in metrics_data.items():
-                                    if value is not None:
-                                        setattr(existing, key, value)
-                                logger.debug(
-                                    f"Updated existing metrics for {stock.ts_code}"
-                                )
-                            else:
-                                new_metrics = DailyStockMetrics(**metrics_data)
-                                db.add(new_metrics)
-                                logger.debug(f"Created new metrics for {stock.ts_code}")
-
-                            updated_count += 1
-                            if updated_count % 100 == 0:
-                                db.commit()
-                                logger.info(
-                                    f"Processed {updated_count}/{len(stocks)} stocks for {market}"
-                                )
-                        else:
+                    if stock.ts_code in batch_data:
+                        stock_df = batch_data[stock.ts_code]
+                        if stock_df is None or stock_df.empty:
+                            logger.warning(f"Empty batch row for {stock.ts_code}")
                             failed_count += 1
                             consecutive_failures += 1
                             # 逐标的回退
@@ -217,18 +153,6 @@ async def update_metrics_for_market(db: Session, market: str) -> int:
                                 interval="daily",
                             )
                             if fallback_df is None or fallback_df.empty:
-                                logger.warning(f"No data available for {stock.ts_code}")
-                                # 检查是否应该停止处理
-                                if consecutive_failures >= max_consecutive_failures:
-                                    logger.warning(
-                                        f"Too many consecutive failures ({consecutive_failures}), stopping A-share update"
-                                    )
-                                    break
-                                if failed_count >= max_total_failures:
-                                    logger.warning(
-                                        f"Too many total failures ({failed_count}), stopping A-share update"
-                                    )
-                                    break
                                 continue
                             last = fallback_df.iloc[-1]
                             metrics_data = {
@@ -240,61 +164,138 @@ async def update_metrics_for_market(db: Session, market: str) -> int:
                                     if pd.notna(last["close"])
                                     else None
                                 ),
-                                "volume": (
-                                    int(last["vol"]) if pd.notna(last["vol"]) else None
-                                ),
+                                "volume": to_int_if_valid(last.get("vol")),
+                            }
+                            consecutive_failures = 0  # 重置连续失败计数
+                        else:
+                            row = stock_df.iloc[0]
+                            metrics_data = {
+                                "code": stock.ts_code,
+                                "market": market,
+                                "date": date.today(),
+                                "close_price": to_float_if_valid(row.get("close")),
+                                "volume": to_int_if_valid(row.get("vol")),
+                                "pe_ratio": to_float_if_valid(row.get("pe_ratio")),
+                                "pb_ratio": to_float_if_valid(row.get("pb_ratio")),
+                                "market_cap": to_int_if_valid(row.get("market_cap")),
                             }
                             consecutive_failures = 0  # 重置连续失败计数
 
-                            existing = (
-                                db.query(DailyStockMetrics)
-                                .filter(
-                                    DailyStockMetrics.code == stock.ts_code,
-                                    DailyStockMetrics.date == date.today(),
-                                    DailyStockMetrics.market == market,
-                                )
-                                .first()
+                        # 更新数据库
+                        existing = (
+                            db.query(DailyStockMetrics)
+                            .filter(
+                                DailyStockMetrics.code == stock.ts_code,
+                                DailyStockMetrics.date == date.today(),
+                                DailyStockMetrics.market == market,
                             )
-                            if existing:
-                                for key, value in metrics_data.items():
-                                    if value is not None:
-                                        setattr(existing, key, value)
-                                logger.debug(
-                                    f"Updated existing metrics for {stock.ts_code}"
-                                )
-                            else:
-                                new_metrics = DailyStockMetrics(**metrics_data)
-                                db.add(new_metrics)
-                                logger.debug(f"Created new metrics for {stock.ts_code}")
-                            updated_count += 1
-                            if updated_count % 100 == 0:
-                                db.commit()
-                                logger.info(
-                                    f"Processed {updated_count}/{len(stocks)} stocks for {market}"
-                                )
+                            .first()
+                        )
 
-                    except Exception as e:
+                        if existing:
+                            for key, value in metrics_data.items():
+                                if value is not None:
+                                    setattr(existing, key, value)
+                            logger.debug(
+                                f"Updated existing metrics for {stock.ts_code}"
+                            )
+                        else:
+                            new_metrics = DailyStockMetrics(**metrics_data)
+                            db.add(new_metrics)
+                            logger.debug(f"Created new metrics for {stock.ts_code}")
+
+                        updated_count += 1
+                        if updated_count % 100 == 0:
+                            db.commit()
+                            logger.info(
+                                f"Processed {updated_count}/{len(stocks)} stocks for {market}"
+                            )
+
+                    else:
                         failed_count += 1
                         consecutive_failures += 1
-                        logger.error(f"Failed to update {stock.ts_code}: {e}")
-                        # 检查是否应该停止处理
-                        if consecutive_failures >= max_consecutive_failures:
-                            logger.warning(
-                                f"Too many consecutive failures ({consecutive_failures}), stopping A-share update"
-                            )
-                            break
-                        if failed_count >= max_total_failures:
-                            logger.warning(
-                                f"Too many total failures ({failed_count}), stopping A-share update"
-                            )
-                            break
-                        continue
+                        # 逐标的回退
+                        fallback_df = await asyncio.to_thread(
+                            fetch_a_share_data_from_akshare,
+                            stock_code=stock.ts_code,
+                            interval="daily",
+                        )
+                        if fallback_df is None or fallback_df.empty:
+                            logger.warning(f"No data available for {stock.ts_code}")
+                            # 检查是否应该停止处理
+                            if consecutive_failures >= max_consecutive_failures:
+                                logger.warning(
+                                    f"Too many consecutive failures ({consecutive_failures}), stopping A-share update"
+                                )
+                                break
+                            if failed_count >= max_total_failures:
+                                logger.warning(
+                                    f"Too many total failures ({failed_count}), stopping A-share update"
+                                )
+                                break
+                            continue
+                        last = fallback_df.iloc[-1]
+                        metrics_data = {
+                            "code": stock.ts_code,
+                            "market": market,
+                            "date": date.today(),
+                            "close_price": (
+                                float(last["close"])
+                                if pd.notna(last["close"])
+                                else None
+                            ),
+                            "volume": (
+                                int(last["vol"]) if pd.notna(last["vol"]) else None
+                            ),
+                        }
+                        consecutive_failures = 0  # 重置连续失败计数
 
-        except Exception as e:
-            logger.error(f"Batch fetch failed, falling back to individual fetch: {e}")
+                        existing = (
+                            db.query(DailyStockMetrics)
+                            .filter(
+                                DailyStockMetrics.code == stock.ts_code,
+                                DailyStockMetrics.date == date.today(),
+                                DailyStockMetrics.market == market,
+                            )
+                            .first()
+                        )
+                        if existing:
+                            for key, value in metrics_data.items():
+                                if value is not None:
+                                    setattr(existing, key, value)
+                            logger.debug(
+                                f"Updated existing metrics for {stock.ts_code}"
+                            )
+                        else:
+                            new_metrics = DailyStockMetrics(**metrics_data)
+                            db.add(new_metrics)
+                            logger.debug(f"Created new metrics for {stock.ts_code}")
+                        updated_count += 1
+                        if updated_count % 100 == 0:
+                            db.commit()
+                            logger.info(
+                                f"Processed {updated_count}/{len(stocks)} stocks for {market}"
+                            )
+
+                except Exception:
+                    failed_count += 1
+                    consecutive_failures += 1
+                    logger.exception(f"Failed to update {stock.ts_code}")
+                    # 检查是否应该停止处理
+                    if consecutive_failures >= max_consecutive_failures:
+                        logger.warning(
+                            f"Too many consecutive failures ({consecutive_failures}), stopping A-share update"
+                        )
+                        break
+                    if failed_count >= max_total_failures:
+                        logger.warning(
+                            f"Too many total failures ({failed_count}), stopping A-share update"
+                        )
+                        break
+                    continue
+        else:
             # 全量回退为逐个获取
             # 不重置失败计数器，保持熔断机制有效
-
             for stock in stocks:
                 try:
                     end_date = date.today()
@@ -354,10 +355,10 @@ async def update_metrics_for_market(db: Session, market: str) -> int:
                         logger.info(
                             f"Processed {updated_count}/{len(stocks)} stocks for {market}"
                         )
-                except Exception as e:
+                except Exception:
                     failed_count += 1
                     consecutive_failures += 1
-                    logger.error(f"Failed to update {stock.ts_code}: {e}")
+                    logger.exception(f"Failed to update {stock.ts_code}")
 
                     # 检查是否应该停止处理
                     if consecutive_failures >= max_consecutive_failures:
@@ -457,10 +458,10 @@ async def update_metrics_for_market(db: Session, market: str) -> int:
                         f"Processed {updated_count}/{len(stocks)} stocks for {market}"
                     )
 
-            except Exception as e:
+            except Exception:
                 failed_count += 1
                 consecutive_failures += 1
-                logger.error(f"Failed to update {stock.ts_code}: {e}")
+                logger.exception(f"Failed to update {stock.ts_code}")
 
                 # 检查是否应该停止处理
                 if consecutive_failures >= max_consecutive_failures:
@@ -512,8 +513,8 @@ if __name__ == "__main__":
         logger.info("Script execution completed")
     except KeyboardInterrupt:
         logger.info("Script interrupted by user")
-    except Exception as e:
-        logger.error(f"Script failed: {e}")
+    except Exception:
+        logger.exception("Script failed")
     finally:
         logger.info("Exiting script")
         import sys

@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime, timedelta
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pandas as pd
-from sqlalchemy.orm import Session
-from sqlalchemy.sql import Selectable
 from starlette.concurrency import run_in_threadpool
 
 from app.infrastructure.database.models import (
@@ -21,6 +19,10 @@ from app.infrastructure.database.session import get_db
 from ..fetchers.stock_fetchers import a_share_fetcher, us_stock_fetcher
 from . import database_writer as db_writer
 from .data_utils import calculate_ma
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Selectable
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +45,8 @@ def get_all_stocks_list(db: Session, market_type: str = "A_share"):
                 a_share_fetcher.update_stock_list_from_akshare(db)
             elif market_type == "US_stock":
                 us_stock_fetcher.update_us_stock_list(db)
-        except Exception as e:
-            logger.error(f"Failed to update stock list for {market_type}: {e}")
+        except Exception:
+            logger.exception(f"Failed to update stock list for {market_type}")
 
     return query.all()
 
@@ -60,10 +62,10 @@ def force_update_stock_list(db: Session, market_type: str):
         elif market_type == "US_stock":
             us_stock_fetcher.update_us_stock_list(db)
         logger.info(f"Successfully forced update for {market_type}.")
-    except Exception as e:
-        logger.error(f"Failed to force update stock list for {market_type}: {e}")
+    except Exception:
+        logger.exception(f"Failed to force update stock list for {market_type}")
         # Re-raise the exception to be caught by the API endpoint
-        raise e
+        raise
 
 
 class StockDataFetcher:
@@ -163,11 +165,8 @@ class StockDataFetcher:
             # 直接使用当前 fetcher 的会话，确保与测试环境共享同一内存数据库
             db_writer.store_stock_data(self.db, self.stock_code, self.interval, df)
             logger.info("Successfully stored data in DB.")
-        except Exception as e:
-            logger.error(
-                f"Failed to store stock data for {self.stock_code} in DB: {e}",
-                exc_info=True,
-            )
+        except Exception:
+            logger.exception(f"Failed to store stock data for {self.stock_code} in DB")
 
     def _fetch_from_api(self):
         """Fetches stock data from the appropriate external API based on market type."""
@@ -276,10 +275,10 @@ async def _sync_a_share_data(db: Session, symbol: str):
             logger.info(
                 f"Successfully synced {count} annual earnings records for {symbol}."
             )
-    except RuntimeError as e:
-        logger.error(f"Baostock session error for {symbol}: {e}")
-    except Exception as e:
-        logger.error(f"Error during A-share data sync for {symbol}: {e}", exc_info=True)
+    except RuntimeError:
+        logger.exception(f"Baostock session error for {symbol}")
+    except Exception:
+        logger.exception(f"Error during A-share data sync for {symbol}")
 
 
 async def _sync_us_stock_data(db: Session, symbol: str):
