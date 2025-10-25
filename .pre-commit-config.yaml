@@ -15,7 +15,6 @@ repos:
     rev: v0.14.2
     hooks:
       - id: ruff
-      - id: ruff-format
 
   # Built-in hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks

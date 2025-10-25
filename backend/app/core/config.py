@@ -1,19 +1,17 @@
-import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Load .env file from the backend directory
-dotenv_path = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"
-)
+# Load .env file from the backend directory using pathlib
+dotenv_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=dotenv_path)
 
 
 class Settings(BaseSettings):
     # Database Configuration
     DATABASE_URL: str = (
-        "postgresql://chronoretrace:password@localhost:5432/chronoretrace"
+        "postgresql://chronoretrace:password@localhost:5432/chronoretrace"  # pragma: allowlist secret
     )
     DATABASE_POOL_SIZE: int = 10
     DATABASE_MAX_OVERFLOW: int = 20
@@ -26,13 +24,17 @@ class Settings(BaseSettings):
     REDIS_DB: int = 0
 
     # JWT Authentication
-    JWT_SECRET_KEY: str = "your-super-secret-jwt-key-change-this-in-production"
+    JWT_SECRET_KEY: str = (
+        "your-super-secret-jwt-key-change-this-in-production"  # pragma: allowlist secret
+    )
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Security Settings
-    SECRET_KEY: str = "your-super-secret-key-change-this-in-production"
+    SECRET_KEY: str = (
+        "your-super-secret-key-change-this-in-production"  # pragma: allowlist secret
+    )
     PASSWORD_HASH_ALGORITHM: str = "bcrypt"
     PASSWORD_MIN_LENGTH: int = 8
     SESSION_EXPIRE_HOURS: int = 24
@@ -55,8 +57,8 @@ class Settings(BaseSettings):
     IP_WHITELIST_ENABLED: bool = False
 
     # Third-party API Keys
-    TUSHARE_API_TOKEN: str = ""
-    ALPHAVANTAGE_API_KEY: str = ""
+    TUSHARE_API_TOKEN: str = ""  # pragma: allowlist secret
+    ALPHAVANTAGE_API_KEY: str = ""  # pragma: allowlist secret
 
     # Application Settings
     APP_NAME: str = "ChronoRetrace"
@@ -78,7 +80,7 @@ class Settings(BaseSettings):
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USERNAME: str = ""
-    SMTP_PASSWORD: str = ""
+    SMTP_PASSWORD: str = ""  # pragma: allowlist secret
     SMTP_USE_TLS: bool = True
     FROM_EMAIL: str = "noreply@chronoretrace.com"
 

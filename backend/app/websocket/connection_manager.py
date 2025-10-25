@@ -395,9 +395,9 @@ class ConnectionManager:
 
                     # 更新最后心跳时间
                     if client_id in self.connection_metadata:
-                        self.connection_metadata[client_id]["last_heartbeat"] = (
-                            datetime.utcnow()
-                        )
+                        self.connection_metadata[client_id][
+                            "last_heartbeat"
+                        ] = datetime.utcnow()
 
                     logger.debug(f"向客户端 {client_id} 发送心跳")
 

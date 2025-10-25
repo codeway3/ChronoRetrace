@@ -199,9 +199,9 @@ class DataStreamService:
                             # 更新统计
                             if topic in self.stream_stats:
                                 self.stream_stats[topic]["messages_sent"] += 1
-                                self.stream_stats[topic]["last_update"] = (
-                                    datetime.utcnow()
-                                )
+                                self.stream_stats[topic][
+                                    "last_update"
+                                ] = datetime.utcnow()
 
                     # 等待下次更新
                     await asyncio.sleep(update_interval)
