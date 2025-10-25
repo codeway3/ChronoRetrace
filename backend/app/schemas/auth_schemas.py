@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from ..core.config import settings
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class UserBase(BaseModel):

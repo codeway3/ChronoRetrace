@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from datetime import date
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict
+
+if TYPE_CHECKING:
+    from datetime import date
 
 
 class StockDataBase(BaseModel):
@@ -46,11 +49,14 @@ class StockDataResponse(BaseModel):
 
 
 # Legacy compatibility for screener tests
+from typing import TYPE_CHECKING
+
 from pydantic import Field
 
-from app.schemas.screener import (
-    ScreenerCondition as ScreenerCondition,
-)
+if TYPE_CHECKING:
+    from app.schemas.screener import (
+        ScreenerCondition,
+    )
 
 
 class StockScreenerRequest(BaseModel):

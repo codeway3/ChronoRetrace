@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from datetime import date
 from enum import Enum
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, field_validator
+
+if TYPE_CHECKING:
+    from datetime import date
 
 # --- Enums and Basic Types ---
 
@@ -21,7 +23,7 @@ class LowerBoundStrategy(str, Enum):
 
 # A type to represent a value that can be a single float or a range for optimization
 # Example: 5.0 or [5.0, 10.0, 1.0] for start, stop, step
-RangeValue = Union[float, list[float]]
+RangeValue = float | list[float]
 
 # --- Strategy Configuration Models ---
 

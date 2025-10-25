@@ -76,6 +76,7 @@ ignore = [
 "__init__.py" = ["F401"]
 "backend/tests/*" = ["ARG", "PLR2004", "S101", "TID252", "E402", "F401"]
 "backend/app/main.py" = ["B008"]
+"backend/app/schemas/stock.py" = ["E402", "UP007"]
 "backend/scripts/setup_postgres.py" = ["E402", "TRY300", "S603"]
 "backend/scripts/monitoring_health_check.py" = ["PTH", "PTH100", "PTH123", "TRY401", "TID252", "ARG", "DTZ005", "C901", "PLC0415"]
 "backend/scripts/deploy_monitoring.py" = ["S603", "PTH", "PTH123", "TRY401", "ARG", "DTZ005", "TID252", "E722", "PLC0415", "TRY002", "TRY300"]
